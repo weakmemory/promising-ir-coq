@@ -10,26 +10,6 @@ From PromisingLib Require Import Loc.
 Set Implicit Arguments.
 
 
-Variant option_le (A: Type) (le: A -> A -> Prop): forall (lhs rhs: option A), Prop :=
-| option_le_None
-    rhs:
-  option_le le None rhs
-| option_le_Some
-    lhs rhs
-    (LE: le lhs rhs):
-  option_le le (Some lhs) (Some rhs)
-.
-#[export] Hint Constructors option_le: core.
-
-#[export] Program Instance option_le_PreOrder A (le: A -> A -> Prop) `{PreOrder A le}:
-  PreOrder (option_le le).
-Next Obligation.
-  ii. destruct x; eauto. econs. refl.
-Qed.
-Next Obligation.
-  ii. inv H0; inv H1; eauto. econs. etrans; eauto.
-Qed.
-
 Module Time := DenseOrder.
 
 Module TimeFacts := DenseOrderFacts.

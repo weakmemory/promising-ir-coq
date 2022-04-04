@@ -10,9 +10,6 @@ From PromisingLib Require Import Language.
 From PromisingLib Require Import Event.
 
 Require Import Time.
-Require Import View.
-Require Import Cell.
-Require Import Memory.
 
 Set Implicit Arguments.
 
@@ -22,8 +19,8 @@ Module Promises.
 
   Definition bot: t := fun _ => false.
 
-  Definition le (x y: t): Prop :=
-    forall loc, x loc = true -> y loc = true.
+  Definition le (lhs rhs: t): Prop :=
+    forall loc (LHS: lhs loc = true), rhs loc = true.
 
   Global Program Instance le_PreOrder: PreOrder le.
   Next Obligation.
@@ -33,6 +30,17 @@ Module Promises.
     ii. auto.
   Qed.
 
+  Lemma antisym l r
+        (LR: le l r)
+        (RL: le r l):
+    l = r.
+  Proof.
+    extensionality loc.
+    specialize (LR loc). specialize (RL loc).
+    destruct (l loc) eqn:L, (r loc) eqn:R; eauto.
+    exploit LR; eauto.
+  Qed.
+
   Lemma bot_spec prom: le bot prom.
   Proof.
     ii. ss.
@@ -40,6 +48,16 @@ Module Promises.
 
   Definition disjoint (x y: t): Prop :=
     forall loc (GET1: x loc = true) (GET2: y loc = true), False.
+
+  Global Program Instance disjoint_Symmetric: Symmetric disjoint.
+  Next Obligation.
+    ii. eauto.
+  Qed.
+
+  Lemma bot_disjoint prom: disjoint bot prom.
+  Proof.
+    ii. ss.
+  Qed.
 
   Definition finite (prom: t): Prop :=
     exists dom,
@@ -160,7 +178,7 @@ Module Promises.
         (LE1: le prom1 gprom1):
     le prom2 gprom2.
   Proof.
-    ii. revert H.
+    ii. revert LHS.
     inv PROMISE. inv PROM. inv GPROM.
     unfold LocFun.add. condtac; ss. eauto.
   Qed.
@@ -171,8 +189,38 @@ Module Promises.
         (LE1: le prom1 gprom1):
     le prom2 gprom2.
   Proof.
-    ii. revert H.
+    ii. revert LHS.
     inv FULFILL. inv PROM. inv GPROM.
     unfold LocFun.add. condtac; ss. eauto.
+  Qed.
+
+  Lemma promise_disjoint
+        prom1 gprom1 loc prom2 gprom2
+        ctx
+        (PROMISE: promise prom1 gprom1 loc prom2 gprom2)
+        (LE_CTX: le ctx gprom1)
+        (DISJOINT: disjoint prom1 ctx):
+    (<<DISJOINT: disjoint prom2 ctx>>) /\
+    (<<LE_CTX: le ctx gprom2>>).
+  Proof.
+    inv PROMISE. inv PROM. inv GPROM. splits; ii.
+    - revert GET1. unfold LocFun.add.
+      condtac; ss; subst; eauto.
+    - unfold LocFun.add. condtac; ss; eauto.
+  Qed.
+
+  Lemma fulfill_disjoint
+        prom1 gprom1 loc prom2 gprom2
+        ctx
+        (FULFILL: fulfill prom1 gprom1 loc prom2 gprom2)
+        (LE_CTX: le ctx gprom1)
+        (DISJOINT: disjoint prom1 ctx):
+    (<<DISJOINT: disjoint prom2 ctx>>) /\
+    (<<LE_CTX: le ctx gprom2>>).
+  Proof.
+    inv FULFILL. inv PROM. inv GPROM. splits; ii.
+    - revert GET1. unfold LocFun.add.
+      condtac; ss; subst; eauto.
+    - unfold LocFun.add. condtac; ss; subst; eauto.
   Qed.
 End Promises.

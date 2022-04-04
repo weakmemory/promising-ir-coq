@@ -132,15 +132,15 @@ Module Memory.
 
   Variant message_to: forall (msg:Message.t) (loc:Loc.t) (to:Time.t), Prop :=
   | message_to_intro
-      val released loc to
+      val released na loc to
       (TS: Time.le ((View.rlx (View.unwrap released)) loc) to):
-    message_to (Message.mk val released) loc to
+    message_to (Message.mk val released na) loc to
   .
   #[global] Hint Constructors message_to: core.
 
   Definition closed_timemap (times:TimeMap.t) (mem:t): Prop :=
-    forall loc, exists from val released,
-      get loc (times loc) mem = Some (from, Message.mk val released).
+    forall loc, exists from val released na,
+      get loc (times loc) mem = Some (from, Message.mk val released na).
 
   Variant closed_view (view:View.t) (mem:t): Prop :=
   | closed_view_intro
@@ -162,9 +162,9 @@ Module Memory.
 
   Variant closed_message: forall (msg:Message.t) (mem:t), Prop :=
   | closed_message_intro
-      val released mem
+      val released na mem
       (CLOSED: closed_opt_view released mem):
-    closed_message (Message.mk val released) mem
+    closed_message (Message.mk val released na) mem
   .
   #[global] Hint Constructors closed_message: core.
 
@@ -531,8 +531,8 @@ Module Memory.
   Qed.
 
   Lemma singleton_closed_timemap
-        loc from to val released mem
-        (GET: get loc to mem = Some (from, Message.mk val released))
+        loc from to val released na mem
+        (GET: get loc to mem = Some (from, Message.mk val released na))
         (INHABITED: inhabited mem):
     closed_timemap (TimeMap.singleton loc to) mem.
   Proof.
@@ -542,8 +542,8 @@ Module Memory.
   Qed.
 
   Lemma singleton_ur_closed_view
-        loc from to val released mem
-        (GET: get loc to mem = Some (from, Message.mk val released))
+        loc from to val released na mem
+        (GET: get loc to mem = Some (from, Message.mk val released na))
         (INHABITED: inhabited mem):
     closed_view (View.singleton_ur loc to) mem.
   Proof.
@@ -553,8 +553,8 @@ Module Memory.
   Qed.
 
   Lemma singleton_rw_closed_view
-        loc from to val released mem
-        (GET: get loc to mem = Some (from, Message.mk val released))
+        loc from to val released na mem
+        (GET: get loc to mem = Some (from, Message.mk val released na))
         (INHABITED: inhabited mem):
     closed_view (View.singleton_rw loc to) mem.
   Proof.
@@ -564,8 +564,8 @@ Module Memory.
   Qed.
 
   Lemma singleton_ur_if_closed_view
-        cond loc from to val released mem
-        (GET: get loc to mem = Some (from, Message.mk val released))
+        cond loc from to val released na mem
+        (GET: get loc to mem = Some (from, Message.mk val released na))
         (INHABITED: inhabited mem):
     closed_view (View.singleton_ur_if cond loc to) mem.
   Proof.
@@ -644,8 +644,8 @@ Module Memory.
   Qed.
 
   Lemma closed_timemap_add
-        loc from to val released mem tm
-        (GET: get loc to mem = Some (from, Message.mk val released))
+        loc from to val released na mem tm
+        (GET: get loc to mem = Some (from, Message.mk val released na))
         (CLOSED: closed_timemap tm mem):
     closed_timemap (TimeMap.add loc to tm) mem.
   Proof.

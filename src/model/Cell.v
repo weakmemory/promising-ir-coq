@@ -16,15 +16,15 @@ Set Implicit Arguments.
 
 
 Module Message.
-  Variant t := mk (val: Const.t) (released: option View.t).
+  Variant t := mk (val: Const.t) (released: option View.t) (na: bool).
 
-  Definition elt: t := mk Const.undef None.
+  Definition elt: t := mk Const.undef None true.
 
   Variant wf: t -> Prop :=
   | wf_intro
-      val released
+      val released na
       (RELEASED: View.opt_wf released):
-    wf (mk val released)
+    wf (mk val released na)
   .
 
   Definition elt_wf: wf elt.
@@ -32,7 +32,7 @@ Module Message.
 
   Definition is_released_none (msg: t): bool :=
     match msg with
-    | mk _ None => true
+    | mk _ None _ => true
     | _ => false
     end.
 End Message.

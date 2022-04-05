@@ -41,7 +41,7 @@ Module Promises.
     exploit LR; eauto.
   Qed.
 
-  Lemma bot_spec prom: le bot prom.
+  Lemma bot_spec prm: le bot prm.
   Proof.
     ii. ss.
   Qed.
@@ -54,14 +54,14 @@ Module Promises.
     ii. eauto.
   Qed.
 
-  Lemma bot_disjoint prom: disjoint bot prom.
+  Lemma bot_disjoint prm: disjoint bot prm.
   Proof.
     ii. ss.
   Qed.
 
-  Definition finite (prom: t): Prop :=
+  Definition finite (prm: t): Prop :=
     exists dom,
-    forall loc (GET: prom loc = true),
+    forall loc (GET: prm loc = true),
       List.In loc dom.
 
   Lemma bot_finite: finite bot.
@@ -70,63 +70,63 @@ Module Promises.
   Qed.
 
   
-  Variant add (prom1: t) (loc: Loc.t) (prom2: t): Prop :=
+  Variant add (prm1: t) (loc: Loc.t) (prm2: t): Prop :=
   | add_intro
-      (GET: prom1 loc = false)
-      (PROM2: prom2 = LocFun.add loc true prom1)
+      (GET: prm1 loc = false)
+      (PRM2: prm2 = LocFun.add loc true prm1)
   .
 
-  Variant remove (prom1: t) (loc: Loc.t) (prom2: t): Prop :=
+  Variant remove (prm1: t) (loc: Loc.t) (prm2: t): Prop :=
   | remove_intro
-      (GET: prom1 loc = true)
-      (PROM2: prom2 = LocFun.add loc false prom1)
+      (GET: prm1 loc = true)
+      (PRM2: prm2 = LocFun.add loc false prm1)
   .
 
-  Variant promise (prom1 gprom1: t) (loc: Loc.t) (prom2 gprom2: t): Prop :=
+  Variant promise (prm1 gprm1: t) (loc: Loc.t) (prm2 gprm2: t): Prop :=
   | promise_intro
-      (PROM: add prom1 loc prom2)
-      (GPROM: add gprom1 loc gprom2)
+      (ADD: add prm1 loc prm2)
+      (GADD: add gprm1 loc gprm2)
   .
 
-  Variant fulfill (prom1 gprom1: t) (loc: Loc.t) (prom2 gprom2: t): Prop :=
+  Variant fulfill (prm1 gprm1: t) (loc: Loc.t) (prm2 gprm2: t): Prop :=
   | fulfill_intro
-      (PROM: remove prom1 loc prom2)
-      (GPROM: remove gprom1 loc gprom2)
+      (REMOVE: remove prm1 loc prm2)
+      (GREMOVE: remove gprm1 loc gprm2)
   .
 
 
   Lemma add_o
-        prom2 prom1 loc l
-        (ADD: add prom1 loc prom2):
-    prom2 l = if Loc.eq_dec l loc then true else prom1 l.
+        prm2 prm1 loc l
+        (ADD: add prm1 loc prm2):
+    prm2 l = if Loc.eq_dec l loc then true else prm1 l.
   Proof.
     inv ADD. unfold LocFun.add. ss.
   Qed.
 
   Lemma add_get0
-        prom1 loc prom2
-        (ADD: add prom1 loc prom2):
-    (<<GET1: prom1 loc = false>>) /\
-    (<<GET2: prom2 loc = true>>).
+        prm1 loc prm2
+        (ADD: add prm1 loc prm2):
+    (<<GET1: prm1 loc = false>>) /\
+    (<<GET2: prm2 loc = true>>).
   Proof.
     inv ADD. split; ss.
     unfold LocFun.add. condtac; ss.
   Qed.
 
   Lemma add_get1
-        prom1 loc prom2 l
-        (ADD: add prom1 loc prom2)
-        (GET: prom1 l = true):
-    prom2 l = true.
+        prm1 loc prm2 l
+        (ADD: add prm1 loc prm2)
+        (GET: prm1 l = true):
+    prm2 l = true.
   Proof.
     inv ADD. unfold LocFun.add. condtac; ss.
   Qed.
 
   Lemma add_finite
-        prom1 loc prom2
-        (ADD: add prom1 loc prom2)
-        (FINITE: finite prom1):
-    finite prom2.
+        prm1 loc prm2
+        (ADD: add prm1 loc prm2)
+        (FINITE: finite prm1):
+    finite prm2.
   Proof.
     inv ADD. inv FINITE.
     exists (loc :: x). unfold LocFun.add. intro.
@@ -134,38 +134,38 @@ Module Promises.
   Qed.
 
   Lemma remove_o
-        prom2 prom1 loc l
-        (REMOVE: remove prom1 loc prom2):
-    prom2 l = if Loc.eq_dec l loc then false else prom1 l.
+        prm2 prm1 loc l
+        (REMOVE: remove prm1 loc prm2):
+    prm2 l = if Loc.eq_dec l loc then false else prm1 l.
   Proof.
     inv REMOVE. unfold LocFun.add. ss.
   Qed.
 
   Lemma remove_get0
-        prom1 loc prom2
-        (REMOVE: remove prom1 loc prom2):
-    (<<GET1: prom1 loc = true>>) /\
-    (<<GET2: prom2 loc = false>>).
+        prm1 loc prm2
+        (REMOVE: remove prm1 loc prm2):
+    (<<GET1: prm1 loc = true>>) /\
+    (<<GET2: prm2 loc = false>>).
   Proof.
     inv REMOVE. split; ss.
     unfold LocFun.add. condtac; ss.
   Qed.
 
   Lemma remove_get1
-        prom1 loc prom2 l
-        (REMOVE: remove prom1 loc prom2)
-        (GET: prom1 l = true):
+        prm1 loc prm2 l
+        (REMOVE: remove prm1 loc prm2)
+        (GET: prm1 l = true):
     (<<LOC: l = loc>>) \/
-    (<<GET2: prom2 l = true>>).
+    (<<GET2: prm2 l = true>>).
   Proof.
     inv REMOVE. unfold LocFun.add. condtac; auto.
   Qed.
 
   Lemma remove_finite
-        prom1 loc prom2
-        (REMOVE: remove prom1 loc prom2)
-        (FINITE: finite prom1):
-    finite prom2.
+        prm1 loc prm2
+        (REMOVE: remove prm1 loc prm2)
+        (FINITE: finite prm1):
+    finite prm2.
   Proof.
     inv REMOVE. inv FINITE.
     exists x. unfold LocFun.add. intro.
@@ -173,52 +173,52 @@ Module Promises.
   Qed.
 
   Lemma promise_le
-        prom1 gprom1 loc prom2 gprom2
-        (PROMISE: promise prom1 gprom1 loc prom2 gprom2)
-        (LE1: le prom1 gprom1):
-    le prom2 gprom2.
+        prm1 gprm1 loc prm2 gprm2
+        (PROMISE: promise prm1 gprm1 loc prm2 gprm2)
+        (LE1: le prm1 gprm1):
+    le prm2 gprm2.
   Proof.
     ii. revert LHS.
-    inv PROMISE. inv PROM. inv GPROM.
+    inv PROMISE. inv ADD. inv GADD.
     unfold LocFun.add. condtac; ss. eauto.
   Qed.
 
   Lemma fulfill_le
-        prom1 gprom1 loc prom2 gprom2
-        (FULFILL: fulfill prom1 gprom1 loc prom2 gprom2)
-        (LE1: le prom1 gprom1):
-    le prom2 gprom2.
+        prm1 gprm1 loc prm2 gprm2
+        (FULFILL: fulfill prm1 gprm1 loc prm2 gprm2)
+        (LE1: le prm1 gprm1):
+    le prm2 gprm2.
   Proof.
     ii. revert LHS.
-    inv FULFILL. inv PROM. inv GPROM.
+    inv FULFILL. inv REMOVE. inv GREMOVE.
     unfold LocFun.add. condtac; ss. eauto.
   Qed.
 
   Lemma promise_disjoint
-        prom1 gprom1 loc prom2 gprom2
+        prm1 gprm1 loc prm2 gprm2
         ctx
-        (PROMISE: promise prom1 gprom1 loc prom2 gprom2)
-        (LE_CTX: le ctx gprom1)
-        (DISJOINT: disjoint prom1 ctx):
-    (<<DISJOINT: disjoint prom2 ctx>>) /\
-    (<<LE_CTX: le ctx gprom2>>).
+        (PROMISE: promise prm1 gprm1 loc prm2 gprm2)
+        (LE_CTX: le ctx gprm1)
+        (DISJOINT: disjoint prm1 ctx):
+    (<<DISJOINT: disjoint prm2 ctx>>) /\
+    (<<LE_CTX: le ctx gprm2>>).
   Proof.
-    inv PROMISE. inv PROM. inv GPROM. splits; ii.
+    inv PROMISE. inv ADD. inv GADD. splits; ii.
     - revert GET1. unfold LocFun.add.
       condtac; ss; subst; eauto.
     - unfold LocFun.add. condtac; ss; eauto.
   Qed.
 
   Lemma fulfill_disjoint
-        prom1 gprom1 loc prom2 gprom2
+        prm1 gprm1 loc prm2 gprm2
         ctx
-        (FULFILL: fulfill prom1 gprom1 loc prom2 gprom2)
-        (LE_CTX: le ctx gprom1)
-        (DISJOINT: disjoint prom1 ctx):
-    (<<DISJOINT: disjoint prom2 ctx>>) /\
-    (<<LE_CTX: le ctx gprom2>>).
+        (FULFILL: fulfill prm1 gprm1 loc prm2 gprm2)
+        (LE_CTX: le ctx gprm1)
+        (DISJOINT: disjoint prm1 ctx):
+    (<<DISJOINT: disjoint prm2 ctx>>) /\
+    (<<LE_CTX: le ctx gprm2>>).
   Proof.
-    inv FULFILL. inv PROM. inv GPROM. splits; ii.
+    inv FULFILL. inv REMOVE. inv GREMOVE. splits; ii.
     - revert GET1. unfold LocFun.add.
       condtac; ss; subst; eauto.
     - unfold LocFun.add. condtac; ss; subst; eauto.

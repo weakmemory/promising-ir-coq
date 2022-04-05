@@ -11,6 +11,7 @@ From PromisingLib Require Import Event.
 
 Require Import Time.
 Require Import View.
+Require Import Reserves.
 Require Import Cell.
 
 Set Implicit Arguments.
@@ -168,6 +169,11 @@ Module Memory.
   .
   #[global] Hint Constructors closed_message: core.
 
+  Definition closed_reserves (rsv:Reserves.t) (mem:t): Prop :=
+    forall loc ts (GET: rsv loc = Some ts),
+    exists from val released na,
+      get loc ts mem = Some (from, Message.mk val released na).
+
 
   Definition inhabited (mem:t): Prop :=
     forall loc, get loc Time.bot mem = Some (Time.bot, Message.elt).
@@ -242,6 +248,16 @@ Module Memory.
   Proof.
     inv CLOSED; econs.
     eapply le_closed_opt_view; eauto.
+  Qed.
+
+  Lemma le_closed_reserves
+        rsv mem1 mem2
+        (LE: le mem1 mem2)
+        (CLOSED: Memory.closed_reserves rsv mem1):
+    Memory.closed_reserves rsv mem2.
+  Proof.
+    ii. exploit CLOSED; eauto. i. des.
+    exploit LE; eauto.
   Qed.
 
   Lemma init_closed: closed init.
@@ -462,6 +478,18 @@ Module Memory.
     eapply add_closed_opt_view; eauto.
   Qed.
 
+  Lemma add_closed_reserves
+        rsv
+        mem1 loc from to msg mem2
+        (ADD: add mem1 loc from to msg mem2)
+        (CLOSED: closed_reserves rsv mem1):
+    closed_reserves rsv mem2.
+  Proof.
+    ii. exploit CLOSED; eauto. i. des.
+    erewrite Memory.add_o; eauto. condtac; ss; eauto.
+    des. clarify. destruct msg. esplits; eauto.
+  Qed.
+
   Lemma add_closed
         mem1 loc from to msg mem2
         (ADD: add mem1 loc from to msg mem2)
@@ -517,6 +545,17 @@ Module Memory.
     closed_message msg mem2.
   Proof.
     inv CLOSED; econs. eapply future_closed_opt_view; eauto.
+  Qed.
+
+  Lemma future_closed_reserves
+        rsv mem1 mem2
+        (FUTURE: future mem1 mem2)
+        (CLOSED: closed_reserves rsv mem1):
+    closed_reserves rsv mem2.
+  Proof.
+    revert CLOSED. induction FUTURE; auto. i.
+    apply IHFUTURE. inv H.
+    eapply add_closed_reserves; eauto.
   Qed.
 
   Lemma future_closed
@@ -629,6 +668,43 @@ Module Memory.
     eapply max_ts_spec; eauto.
   Qed.
 
+  Lemma max_timemap_closed
+        mem
+        (INHABITED: inhabited mem):
+    closed_timemap (max_timemap mem) mem.
+  Proof.
+    ii. specialize (INHABITED loc).
+    exploit max_ts_spec; try exact INHABITED. i. des.
+    destruct msg. esplits; eauto.
+  Qed.
+
+  Definition max_reserves (mem:t): Reserves.t :=
+    fun loc => Some (max_ts loc mem).
+
+  Lemma max_reserves_spec
+        rsv mem
+        (RESERVES: closed_reserves rsv mem)
+        (INHABITED: inhabited mem):
+    Reserves.le rsv (max_reserves mem).
+  Proof.
+    ii. specialize (INHABITED loc).
+    destruct (rsv loc) eqn:GET; ss.
+    exploit RESERVES; eauto. i. des.
+    exploit max_ts_spec; try exact x0. i. des.
+    econs. ss.
+  Qed.
+
+  Lemma max_reserves_closed
+        mem
+        (INHABITED: inhabited mem):
+    closed_reserves (max_reserves mem) mem.
+  Proof.
+    ii. inv GET.
+    specialize (INHABITED loc).
+    exploit max_ts_spec; try exact INHABITED. i. des.
+    destruct msg. esplits; eauto.
+  Qed.
+
   Definition max_view (mem:t): View.t :=
     View.mk (max_timemap mem) (max_timemap mem).
 
@@ -641,17 +717,6 @@ Module Memory.
     View.le tm (max_view mem).
   Proof.
     econs; apply max_timemap_spec; try apply VIEW; auto.
-  Qed.
-
-  Lemma closed_timemap_add
-        loc from to val released na mem tm
-        (GET: get loc to mem = Some (from, Message.mk val released na))
-        (CLOSED: closed_timemap tm mem):
-    closed_timemap (TimeMap.add loc to tm) mem.
-  Proof.
-    ii. unfold TimeMap.add. condtac.
-    - subst. esplits; eauto.
-    - apply CLOSED.
   Qed.
 
 

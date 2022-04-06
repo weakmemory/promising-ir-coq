@@ -140,8 +140,8 @@ Module Memory.
   #[global] Hint Constructors message_to: core.
 
   Definition closed_timemap (times:TimeMap.t) (mem:t): Prop :=
-    forall loc, exists from val released na,
-      get loc (times loc) mem = Some (from, Message.mk val released na).
+    forall loc, exists from msg,
+      get loc (times loc) mem = Some (from, msg).
 
   Variant closed_view (view:View.t) (mem:t): Prop :=
   | closed_view_intro
@@ -171,8 +171,8 @@ Module Memory.
 
   Definition closed_reserves (rsv:Reserves.t) (mem:t): Prop :=
     forall loc ts (GET: rsv loc = Some ts),
-    exists from val released na,
-      get loc ts mem = Some (from, Message.mk val released na).
+    exists from msg,
+      get loc ts mem = Some (from, msg).
 
 
   Definition inhabited (mem:t): Prop :=
@@ -345,6 +345,16 @@ Module Memory.
     i. erewrite add_o; eauto. condtac; ss. des. ss.
   Qed.
 
+  Lemma add_inj
+        mem loc from to msg mem1 mem2
+        (ADD1: add mem loc from to msg mem1)
+        (ADD2: add mem loc from to msg mem2):
+    mem1 = mem2.
+  Proof.
+    apply ext. i.
+    setoid_rewrite add_o; eauto.
+  Qed.
+
   Lemma future_get1
         loc from to msg mem1 mem2
         (FUTURE: future mem1 mem2)
@@ -487,7 +497,6 @@ Module Memory.
   Proof.
     ii. exploit CLOSED; eauto. i. des.
     erewrite Memory.add_o; eauto. condtac; ss; eauto.
-    des. clarify. destruct msg. esplits; eauto.
   Qed.
 
   Lemma add_closed
@@ -759,15 +768,5 @@ Module Memory.
     { ii. eapply LE. eauto. }
     i. des.
     eexists. econs; eauto.
-  Qed.
-
-  Lemma add_inj
-        mem loc to from msg mem1 mem2
-        (REMOVE1: Memory.add mem loc from to msg mem1)
-        (REMOVE2: Memory.add mem loc from to msg mem2):
-    mem1 = mem2.
-  Proof.
-    apply Memory.ext. i.
-    setoid_rewrite Memory.add_o; eauto.
   Qed.
 End Memory.

@@ -749,6 +749,27 @@ Module TViewFacts.
     - eapply get_closed_tview; eauto.
   Qed.
 
+  Lemma write_released_ts
+        loc to releasedm ord tview sc
+        (WF_TVIEW: TView.wf tview)
+        (WRITABLE: TView.writable (TView.cur tview) sc loc to ord)
+        (RELEASEDM: Time.le (View.rlx (View.unwrap releasedm) loc) to):
+    Time.le
+      ((View.rlx (View.unwrap (TView.write_released tview sc loc to releasedm ord))) loc)
+      to.
+  Proof.
+    unfold TView.write_released.
+    condtac; try apply Time.bot_spec. ss.
+    apply Time.join_spec; ss.
+    unfold LocFun.add. repeat condtac; ss.
+    - apply Time.join_spec.
+      + econs. apply WRITABLE.
+      + unfold TimeMap.singleton, LocFun.add. condtac; ss. refl.
+    - apply Time.join_spec.
+      + etrans; try apply WF_TVIEW. econs. apply WRITABLE.
+      + unfold TimeMap.singleton, LocFun.add. condtac; ss. refl.
+  Qed.
+
   Lemma write_future0
         loc to releasedm ord tview sc
         (WF_TVIEW: TView.wf tview)

@@ -307,4 +307,22 @@ Module Reserves.
     - unfold LocFun.add. condtac; ss; subst; eauto.
       exploit DISJOINT; eauto. ss.
   Qed.
+
+  Lemma reserve_finite
+        rsv1 grsv1 loc ts rsv2 grsv2
+        (RESERVE: reserve rsv1 grsv1 loc ts rsv2 grsv2)
+        (FINITE: finite rsv1):
+    finite rsv2.
+  Proof.
+    inv RESERVE. eauto using add_finite.
+  Qed.
+
+  Lemma cancel_finite
+        rsv1 grsv1 loc ts rsv2 grsv2
+        (CANCEL: cancel rsv1 grsv1 loc ts rsv2 grsv2)
+        (FINITE: finite rsv1):
+    finite rsv2.
+  Proof.
+    inv CANCEL. eauto using remove_finite.
+  Qed.
 End Reserves.

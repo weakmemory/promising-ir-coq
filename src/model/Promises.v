@@ -223,4 +223,22 @@ Module Promises.
       condtac; ss; subst; eauto.
     - unfold LocFun.add. condtac; ss; subst; eauto.
   Qed.
+
+  Lemma promise_finite
+        prm1 gprm1 loc prm2 gprm2
+        (PROMISE: promise prm1 gprm1 loc prm2 gprm2)
+        (FINITE1: finite prm1):
+    finite prm2.
+  Proof.
+    inv PROMISE. eauto using add_finite.
+  Qed.
+
+  Lemma fulfill_finite
+        prm1 gprm1 loc prm2 gprm2
+        (FULFILL: fulfill prm1 gprm1 loc prm2 gprm2)
+        (FINITE1: finite prm1):
+    finite prm2.
+  Proof.
+    inv FULFILL. eauto using remove_finite.
+  Qed.
 End Promises.

@@ -217,14 +217,15 @@ Module Local.
           (val: Const.t) (releasedm released: option View.t) (ord: Ordering.t)
           (lc2: t) (gl2: Global.t): Prop :=
   | write_step_intro
-      mem2
+      prm2 gprm2 mem2
       (RELEASED: released = TView.write_released (tview lc1) (Global.sc gl1) loc to releasedm ord)
       (WRITABLE: TView.writable (TView.cur (tview lc1)) (Global.sc gl1) loc to ord)
       (NON_RESERVED: forall ts (GET: (Global.reserves gl1) loc = Some ts), Time.lt ts from)
+      (FULFILL: Promises.fulfill (promises lc1) (Global.promises gl1) loc ord prm2 gprm2)
       (WRITE: Memory.add (Global.memory gl1) loc from to
                          (Message.mk val released (Ordering.le ord Ordering.na)) mem2)
-      (LC2: lc2 = mk (TView.write_tview (tview lc1) (Global.sc gl1) loc to ord) (promises lc1) (reserves lc1))
-      (GL2: gl2 = Global.mk (Global.sc gl1) (Global.promises gl1) (Global.reserves gl1) mem2):
+      (LC2: lc2 = mk (TView.write_tview (tview lc1) (Global.sc gl1) loc to ord) prm2 (reserves lc1))
+      (GL2: gl2 = Global.mk (Global.sc gl1) gprm2 (Global.reserves gl1) mem2):
       write_step lc1 gl1 loc from to val releasedm released ord lc2 gl2
   .
   #[global] Hint Constructors write_step: core.
@@ -484,6 +485,8 @@ Module Local.
     <<REL_CLOSED: Memory.closed_opt_view released (Global.memory gl2)>>.
   Proof.
     inv LC_WF1. inv GL_WF1. inv STEP. ss.
+    hexploit Promises.fulfill_le; try exact FULFILL; eauto. i.
+    hexploit Promises.fulfill_finite; try exact FULFILL; eauto. i.
     exploit TViewFacts.write_future; eauto. s. i. des.
     exploit Memory.add_future; try apply WRITE; eauto.
     { econs. eapply TViewFacts.write_released_ts; eauto. }
@@ -576,184 +579,146 @@ Module Local.
   (* step_disjoint *)
 
   Lemma promise_step_disjoint
-        lc1 sc1 mem1 loc from to msg lc2 mem2 lc kind
-        (STEP: promise_step lc1 gl1 loc lc2 mem2 kind)
-        (WF1: wf lc1 mem1)
-        (SC1: Memory.closed_timemap sc1 mem1)
-        (CLOSED1: Memory.closed mem1)
+        lc1 gl1 loc lc2 gl2 lc
+        (STEP: promise_step lc1 gl1 loc lc2 gl2)
         (DISJOINT1: disjoint lc1 lc)
-        (WF: wf lc mem1):
+        (LC_WF: wf lc gl1):
     <<DISJOINT2: disjoint lc2 lc>> /\
-    <<WF: wf lc mem2>>.
+    <<LC_WF: wf lc gl2>>.
   Proof.
-    inv WF1. inv DISJOINT1. inversion WF. inv STEP.
-    exploit Memory.promise_future; try apply PROMISE; eauto. i. des.
-    exploit Memory.promise_disjoint; try apply PROMISE; eauto. i. des.
-    splits; ss. econs; eauto.
-    eapply TView.future_closed; eauto.
+    inv DISJOINT1. inv LC_WF. inv STEP.
+    exploit Promises.promise_disjoint; eauto. i. des.
+    esplits; eauto.
+  Qed.
+
+  Lemma reserve_step_disjoint
+        lc1 gl1 loc ts lc2 gl2 lc
+        (STEP: reserve_step lc1 gl1 loc ts lc2 gl2)
+        (DISJOINT1: disjoint lc1 lc)
+        (LC_WF: wf lc gl1):
+    <<DISJOINT2: disjoint lc2 lc>> /\
+    <<LC_WF: wf lc gl2>>.
+  Proof.
+    inv DISJOINT1. inv LC_WF. inv STEP.
+    exploit Reserves.reserve_disjoint; eauto. i. des.
+    esplits; eauto.
+  Qed.
+
+  Lemma cancel_step_disjoint
+        lc1 gl1 loc ts lc2 gl2 lc
+        (STEP: cancel_step lc1 gl1 loc ts lc2 gl2)
+        (DISJOINT1: disjoint lc1 lc)
+        (LC_WF: wf lc gl1):
+    <<DISJOINT2: disjoint lc2 lc>> /\
+    <<LC_WF: wf lc gl2>>.
+  Proof.
+    inv DISJOINT1. inv LC_WF. inv STEP.
+    exploit Reserves.cancel_disjoint; eauto. i. des.
+    esplits; eauto.
   Qed.
 
   Lemma read_step_disjoint
-        lc1 mem1 lc2 loc ts val released ord lc
-        (STEP: read_step lc1 mem1 loc ts val released ord lc2)
-        (WF1: wf lc1 mem1)
-        (DISJOINT1: disjoint lc1 lc)
-        (WF: wf lc mem1):
+        lc1 gl1 loc ts val released ord lc2 lc
+        (STEP: read_step lc1 gl1 loc ts val released ord lc2)
+        (DISJOINT1: disjoint lc1 lc):
     disjoint lc2 lc.
   Proof.
-    inv WF1. inv DISJOINT1. inv WF. inv STEP. ss.
+    inv DISJOINT1. inv STEP. ss.
   Qed.
 
   Lemma write_step_disjoint
-        lc1 sc1 mem1 lc2 sc2 loc from to val releasedm released ord mem2 kind lc
-        (STEP: write_step lc1 sc1 mem1 loc from to val releasedm released ord lc2 sc2 mem2 kind)
-        (WF1: wf lc1 mem1)
-        (SC1: Memory.closed_timemap sc1 mem1)
-        (CLOSED1: Memory.closed mem1)
+        lc1 gl1 loc from to val releasedm released ord lc2 gl2 lc
+        (STEP: write_step lc1 gl1 loc from to val releasedm released ord lc2 gl2)
         (DISJOINT1: disjoint lc1 lc)
-        (WF: wf lc mem1):
+        (LC_WF: wf lc gl1):
     <<DISJOINT2: disjoint lc2 lc>> /\
-    <<WF: wf lc mem2>>.
+    <<LC_WF: wf lc gl2>>.
   Proof.
-    inv WF1. inv DISJOINT1. inversion WF. inv STEP.
-    exploit Memory.write_disjoint; try apply WRITE; eauto. i. des.
-    splits; ss. econs; eauto.
-    inv WRITE. eapply TView.promise_closed; eauto.
-  Qed.
-
-  Lemma write_na_step_disjoint
-        lc1 sc1 mem1 loc from to val ord lc2 sc2 mem2 msgs kinds kind lc
-        (STEP: write_na_step lc1 sc1 mem1 loc from to val ord lc2 sc2 mem2 msgs kinds kind)
-        (WF1: wf lc1 mem1)
-        (SC1: Memory.closed_timemap sc1 mem1)
-        (CLOSED1: Memory.closed mem1)
-        (DISJOINT1: disjoint lc1 lc)
-        (WF: wf lc mem1):
-    <<DISJOINT2: disjoint lc2 lc>> /\
-    <<WF: wf lc mem2>>.
-  Proof.
-    exploit write_na_step_future; eauto. i. des.
-    inv WF1. inv DISJOINT1. inversion WF. inv STEP.
-    exploit Memory.write_na_disjoint; try apply WRITE; eauto. i. des.
-    splits; ss. econs; eauto.
-    eapply TView.future_closed; eauto.
+    inv DISJOINT1. inv LC_WF. inv STEP.
+    exploit Promises.fulfill_disjoint; try exact FULFILL; eauto. i. des.
+    esplits; eauto. econs; ss.
+    - eapply TView.add_closed; eauto.
+    - eapply Memory.add_closed_reserves; eauto.
   Qed.
 
   Lemma fence_step_disjoint
-        lc1 sc1 mem1 lc2 sc2 ordr ordw lc
-        (STEP: fence_step lc1 sc1 ordr ordw lc2 sc2)
-        (WF1: wf lc1 mem1)
-        (SC1: Memory.closed_timemap sc1 mem1)
+        lc1 gl1 ordr ordw lc2 gl2 lc
+        (STEP: fence_step lc1 gl1 ordr ordw lc2 gl2)
         (DISJOINT1: disjoint lc1 lc)
-        (WF: wf lc mem1):
+        (LC_WF: wf lc gl1):
     <<DISJOINT2: disjoint lc2 lc>> /\
-    <<WF: wf lc mem1>>.
+    <<LC_WF: wf lc gl2>>.
   Proof.
-    inv WF1. inv DISJOINT1. inv WF. inv STEP. splits; ss.
+    inv DISJOINT1. inv LC_WF. inv STEP. splits; ss.
   Qed.
 
   Lemma read_step_promises
-        lc1 mem loc to val released ord lc2
-        (READ: read_step lc1 mem loc to val released ord lc2):
+        lc1 gl1 loc to val released ord lc2
+        (READ: read_step lc1 gl1 loc to val released ord lc2):
     (promises lc1) = (promises lc2).
   Proof.
     inv READ. auto.
   Qed.
 
   Lemma program_step_disjoint
-        e lc1 sc1 mem1 lc2 sc2 mem2 lc
-        (STEP: program_step e lc1 sc1 mem1 lc2 sc2 mem2)
-        (WF1: wf lc1 mem1)
-        (SC1: Memory.closed_timemap sc1 mem1)
-        (CLOSED1: Memory.closed mem1)
+        e lc1 gl1 lc2 gl2 lc
+        (STEP: program_step e lc1 gl1 lc2 gl2)
         (DISJOINT1: disjoint lc1 lc)
-        (WF: wf lc mem1):
+        (LC_WF: wf lc gl1):
     <<DISJOINT2: disjoint lc2 lc>> /\
-    <<WF: wf lc mem2>>.
+    <<LC_WF: wf lc gl2>>.
   Proof.
     inv STEP; try by (esplits; eauto).
     - exploit read_step_disjoint; eauto.
     - exploit write_step_disjoint; eauto.
-    - exploit read_step_future; eauto. i. des.
-      exploit read_step_disjoint; eauto. i. des.
+    - exploit read_step_disjoint; eauto. i.
       exploit write_step_disjoint; eauto.
     - exploit fence_step_disjoint; eauto.
     - exploit fence_step_disjoint; eauto.
-    - exploit write_na_step_disjoint; eauto.
   Qed.
 
-  Lemma program_step_promises_bot
-        e lc1 sc1 mem1 lc2 sc2 mem2
-        (STEP: program_step e lc1 sc1 mem1 lc2 sc2 mem2)
-        (PROMISES: (promises lc1) = Memory.bot):
-    (promises lc2) = Memory.bot.
-  Proof.
-    inv STEP; try inv LOCAL; ss.
-    - eapply Memory.write_promises_bot; eauto.
-    - inv LOCAL1. inv LOCAL2.
-      eapply Memory.write_promises_bot; eauto.
-    - eapply Memory.write_na_promises_bot; eauto.
-  Qed.
+  (* Lemma program_step_promises_bot *)
+  (*       e lc1 gl1 lc2 gl2 *)
+  (*       (STEP: program_step e lc1 gl1 lc2 gl2) *)
+  (*       (PROMISES: (promises lc1) = Promises.bot): *)
+  (*   (promises lc2) = Promises.bot. *)
+  (* Proof. *)
+  (*   inv STEP; try inv LOCAL; ss. *)
+  (*   - inv FULFILL; ss. *)
+  (*   - inv LOCAL1. inv LOCAL2. *)
+  (*     eapply Memory.write_promises_bot; eauto. *)
+  (*   - eapply Memory.write_na_promises_bot; eauto. *)
+  (* Qed. *)
 
-  Lemma program_step_get_diff_promises
-        l
-        e lc1 sc1 mem1 lc2 sc2 mem2
-        (STEP: program_step e lc1 sc1 mem1 lc2 sc2 mem2)
-        (LOC: ~ ThreadEvent.is_accessing_loc l e):
-    forall to, Memory.get l to lc1.(promises) = Memory.get l to lc2.(promises).
-  Proof.
-    inv STEP; ss; try by inv LOCAL.
-    - i. inv LOCAL. s.
-      erewrite <- Memory.write_get_diff_promise; eauto.
-    - i. inv LOCAL1. inv LOCAL2. s.
-      erewrite <- Memory.write_get_diff_promise; eauto.
-    - i. inv LOCAL.
-      erewrite <- Memory.write_na_get_diff_promise; eauto.
-  Qed.
+  (* Lemma program_step_get_diff_promises *)
+  (*       l *)
+  (*       e lc1 sc1 mem1 lc2 sc2 mem2 *)
+  (*       (STEP: program_step e lc1 sc1 mem1 lc2 sc2 mem2) *)
+  (*       (LOC: ~ ThreadEvent.is_accessing_loc l e): *)
+  (*   forall to, Memory.get l to lc1.(promises) = Memory.get l to lc2.(promises). *)
+  (* Proof. *)
+  (*   inv STEP; ss; try by inv LOCAL. *)
+  (*   - i. inv LOCAL. s. *)
+  (*     erewrite <- Memory.write_get_diff_promise; eauto. *)
+  (*   - i. inv LOCAL1. inv LOCAL2. s. *)
+  (*     erewrite <- Memory.write_get_diff_promise; eauto. *)
+  (*   - i. inv LOCAL. *)
+  (*     erewrite <- Memory.write_na_get_diff_promise; eauto. *)
+  (* Qed. *)
 
-  Lemma program_step_get_diff
-        l
-        e lc1 sc1 mem1 lc2 sc2 mem2
-        (STEP: program_step e lc1 sc1 mem1 lc2 sc2 mem2)
-        (LOC: ~ ThreadEvent.is_accessing_loc l e):
-    forall to, Memory.get l to mem1 = Memory.get l to mem2.
-  Proof.
-    inv STEP; ss; try by inv LOCAL.
-    - i. inv LOCAL. s.
-      erewrite <- Memory.write_get_diff; eauto.
-    - i. inv LOCAL1. inv LOCAL2. s.
-      erewrite <- Memory.write_get_diff; eauto.
-    - i. inv LOCAL.
-      erewrite <- Memory.write_na_get_diff; try exact WRITE; eauto.
-  Qed.
-
-  Lemma promise_step_non_promised
-        lc1 mem1 loc from to msg lc2 mem2 kind
-        l f t m
-        (STEP: promise_step lc1 mem1 loc from to msg lc2 mem2 kind)
-        (GET: Memory.get l t mem1 = Some (f, m))
-        (GETP: Memory.get l t lc1.(Local.promises) = None):
-    (<<GET: Memory.get l t mem2 = Some (f, m)>>) /\
-    (<<GETP: Memory.get l t lc2.(Local.promises) = None>>).
-  Proof.
-    inv STEP. eauto using Memory.promise_non_promised.
-  Qed.
-
-  Lemma program_step_non_promised
-        e lc1 sc1 mem1 lc2 sc2 mem2
-        l f t m
-        (STEP: program_step e lc1 sc1 mem1 lc2 sc2 mem2)
-        (GET: Memory.get l t mem1 = Some (f, m))
-        (GETP: Memory.get l t lc1.(Local.promises) = None):
-    (<<GET: Memory.get l t mem2 = Some (f, m)>>) /\
-    (<<GETP: Memory.get l t lc2.(Local.promises) = None>>).
-  Proof.
-    inv STEP; eauto; try by (inv LOCAL; eauto).
-    - inv LOCAL.
-      eauto using Memory.write_non_promised.
-    - inv LOCAL1. inv LOCAL2.
-      eauto using Memory.write_non_promised.
-    - inv LOCAL.
-      eauto using Memory.write_na_non_promised.
-  Qed.
+  (* Lemma program_step_get_diff *)
+  (*       l *)
+  (*       e lc1 sc1 mem1 lc2 sc2 mem2 *)
+  (*       (STEP: program_step e lc1 sc1 mem1 lc2 sc2 mem2) *)
+  (*       (LOC: ~ ThreadEvent.is_accessing_loc l e): *)
+  (*   forall to, Memory.get l to mem1 = Memory.get l to mem2. *)
+  (* Proof. *)
+  (*   inv STEP; ss; try by inv LOCAL. *)
+  (*   - i. inv LOCAL. s. *)
+  (*     erewrite <- Memory.write_get_diff; eauto. *)
+  (*   - i. inv LOCAL1. inv LOCAL2. s. *)
+  (*     erewrite <- Memory.write_get_diff; eauto. *)
+  (*   - i. inv LOCAL. *)
+  (*     erewrite <- Memory.write_na_get_diff; try exact WRITE; eauto. *)
+  (* Qed. *)
 End Local.

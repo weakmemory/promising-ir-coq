@@ -88,8 +88,12 @@ Module Promises.
       (GADD: add gprm1 loc gprm2)
   .
 
-  Variant fulfill (prm1 gprm1: t) (loc: Loc.t) (prm2 gprm2: t): Prop :=
-  | fulfill_intro
+  Variant fulfill (prm1 gprm1: t) (loc: Loc.t) (ord: Ordering.t) (prm2 gprm2: t): Prop :=
+  | fulfill_refl
+      (PROMISES: prm2 = prm1)
+      (GPROMISES: gprm2 = gprm1)
+  | fulfill_remove
+      (ORD: Ordering.le ord Ordering.na)
       (REMOVE: remove prm1 loc prm2)
       (GREMOVE: remove gprm1 loc gprm2)
   .
@@ -184,13 +188,13 @@ Module Promises.
   Qed.
 
   Lemma fulfill_le
-        prm1 gprm1 loc prm2 gprm2
-        (FULFILL: fulfill prm1 gprm1 loc prm2 gprm2)
+        prm1 gprm1 loc ord prm2 gprm2
+        (FULFILL: fulfill prm1 gprm1 loc ord prm2 gprm2)
         (LE1: le prm1 gprm1):
     le prm2 gprm2.
   Proof.
     ii. revert LHS.
-    inv FULFILL. inv REMOVE. inv GREMOVE.
+    inv FULFILL; auto. inv REMOVE. inv GREMOVE.
     unfold LocFun.add. condtac; ss. eauto.
   Qed.
 
@@ -210,15 +214,15 @@ Module Promises.
   Qed.
 
   Lemma fulfill_disjoint
-        prm1 gprm1 loc prm2 gprm2
+        prm1 gprm1 loc ord prm2 gprm2
         ctx
-        (FULFILL: fulfill prm1 gprm1 loc prm2 gprm2)
+        (FULFILL: fulfill prm1 gprm1 loc ord prm2 gprm2)
         (LE_CTX: le ctx gprm1)
         (DISJOINT: disjoint prm1 ctx):
     (<<DISJOINT: disjoint prm2 ctx>>) /\
     (<<LE_CTX: le ctx gprm2>>).
   Proof.
-    inv FULFILL. inv REMOVE. inv GREMOVE. splits; ii.
+    inv FULFILL; auto. inv REMOVE. inv GREMOVE. splits; ii.
     - revert GET1. unfold LocFun.add.
       condtac; ss; subst; eauto.
     - unfold LocFun.add. condtac; ss; subst; eauto.
@@ -234,11 +238,11 @@ Module Promises.
   Qed.
 
   Lemma fulfill_finite
-        prm1 gprm1 loc prm2 gprm2
-        (FULFILL: fulfill prm1 gprm1 loc prm2 gprm2)
+        prm1 gprm1 loc ord prm2 gprm2
+        (FULFILL: fulfill prm1 gprm1 loc ord prm2 gprm2)
         (FINITE1: finite prm1):
     finite prm2.
   Proof.
-    inv FULFILL. eauto using remove_finite.
+    inv FULFILL; auto. eauto using remove_finite.
   Qed.
 End Promises.

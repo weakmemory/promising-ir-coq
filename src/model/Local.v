@@ -378,6 +378,7 @@ Module Local.
         (GL_WF1: Global.wf gl1):
     <<LC_WF2: wf lc2 gl2>> /\
     <<GL_WF2: Global.wf gl2>> /\
+    <<TVIEW_FUTURE: TView.le (tview lc1) (tview lc2)>> /\
     <<SC_FUTURE: TimeMap.le (Global.sc gl1) (Global.sc gl2)>> /\
     <<MEM_FUTURE: Memory.future (Global.memory gl1) (Global.memory gl2)>>.
   Proof.
@@ -525,6 +526,23 @@ Module Local.
     - apply TViewFacts.write_fence_sc_incr.
   Qed.
 
+  Lemma internal_step_future
+        e lc1 gl1 lc2 gl2
+        (STEP: internal_step e lc1 gl1 lc2 gl2)
+        (LC_WF1: wf lc1 gl1)
+        (GL_WF1: Global.wf gl1):
+    <<LC_WF2: wf lc2 gl2>> /\
+    <<GL_WF2: Global.wf gl2>> /\
+    <<TVIEW_FUTURE: TView.le (tview lc1) (tview lc2)>> /\
+    <<SC_FUTURE: TimeMap.le (Global.sc gl1) (Global.sc gl2)>> /\
+    <<MEM_FUTURE: Memory.future (Global.memory gl1) (Global.memory gl2)>>.
+  Proof.
+    inv STEP.
+    - eapply promise_step_future; eauto.
+    - eapply reserve_step_future; eauto.
+    - eapply cancel_step_future; eauto.
+  Qed.
+
   Lemma program_step_future
         e lc1 gl1 lc2 gl2
         (STEP: program_step e lc1 gl1 lc2 gl2)
@@ -552,6 +570,9 @@ Module Local.
     - exploit fence_step_future; eauto.
     - exploit fence_step_future; eauto.
   Qed.
+
+
+  (* step_inhabited *)
 
   Lemma internal_step_inhabited
         e lc1 gl1 lc2 gl2
@@ -658,6 +679,20 @@ Module Local.
     (promises lc1) = (promises lc2).
   Proof.
     inv READ. auto.
+  Qed.
+
+  Lemma internal_step_disjoint
+        e lc1 gl1 lc2 gl2 lc
+        (STEP: internal_step e lc1 gl1 lc2 gl2)
+        (DISJOINT1: disjoint lc1 lc)
+        (LC_WF: wf lc gl1):
+    <<DISJOINT2: disjoint lc2 lc>> /\
+    <<LC_WF: wf lc gl2>>.
+  Proof.
+    inv STEP.
+    - eapply promise_step_disjoint; eauto.
+    - eapply reserve_step_disjoint; eauto.
+    - eapply cancel_step_disjoint; eauto.
   Qed.
 
   Lemma program_step_disjoint

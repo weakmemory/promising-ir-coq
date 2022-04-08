@@ -152,14 +152,12 @@ Module Thread.
 
     (* consistency *)
 
-    Definition max_reserves (gl: Global.t): Global.t :=
-      Global.mk (Global.sc gl) (Global.promises gl)
-                (Memory.max_reserves (Global.memory gl)) (Global.memory gl).
-
     Definition consistent (e: t): Prop :=
-        <<FAILURE: steps_failure (mk (state e) (local e) (max_reserves (global e)))>> \/
+        <<FAILURE: steps_failure (mk (state e) (local e)
+                                     (Global.max_reserves (Local.reserves (local e)) (global e)))>> \/
         exists e2,
-          <<STEPS: rtc tau_step (mk (state e) (local e) (max_reserves (global e))) e2>> /\
+          <<STEPS: rtc tau_step (mk (state e) (local e)
+                                    (Global.max_reserves (Local.reserves (local e)) (global e))) e2>> /\
           <<PROMISES: (Local.promises (local e2)) = Promises.bot>>.
 
 

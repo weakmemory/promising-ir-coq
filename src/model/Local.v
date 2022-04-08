@@ -165,6 +165,15 @@ Module Local.
     econs; symmetry; apply H.
   Qed.
 
+  Lemma max_reserves_wf
+        lc gl
+        (WF: wf lc gl):
+    wf lc (Global.max_reserves (reserves lc) gl).
+  Proof.
+    inv WF. econs; eauto.
+    apply Memory.max_reserves_incl.
+  Qed.
+
 
   Variant promise_step (lc1: t) (gl1: Global.t) (loc: Loc.t) (lc2: t) (gl2: Global.t): Prop :=
   | promise_step_intro

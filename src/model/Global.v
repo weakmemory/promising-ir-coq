@@ -44,14 +44,21 @@ Module Global.
     - apply Memory.init_closed.
   Qed.
 
+  Definition max_reserves (rsv: Reserves.t) (gl: t): t :=
+    mk (sc gl)
+       (promises gl)
+       (Memory.max_reserves rsv (memory gl))
+       (memory gl).
+
   Lemma max_reserves_wf
-        gl
+        rsv gl
+        (CLOSED: Memory.closed_reserves rsv (memory gl))
         (WF: wf gl):
-    wf (mk (sc gl) (promises gl) (Memory.max_reserves (memory gl)) (memory gl)).
+    wf (max_reserves rsv gl).
   Proof.
-    destruct gl as [sc prm rsv mem]. inv WF. ss.
+    destruct gl as [sc prm grsv mem]. inv WF. ss.
     econs; eauto; ss.
-    eapply Memory.max_reserves_closed.
+    eapply Memory.max_reserves_closed; eauto.
     apply MEM_CLOSED.
   Qed.
 End Global.

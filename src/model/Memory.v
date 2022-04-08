@@ -687,31 +687,48 @@ Module Memory.
     destruct msg. esplits; eauto.
   Qed.
 
-  Definition max_reserves (mem:t): Reserves.t :=
-    fun loc => Some (max_ts loc mem).
+  Definition max_reserves (rsv: Reserves.t) (mem: t): Reserves.t :=
+    fun loc =>
+      match rsv loc with
+      | Some ts => Some ts
+      | _ => Some (max_ts loc mem)
+      end.
+
+  Lemma max_reserves_incl rsv mem:
+    Reserves.incl rsv (max_reserves rsv mem).
+  Proof.
+    ii. unfold max_reserves. rewrite LHS. ss.
+  Qed.
 
   Lemma max_reserves_spec
-        rsv mem
-        (RESERVES: closed_reserves rsv mem)
+        rsv grsv mem
+        (INCL: Reserves.incl rsv grsv)
+        (CLOSED: closed_reserves grsv mem)
         (INHABITED: inhabited mem):
-    Reserves.le rsv (max_reserves mem).
+    Reserves.le grsv (max_reserves rsv mem).
   Proof.
     ii. specialize (INHABITED loc).
-    destruct (rsv loc) eqn:GET; ss.
-    exploit RESERVES; eauto. i. des.
-    exploit max_ts_spec; try exact x0. i. des.
-    econs. ss.
+    unfold max_reserves.
+    destruct (rsv loc) eqn:GET.
+    - exploit INCL; eauto. i. rewrite x0. refl.
+    - destruct (grsv loc) eqn:GETG; ss.
+      exploit CLOSED; eauto. i. des.
+      exploit max_ts_spec; try exact x0. i. des.
+      econs. ss.
   Qed.
 
   Lemma max_reserves_closed
-        mem
+        rsv mem
+        (CLOSED: closed_reserves rsv mem)
         (INHABITED: inhabited mem):
-    closed_reserves (max_reserves mem) mem.
+    closed_reserves (max_reserves rsv mem) mem.
   Proof.
-    ii. inv GET.
-    specialize (INHABITED loc).
-    exploit max_ts_spec; try exact INHABITED. i. des.
-    destruct msg. esplits; eauto.
+    ii. revert GET. unfold max_reserves. des_ifs.
+    - i. inv GET. eauto.
+    - i. inv GET.
+      specialize (INHABITED loc).
+      exploit max_ts_spec; try exact INHABITED. i. des.
+      destruct msg. esplits; eauto.
   Qed.
 
   Definition max_view (mem:t): View.t :=
@@ -768,5 +785,17 @@ Module Memory.
     { ii. eapply LE. eauto. }
     i. des.
     eexists. econs; eauto.
+  Qed.
+
+
+  (* closed_reserves *)
+
+  Lemma incl_closed_reserves
+        rsv grsv mem
+        (INCL: Reserves.incl rsv grsv)
+        (CLOSED: closed_reserves grsv mem):
+    closed_reserves rsv mem.
+  Proof.
+    ii. eauto.
   Qed.
 End Memory.

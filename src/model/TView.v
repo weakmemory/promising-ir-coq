@@ -27,7 +27,7 @@ Module TView <: JoinableType.
 
   Definition bot: t := mk (LocFun.init View.bot) View.bot View.bot.
 
-  Inductive wf (tview:t): Prop :=
+  Variant wf (tview:t): Prop :=
   | wf_intro
       (REL: forall loc, View.wf ((rel tview) loc))
       (CUR: View.wf (cur tview))
@@ -36,7 +36,7 @@ Module TView <: JoinableType.
       (CUR_ACQ: View.le (cur tview) (acq tview))
   .
 
-  Inductive closed (tview:t) (mem:Memory.t): Prop :=
+  Variant closed (tview:t) (mem:Memory.t): Prop :=
   | closed_intro
       (REL: forall loc, Memory.closed_view ((rel tview) loc) mem)
       (CUR: Memory.closed_view (cur tview) mem)
@@ -73,7 +73,7 @@ Module TView <: JoinableType.
 
   Definition eq := @eq t.
 
-  Inductive le_ (lhs rhs:t): Prop :=
+  Variant le_ (lhs rhs:t): Prop :=
   | le_intro
       (REL: forall (loc:Loc.t), View.le (LocFun.find loc (rel lhs)) (LocFun.find loc (rel rhs)))
       (CUR: View.le (cur lhs) (cur rhs))
@@ -140,7 +140,7 @@ Module TView <: JoinableType.
   Definition racy_view (view: View.t) (loc: Loc.t) (ts: Time.t): Prop :=
     Time.lt (view.(View.pln) loc) ts.
 
-  Inductive readable
+  Variant readable
             (view1:View.t) (loc:Loc.t) (ts:Time.t) (released:option View.t) (ord:Ordering.t): Prop :=
   | readable_intro
       (PLN: Time.le ((View.pln view1) loc) ts)
@@ -162,7 +162,7 @@ Module TView <: JoinableType.
              (View.singleton_ur_if (Ordering.le Ordering.relaxed ord) loc ts))
           (if Ordering.le Ordering.relaxed ord then (View.unwrap released) else View.bot)).
 
-  Inductive writable
+  Variant writable
             (view1:View.t) (sc1:TimeMap.t) (loc:Loc.t) (ts:Time.t) (ord:Ordering.t): Prop :=
   | writable_intro
       (TS: Time.lt ((View.rlx view1) loc) ts)

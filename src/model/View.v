@@ -163,13 +163,13 @@ Module View <: JoinableType.
   }.
   Definition t := t_.
 
-  Inductive wf (view:t): Prop :=
+  Variant wf (view:t): Prop :=
   | wf_intro
       (PLN_RLX: TimeMap.le (pln view) (rlx view))
   .
   #[global] Hint Constructors wf: core.
 
-  Inductive opt_wf: forall (view:option View.t), Prop :=
+  Variant opt_wf: forall (view:option View.t), Prop :=
   | opt_wf_some
       view
       (WF: wf view):
@@ -181,7 +181,7 @@ Module View <: JoinableType.
 
   Definition eq := @eq t.
 
-  Inductive le_ (lhs rhs:t): Prop :=
+  Variant le_ (lhs rhs:t): Prop :=
   | le_intro
       (PLN: TimeMap.le (pln lhs) (pln rhs))
       (RLX: TimeMap.le (rlx lhs) (rlx rhs))
@@ -197,7 +197,7 @@ Module View <: JoinableType.
   Qed.
   #[global] Hint Resolve le_PreOrder_obligation_2: core.
 
-  Inductive opt_le: forall (lhs rhs:option t), Prop :=
+  Variant opt_le: forall (lhs rhs:option t), Prop :=
   | opt_le_none
       rhs:
       opt_le None rhs

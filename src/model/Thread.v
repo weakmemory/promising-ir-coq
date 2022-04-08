@@ -24,7 +24,7 @@ Require Import Local.
 Set Implicit Arguments.
 
 
-Inductive tau T (step: forall (e:ThreadEvent.t) (e1 e2:T), Prop) (e1 e2:T): Prop :=
+Variant tau T (step: forall (e:ThreadEvent.t) (e1 e2:T), Prop) (e1 e2:T): Prop :=
 | tau_intro
     e
     (TSTEP: step e e1 e2)
@@ -32,7 +32,7 @@ Inductive tau T (step: forall (e:ThreadEvent.t) (e1 e2:T), Prop) (e1 e2:T): Prop
 .
 #[export] Hint Constructors tau: core.
 
-Inductive union E T (step: forall (e:E) (e1 e2:T), Prop) (e1 e2:T): Prop :=
+Variant union E T (step: forall (e:E) (e1 e2:T), Prop) (e1 e2:T): Prop :=
 | union_intro
     e
     (USTEP: step e e1 e2)
@@ -83,7 +83,7 @@ Module Thread.
     #[local]
     Hint Constructors step: core.
 
-    Inductive step_allpf (e:ThreadEvent.t) (e1 e2:t): Prop :=
+    Variant step_allpf (e:ThreadEvent.t) (e1 e2:t): Prop :=
     | step_nopf_intro
         pf
         (STEP: step pf e e1 e2)
@@ -105,7 +105,7 @@ Module Thread.
     Definition all_step := union step_allpf.
     Hint Unfold all_step: core.
 
-    Inductive opt_step: forall (e:ThreadEvent.t) (e1 e2:t), Prop :=
+    Variant opt_step: forall (e:ThreadEvent.t) (e1 e2:t), Prop :=
     | step_none
         e:
         opt_step ThreadEvent.silent e e
@@ -349,14 +349,14 @@ Module Thread.
 
     (* reserve & cancel steps *)
 
-    (* Inductive reserve_step (e1 e2:t): Prop := *)
+    (* Variant reserve_step (e1 e2:t): Prop := *)
     (* | reserve_step_intro *)
     (*     pf loc from to *)
     (*     (STEP: step pf (ThreadEvent.promise loc from to Message.reserve Memory.op_kind_add) e1 e2) *)
     (* . *)
     (* Hint Constructors reserve_step: core. *)
 
-    (* Inductive cancel_step (e1 e2:t): Prop := *)
+    (* Variant cancel_step (e1 e2:t): Prop := *)
     (* | cancel_step_intro *)
     (*     pf loc from to *)
     (*     (STEP: step pf (ThreadEvent.promise loc from to Message.reserve Memory.op_kind_cancel) e1 e2) *)

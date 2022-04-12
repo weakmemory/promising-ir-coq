@@ -10,7 +10,7 @@
 ```
 - Build the project
 ```
-make build -j
+make -j
 ```
 
 

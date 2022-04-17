@@ -473,3 +473,90 @@ Module View <: JoinableType.
     - inv LE0. ss.
   Qed.
 End View.
+
+
+(* TODO: move to promising-lib *)
+
+Variant option_le (A: Type) (le: A -> A -> Prop): forall (lhs rhs: option A), Prop :=
+| option_le_None
+    rhs:
+  option_le le None rhs
+| option_le_Some
+    lhs rhs
+    (LE: le lhs rhs):
+  option_le le (Some lhs) (Some rhs)
+.
+#[export] Hint Constructors option_le: core.
+
+#[export] Program Instance option_le_PreOrder A (le: A -> A -> Prop) `{PreOrder A le}:
+  PreOrder (option_le le).
+Next Obligation.
+  ii. destruct x; eauto. econs. refl.
+Qed.
+Next Obligation.
+  ii. inv H0; inv H1; eauto. econs. etrans; eauto.
+Qed.
+
+Definition option_join (A: Type) (join: A -> A -> A) (lhs rhs: option A): option A :=
+  match lhs, rhs with
+  | None, _ => rhs
+  | _, None => lhs
+  | Some l, Some r => Some (join l r)
+  end.
+
+Lemma option_join_comm
+      A (join: A -> A -> A)
+      (COMM: forall x y, join x y = join y x):
+  forall x y, option_join join x y = option_join join y x.
+Proof.
+  i. destruct x, y; ss. f_equal. auto.
+Qed.
+
+Lemma option_join_assoc
+      A (join: A -> A -> A)
+      (ASSOC: forall x y z, join (join x y) z = join x (join y z)):
+  forall x y z,
+    option_join join (option_join join x y) z =
+    option_join join x (option_join join y z).
+Proof.
+  i. destruct x, y, z; ss. f_equal. auto.
+Qed.
+
+Lemma option_join_spec
+      A (le: A -> A -> Prop) (join: A -> A -> A)
+      (SPEC: forall x y o, le x o -> le y o -> le (join x y) o):
+  forall x y o,
+    option_le le x o -> option_le le y o ->
+    option_le le (option_join join x y) o.
+Proof.
+  i. inv H; inv H0; econs; eauto.
+Qed.
+
+
+Module OptTimeMap.
+  Definition t := Loc.t -> option Time.t.
+
+  Definition eq := @eq t.
+
+  Definition le (lhs rhs: t): Prop :=
+    forall loc, option_le Time.le (lhs loc) (rhs loc).
+
+  Lemma le_antisym l r
+        (LR: le l r)
+        (RL: le r l):
+    l = r.
+  Proof.
+    extensionality loc.
+    specialize (LR loc). specialize (RL loc).
+    inv LR; inv RL; try congr.
+    rewrite <- H0, <- H in *. clarify.
+    f_equal. apply TimeFacts.antisym; ss.
+  Qed.
+
+  Definition bot: t := fun _ => None.
+
+  Lemma bot_spec (otm: t): le bot otm.
+  Proof.
+    ii. econs.
+  Qed.
+End OptTimeMap.

@@ -11,6 +11,7 @@ From PromisingLib Require Import Event.
 
 Require Import Time.
 Require Import View.
+Require Import BoolMap.
 Require Import Promises.
 Require Import Reserves.
 Require Import Cell.
@@ -24,8 +25,8 @@ Set Implicit Arguments.
 Module ThreadEvent.
   Variant t :=
   | promise (loc: Loc.t)
-  | reserve (loc: Loc.t) (ts: Time.t)
-  | cancel (loc: Loc.t) (ts: Time.t)
+  | reserve (loc: Loc.t)
+  | cancel (loc: Loc.t)
   | silent
   | read (loc: Loc.t) (ts: Time.t) (val: Const.t) (released: option View.t) (ord: Ordering.t)
   | write (loc: Loc.t) (from to: Time.t) (val: Const.t) (released: option View.t) (ord: Ordering.t)
@@ -48,10 +49,6 @@ Module ThreadEvent.
 
   Definition get_program_event (e: t): ProgramEvent.t :=
     match e with
-    | promise _
-    | reserve _ _
-    | cancel _ _
-    | silent => ProgramEvent.silent
     | read loc _ val _ ord => ProgramEvent.read loc val ord
     | write loc _ _ val _ ord => ProgramEvent.write loc val ord
     | update loc _ _ valr valw _ _ ordr ordw => ProgramEvent.update loc valr valw ordr ordw
@@ -61,6 +58,7 @@ Module ThreadEvent.
     | racy_read loc _ val ord => ProgramEvent.read loc val ord
     | racy_write loc _ val ord => ProgramEvent.write loc val ord
     | racy_update loc _ valr valw ordr ordw => ProgramEvent.update loc valr valw ordr ordw
+    | _ => ProgramEvent.silent
     end.
 
   Definition get_machine_event (e: t): MachineEvent.t :=
@@ -129,15 +127,15 @@ End ThreadEvent.
 Module Local.
   Structure t := mk {
     tview: TView.t;
-    promises: Promises.t;
-    reserves: Reserves.t;
+    promises: BoolMap.t;
+    reserves: BoolMap.t;
   }.
 
-  Definition init := mk TView.bot Promises.bot Reserves.bot.
+  Definition init := mk TView.bot BoolMap.bot BoolMap.bot.
 
   Variant is_terminal (lc:t): Prop :=
   | is_terminal_intro
-      (PROMISES: promises lc = Promises.bot)
+      (PROMISES: promises lc = BoolMap.bot)
   .
   #[global] Hint Constructors is_terminal: core.
 
@@ -145,33 +143,23 @@ Module Local.
   | wf_intro
       (TVIEW_WF: TView.wf (tview lc))
       (TVIEW_CLOSED: TView.closed (tview lc) (Global.memory gl))
-      (PROMISES: Promises.le (promises lc) (Global.promises gl))
-      (PROMISES_FINITE: Promises.finite (promises lc))
-      (RESERVES: Reserves.incl (reserves lc) (Global.reserves gl))
-      (RESERVES_FINITE: Reserves.finite (reserves lc))
-      (RESERVES_CLOSED: Memory.closed_reserves (reserves lc) (Global.memory gl))
+      (PROMISES: BoolMap.le (promises lc) (Global.promises gl))
+      (PROMISES_FINITE: BoolMap.finite (promises lc))
+      (RESERVES: BoolMap.le (reserves lc) (Global.reserves gl))
+      (RESERVES_FINITE: BoolMap.finite (reserves lc))
   .
   #[global] Hint Constructors wf: core.
 
   Variant disjoint (lc1 lc2:t): Prop :=
   | disjoint_intro
-      (PROMISES_DISJOINT: Promises.disjoint (promises lc1) (promises lc2))
-      (RESERVES_DISJOINT: Reserves.disjoint (reserves lc1) (reserves lc2))
+      (PROMISES_DISJOINT: BoolMap.disjoint (promises lc1) (promises lc2))
+      (RESERVES_DISJOINT: BoolMap.disjoint (reserves lc1) (reserves lc2))
   .
   #[global] Hint Constructors disjoint: core.
 
   Global Program Instance disjoint_Symmetric: Symmetric disjoint.
   Next Obligation.
     econs; symmetry; apply H.
-  Qed.
-
-  Lemma max_reserves_wf
-        lc gl
-        (WF: wf lc gl):
-    wf lc (Global.max_reserves (reserves lc) gl).
-  Proof.
-    inv WF. econs; eauto.
-    apply Memory.max_reserves_incl.
   Qed.
 
 
@@ -184,21 +172,19 @@ Module Local.
   .
   #[global] Hint Constructors promise_step: core.
 
-  Variant reserve_step (lc1: t) (gl1: Global.t) (loc: Loc.t) (ts: Time.t) (lc2: t) (gl2: Global.t): Prop :=
+  Variant reserve_step (lc1: t) (gl1: Global.t) (loc: Loc.t) (lc2: t) (gl2: Global.t): Prop :=
   | reserve_step_intro
-      from msg
       rsv2 grsv2
-      (TS: Memory.get loc ts (Global.memory gl1) = Some (from, msg))
-      (RESERVE: Reserves.reserve (reserves lc1) (Global.reserves gl1) loc ts rsv2 grsv2)
+      (RESERVE: Reserves.reserve (reserves lc1) (Global.reserves gl1) loc rsv2 grsv2)
       (LC2: lc2 = mk (tview lc1) (promises lc1) rsv2)
       (GL2: gl2 = Global.mk (Global.sc gl1) (Global.promises gl1) grsv2 (Global.memory gl1))
   .
   #[global] Hint Constructors reserve_step: core.
 
-  Variant cancel_step (lc1: t) (gl1: Global.t) (loc: Loc.t) (ts: Time.t) (lc2: t) (gl2: Global.t): Prop :=
+  Variant cancel_step (lc1: t) (gl1: Global.t) (loc: Loc.t) (lc2: t) (gl2: Global.t): Prop :=
   | cancel_step_intro
       rsv2 grsv2
-      (CANCEL: Reserves.cancel (reserves lc1) (Global.reserves gl1) loc ts rsv2 grsv2)
+      (CANCEL: Reserves.cancel (reserves lc1) (Global.reserves gl1) loc rsv2 grsv2)
       (LC2: lc2 = mk (tview lc1) (promises lc1) rsv2)
       (GL2: gl2 = Global.mk (Global.sc gl1) (Global.promises gl1) grsv2 (Global.memory gl1))
   .
@@ -221,6 +207,7 @@ Module Local.
   #[global] Hint Constructors read_step: core.
 
   Variant write_step
+          (reserved: OptTimeMap.t)
           (lc1: t) (gl1: Global.t)
           (loc: Loc.t) (from to: Time.t)
           (val: Const.t) (releasedm released: option View.t) (ord: Ordering.t)
@@ -229,13 +216,14 @@ Module Local.
       prm2 gprm2 mem2
       (RELEASED: released = TView.write_released (tview lc1) (Global.sc gl1) loc to releasedm ord)
       (WRITABLE: TView.writable (TView.cur (tview lc1)) (Global.sc gl1) loc to ord)
-      (NON_RESERVED: forall ts (GET: (Global.reserves gl1) loc = Some ts), Time.lt ts from)
+      (NON_RESERVED: forall ts (GET: reserved loc = Some ts),
+          reserves lc1 loc = true \/ Time.lt ts from)
       (FULFILL: Promises.fulfill (promises lc1) (Global.promises gl1) loc ord prm2 gprm2)
       (WRITE: Memory.add (Global.memory gl1) loc from to
                          (Message.mk val released (Ordering.le ord Ordering.na)) mem2)
       (LC2: lc2 = mk (TView.write_tview (tview lc1) (Global.sc gl1) loc to ord) prm2 (reserves lc1))
       (GL2: gl2 = Global.mk (Global.sc gl1) gprm2 (Global.reserves gl1) mem2):
-      write_step lc1 gl1 loc from to val releasedm released ord lc2 gl2
+      write_step reserved lc1 gl1 loc from to val releasedm released ord lc2 gl2
   .
   #[global] Hint Constructors write_step: core.
 
@@ -247,7 +235,7 @@ Module Local.
                      (promises lc1) (reserves lc1))
       (GL2: gl2 = Global.mk (TView.write_fence_sc tview2 (Global.sc gl1) ordw)
                             (Global.promises gl1) (Global.reserves gl1) (Global.memory gl1))
-      (PROMISES: ordw = Ordering.seqcst -> promises lc1 = Promises.bot):
+      (PROMISES: ordw = Ordering.seqcst -> promises lc1 = BoolMap.bot):
       fence_step lc1 gl1 ordr ordw lc2 gl2
   .
   #[global] Hint Constructors fence_step: core.
@@ -311,69 +299,70 @@ Module Local.
     internal_step (ThreadEvent.promise loc) lc1 gl1 lc2 gl2
   | step_reserve
       lc1 gl1 
-      loc ts lc2 gl2
-      (LOCAL: reserve_step lc1 gl1 loc ts lc2 gl2):
-    internal_step (ThreadEvent.reserve loc ts) lc1 gl1 lc2 gl2
+      loc lc2 gl2
+      (LOCAL: reserve_step lc1 gl1 loc lc2 gl2):
+    internal_step (ThreadEvent.reserve loc) lc1 gl1 lc2 gl2
   | step_cancel
       lc1 gl1 
-      loc ts lc2 gl2
-      (LOCAL: cancel_step lc1 gl1 loc ts lc2 gl2):
-    internal_step (ThreadEvent.cancel loc ts) lc1 gl1 lc2 gl2
+      loc lc2 gl2
+      (LOCAL: cancel_step lc1 gl1 loc lc2 gl2):
+    internal_step (ThreadEvent.cancel loc) lc1 gl1 lc2 gl2
   .
 
-  Variant program_step:
+  Variant program_step (reserved: OptTimeMap.t):
     forall (e: ThreadEvent.t) (lc1: t) (gl1: Global.t) (lc2: t) (gl2: Global.t), Prop :=
   | step_silent
       lc1 gl1:
-    program_step ThreadEvent.silent lc1 gl1 lc1 gl1
+    program_step reserved ThreadEvent.silent lc1 gl1 lc1 gl1
   | step_read
       lc1 gl1
       loc to val released ord lc2
       (LOCAL: read_step lc1 gl1 loc to val released ord lc2):
-    program_step (ThreadEvent.read loc to val released ord) lc1 gl1 lc2 gl1
+    program_step reserved (ThreadEvent.read loc to val released ord) lc1 gl1 lc2 gl1
   | step_write
       lc1 gl1
       loc from to val released ord lc2 gl2
-      (LOCAL: write_step lc1 gl1 loc from to val None released ord lc2 gl2):
-    program_step (ThreadEvent.write loc from to val released ord) lc1 gl1 lc2 gl2
+      (LOCAL: write_step reserved lc1 gl1 loc from to val None released ord lc2 gl2):
+    program_step reserved (ThreadEvent.write loc from to val released ord) lc1 gl1 lc2 gl2
   | step_update
       lc1 gl1
       loc ordr ordw
       tsr valr releasedr releasedw lc2
       tsw valw lc3 gl3
       (LOCAL1: read_step lc1 gl1 loc tsr valr releasedr ordr lc2)
-      (LOCAL2: write_step lc2 gl1 loc tsr tsw valw releasedr releasedw ordw lc3 gl3):
-    program_step (ThreadEvent.update loc tsr tsw valr valw releasedr releasedw ordr ordw)
+      (LOCAL2: write_step reserved lc2 gl1 loc tsr tsw valw releasedr releasedw ordw lc3 gl3):
+    program_step reserved
+                 (ThreadEvent.update loc tsr tsw valr valw releasedr releasedw ordr ordw)
                  lc1 gl1 lc3 gl3
   | step_fence
       lc1 gl1
       ordr ordw lc2 gl2
       (LOCAL: fence_step lc1 gl1 ordr ordw lc2 gl2):
-    program_step (ThreadEvent.fence ordr ordw) lc1 gl1 lc2 gl2
+    program_step reserved (ThreadEvent.fence ordr ordw) lc1 gl1 lc2 gl2
   | step_syscall
       lc1 gl1
       e lc2 gl2
       (LOCAL: fence_step lc1 gl1 Ordering.seqcst Ordering.seqcst lc2 gl2):
-    program_step (ThreadEvent.syscall e) lc1 gl1 lc2 gl2
+    program_step reserved (ThreadEvent.syscall e) lc1 gl1 lc2 gl2
   | step_failure
       lc1 gl1
       (LOCAL: failure_step lc1):
-    program_step ThreadEvent.failure lc1 gl1 lc1 gl1
+    program_step reserved ThreadEvent.failure lc1 gl1 lc1 gl1
   | step_racy_read
       lc1 gl1
       loc to val ord
       (LOCAL: racy_read_step lc1 gl1 loc to val ord):
-    program_step (ThreadEvent.racy_read loc to val ord) lc1 gl1 lc1 gl1
+    program_step reserved (ThreadEvent.racy_read loc to val ord) lc1 gl1 lc1 gl1
   | step_racy_write
       lc1 gl1
       loc to val ord
       (LOCAL: racy_write_step lc1 gl1 loc to ord):
-    program_step (ThreadEvent.racy_write loc to val ord) lc1 gl1 lc1 gl1
+    program_step reserved (ThreadEvent.racy_write loc to val ord) lc1 gl1 lc1 gl1
   | step_racy_update
       lc1 gl1
       loc to valr valw ordr ordw
       (LOCAL: racy_update_step lc1 gl1 loc to ordr ordw):
-    program_step (ThreadEvent.racy_update loc to valr valw ordr ordw) lc1 gl1 lc1 gl1
+    program_step reserved (ThreadEvent.racy_update loc to valr valw ordr ordw) lc1 gl1 lc1 gl1
   .
   #[global] Hint Constructors program_step: core.
 
@@ -397,21 +386,9 @@ Module Local.
     splits; ss; refl.
   Qed.
 
-  Lemma add_closed_reserves
-        rsv1 loc ts rsv2 mem from msg
-        (GET: Memory.get loc ts mem = Some (from, msg))
-        (ADD: Reserves.add rsv1 loc ts rsv2)
-        (CLOSED: Memory.closed_reserves rsv1 mem):
-    Memory.closed_reserves rsv2 mem.
-  Proof.
-    ii. revert GET0. inv ADD.
-    unfold LocFun.add. condtac; ss; eauto. i. clarify.
-    destruct msg. esplits; eauto.
-  Qed.
-
   Lemma reserve_step_future
-        lc1 gl1 loc ts lc2 gl2
-        (STEP: reserve_step lc1 gl1 loc ts lc2 gl2)
+        lc1 gl1 loc lc2 gl2
+        (STEP: reserve_step lc1 gl1 loc lc2 gl2)
         (LC_WF1: wf lc1 gl1)
         (GL_WF1: Global.wf gl1):
     <<LC_WF2: wf lc2 gl2>> /\
@@ -421,26 +398,15 @@ Module Local.
     <<MEM_FUTURE: Memory.future (Global.memory gl1) (Global.memory gl2)>>.
   Proof.
     inv LC_WF1. inv GL_WF1. inv STEP. ss.
-    hexploit Reserves.reserve_incl; eauto. i.
+    hexploit Reserves.reserve_le; eauto. i.
     hexploit Reserves.reserve_finite; eauto. i.
     inv RESERVE.
-    splits; try refl; econs; ss;
-      eauto using add_closed_reserves.
-  Qed.
-
-  Lemma remove_closed_reserves
-        rsv1 loc ts rsv2 mem
-        (REMOVE: Reserves.remove rsv1 loc ts rsv2)
-        (CLOSED: Memory.closed_reserves rsv1 mem):
-    Memory.closed_reserves rsv2 mem.
-  Proof.
-    ii. revert GET. inv REMOVE.
-    unfold LocFun.add. condtac; ss; eauto.
+    splits; ss; try refl.
   Qed.
 
   Lemma cancel_step_future
-        lc1 gl1 loc ts lc2 gl2
-        (STEP: cancel_step lc1 gl1 loc ts lc2 gl2)
+        lc1 gl1 loc lc2 gl2
+        (STEP: cancel_step lc1 gl1 loc lc2 gl2)
         (LC_WF1: wf lc1 gl1)
         (GL_WF1: Global.wf gl1):
     <<LC_WF2: wf lc2 gl2>> /\
@@ -450,7 +416,7 @@ Module Local.
     <<MEM_FUTURE: Memory.future (Global.memory gl1) (Global.memory gl2)>>.
   Proof.
     inv LC_WF1. inv GL_WF1. inv STEP. ss.
-    hexploit Reserves.cancel_incl; eauto. i.
+    hexploit Reserves.cancel_le; eauto. i.
     hexploit Reserves.cancel_finite; eauto. i.
     inv CANCEL.
     splits; try refl; econs; ss;
@@ -478,8 +444,8 @@ Module Local.
   Qed.
 
   Lemma write_step_future
-        lc1 gl1 loc from to val releasedm released ord lc2 gl2
-        (STEP: write_step lc1 gl1 loc from to val releasedm released ord lc2 gl2)
+        reserved lc1 gl1 loc from to val releasedm released ord lc2 gl2
+        (STEP: write_step reserved lc1 gl1 loc from to val releasedm released ord lc2 gl2)
         (REL_WF: View.opt_wf releasedm)
         (REL_CLOSED: Memory.closed_opt_view releasedm (Global.memory gl1))
         (REL_TS: Time.le (View.rlx (View.unwrap releasedm) loc) to)
@@ -503,10 +469,7 @@ Module Local.
     i. des.
     exploit Memory.add_get0; try apply WRITE; eauto. i. des.
     splits; eauto.
-    - econs; eauto. s.
-      eapply Memory.add_closed_reserves; eauto.
-    - econs; eauto. s.
-      eapply Memory.add_closed_reserves; eauto.
+    - econs; eauto.
     - apply TViewFacts.write_tview_incr. auto.
     - refl.
     - eapply TViewFacts.write_released_ts; eauto.
@@ -553,8 +516,8 @@ Module Local.
   Qed.
 
   Lemma program_step_future
-        e lc1 gl1 lc2 gl2
-        (STEP: program_step e lc1 gl1 lc2 gl2)
+        reserved e lc1 gl1 lc2 gl2
+        (STEP: program_step reserved e lc1 gl1 lc2 gl2)
         (LC_WF1: wf lc1 gl1)
         (GL_WF1: Global.wf gl1):
     <<LC_WF2: wf lc2 gl2>> /\
@@ -593,8 +556,8 @@ Module Local.
   Qed.
 
   Lemma program_step_inhabited
-        e lc1 gl1 lc2 gl2
-        (STEP: program_step e lc1 gl1 lc2 gl2)
+        reserved e lc1 gl1 lc2 gl2
+        (STEP: program_step reserved e lc1 gl1 lc2 gl2)
         (INHABITED1: Memory.inhabited (Global.memory gl1)):
     <<INHABITED2: Memory.inhabited (Global.memory gl2)>>.
   Proof.
@@ -622,8 +585,8 @@ Module Local.
   Qed.
 
   Lemma reserve_step_disjoint
-        lc1 gl1 loc ts lc2 gl2 lc
-        (STEP: reserve_step lc1 gl1 loc ts lc2 gl2)
+        lc1 gl1 loc lc2 gl2 lc
+        (STEP: reserve_step lc1 gl1 loc lc2 gl2)
         (DISJOINT1: disjoint lc1 lc)
         (LC_WF: wf lc gl1):
     <<DISJOINT2: disjoint lc2 lc>> /\
@@ -635,8 +598,8 @@ Module Local.
   Qed.
 
   Lemma cancel_step_disjoint
-        lc1 gl1 loc ts lc2 gl2 lc
-        (STEP: cancel_step lc1 gl1 loc ts lc2 gl2)
+        lc1 gl1 loc lc2 gl2 lc
+        (STEP: cancel_step lc1 gl1 loc lc2 gl2)
         (DISJOINT1: disjoint lc1 lc)
         (LC_WF: wf lc gl1):
     <<DISJOINT2: disjoint lc2 lc>> /\
@@ -657,8 +620,8 @@ Module Local.
   Qed.
 
   Lemma write_step_disjoint
-        lc1 gl1 loc from to val releasedm released ord lc2 gl2 lc
-        (STEP: write_step lc1 gl1 loc from to val releasedm released ord lc2 gl2)
+        reserved lc1 gl1 loc from to val releasedm released ord lc2 gl2 lc
+        (STEP: write_step reserved lc1 gl1 loc from to val releasedm released ord lc2 gl2)
         (DISJOINT1: disjoint lc1 lc)
         (LC_WF: wf lc gl1):
     <<DISJOINT2: disjoint lc2 lc>> /\
@@ -667,8 +630,7 @@ Module Local.
     inv DISJOINT1. inv LC_WF. inv STEP.
     exploit Promises.fulfill_disjoint; try exact FULFILL; eauto. i. des.
     esplits; eauto. econs; ss.
-    - eapply TView.add_closed; eauto.
-    - eapply Memory.add_closed_reserves; eauto.
+    eapply TView.add_closed; eauto.
   Qed.
 
   Lemma fence_step_disjoint
@@ -705,8 +667,8 @@ Module Local.
   Qed.
 
   Lemma program_step_disjoint
-        e lc1 gl1 lc2 gl2 lc
-        (STEP: program_step e lc1 gl1 lc2 gl2)
+        reserved e lc1 gl1 lc2 gl2 lc
+        (STEP: program_step reserved e lc1 gl1 lc2 gl2)
         (DISJOINT1: disjoint lc1 lc)
         (LC_WF: wf lc gl1):
     <<DISJOINT2: disjoint lc2 lc>> /\

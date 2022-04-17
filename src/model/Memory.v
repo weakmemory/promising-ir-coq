@@ -11,6 +11,7 @@ From PromisingLib Require Import Event.
 
 Require Import Time.
 Require Import View.
+Require Import BoolMap.
 Require Import Reserves.
 Require Import Cell.
 
@@ -169,8 +170,8 @@ Module Memory.
   .
   #[global] Hint Constructors closed_message: core.
 
-  Definition closed_reserves (rsv:Reserves.t) (mem:t): Prop :=
-    forall loc ts (GET: rsv loc = Some ts),
+  Definition closed_opt_timemap (otm: OptTimeMap.t) (mem:t): Prop :=
+    forall loc ts (GET: otm loc = Some ts),
     exists from msg,
       get loc ts mem = Some (from, msg).
 
@@ -250,11 +251,11 @@ Module Memory.
     eapply le_closed_opt_view; eauto.
   Qed.
 
-  Lemma le_closed_reserves
-        rsv mem1 mem2
+  Lemma le_closed_opt_timemap
+        otm mem1 mem2
         (LE: le mem1 mem2)
-        (CLOSED: Memory.closed_reserves rsv mem1):
-    Memory.closed_reserves rsv mem2.
+        (CLOSED: Memory.closed_opt_timemap otm mem1):
+    Memory.closed_opt_timemap otm mem2.
   Proof.
     ii. exploit CLOSED; eauto. i. des.
     exploit LE; eauto.
@@ -488,12 +489,12 @@ Module Memory.
     eapply add_closed_opt_view; eauto.
   Qed.
 
-  Lemma add_closed_reserves
-        rsv
+  Lemma add_closed_opt_timemap
+        otm
         mem1 loc from to msg mem2
         (ADD: add mem1 loc from to msg mem2)
-        (CLOSED: closed_reserves rsv mem1):
-    closed_reserves rsv mem2.
+        (CLOSED: closed_opt_timemap otm mem1):
+    closed_opt_timemap otm mem2.
   Proof.
     ii. exploit CLOSED; eauto. i. des.
     erewrite Memory.add_o; eauto. condtac; ss; eauto.
@@ -556,15 +557,15 @@ Module Memory.
     inv CLOSED; econs. eapply future_closed_opt_view; eauto.
   Qed.
 
-  Lemma future_closed_reserves
-        rsv mem1 mem2
+  Lemma future_closed_opt_timemap
+        otm mem1 mem2
         (FUTURE: future mem1 mem2)
-        (CLOSED: closed_reserves rsv mem1):
-    closed_reserves rsv mem2.
+        (CLOSED: closed_opt_timemap otm mem1):
+    closed_opt_timemap otm mem2.
   Proof.
     revert CLOSED. induction FUTURE; auto. i.
     apply IHFUTURE. inv H.
-    eapply add_closed_reserves; eauto.
+    eapply add_closed_opt_timemap; eauto.
   Qed.
 
   Lemma future_closed
@@ -687,48 +688,27 @@ Module Memory.
     destruct msg. esplits; eauto.
   Qed.
 
-  Definition max_reserves (rsv: Reserves.t) (mem: t): Reserves.t :=
-    fun loc =>
-      match rsv loc with
-      | Some ts => Some ts
-      | _ => Some (max_ts loc mem)
-      end.
+  Definition max_opt_timemap (rsv: BoolMap.t) (mem: t): OptTimeMap.t :=
+    fun loc => if rsv loc then Some (max_ts loc mem) else None.
 
-  Lemma max_reserves_incl rsv mem:
-    Reserves.incl rsv (max_reserves rsv mem).
+  Lemma max_opt_timemap_spec
+        rsv mem loc from to msg
+        (GET: get loc to mem = Some (from, msg))
+        (RESERVE: rsv loc = true):
+    option_le Time.le (Some to) (max_opt_timemap rsv mem loc).
   Proof.
-    ii. unfold max_reserves. rewrite LHS. ss.
+    unfold max_opt_timemap. rewrite RESERVE. econs.
+    exploit max_ts_spec; eauto. i. des. ss.
   Qed.
 
-  Lemma max_reserves_spec
-        rsv grsv mem
-        (INCL: Reserves.incl rsv grsv)
-        (CLOSED: closed_reserves grsv mem)
-        (INHABITED: inhabited mem):
-    Reserves.le grsv (max_reserves rsv mem).
-  Proof.
-    ii. specialize (INHABITED loc).
-    unfold max_reserves.
-    destruct (rsv loc) eqn:GET.
-    - exploit INCL; eauto. i. rewrite x0. refl.
-    - destruct (grsv loc) eqn:GETG; ss.
-      exploit CLOSED; eauto. i. des.
-      exploit max_ts_spec; try exact x0. i. des.
-      econs. ss.
-  Qed.
-
-  Lemma max_reserves_closed
+  Lemma max_opt_timemap_closed
         rsv mem
-        (CLOSED: closed_reserves rsv mem)
         (INHABITED: inhabited mem):
-    closed_reserves (max_reserves rsv mem) mem.
+    closed_opt_timemap (max_opt_timemap rsv mem) mem.
   Proof.
-    ii. revert GET. unfold max_reserves. des_ifs.
-    - i. inv GET. eauto.
-    - i. inv GET.
-      specialize (INHABITED loc).
-      exploit max_ts_spec; try exact INHABITED. i. des.
-      destruct msg. esplits; eauto.
+    ii. revert GET. unfold max_opt_timemap.
+    des_ifs. i. inv GET.
+    exploit max_ts_spec; try eapply INHABITED. i. des. eauto.
   Qed.
 
   Definition max_view (mem:t): View.t :=
@@ -785,17 +765,5 @@ Module Memory.
     { ii. eapply LE. eauto. }
     i. des.
     eexists. econs; eauto.
-  Qed.
-
-
-  (* closed_reserves *)
-
-  Lemma incl_closed_reserves
-        rsv grsv mem
-        (INCL: Reserves.incl rsv grsv)
-        (CLOSED: closed_reserves grsv mem):
-    closed_reserves rsv mem.
-  Proof.
-    ii. eauto.
   Qed.
 End Memory.

@@ -10,6 +10,7 @@ From PromisingLib Require Import Event.
 
 Require Import Time.
 Require Import View.
+Require Import BoolMap.
 Require Import Promises.
 Require Import Reserves.
 Require Import Cell.
@@ -28,8 +29,10 @@ Module PFConfiguration.
   | step_intro
       e tid c1 lang st1 lc1 e2 st3 lc3 gl3
       (TID: IdentMap.find tid (Configuration.threads c1) = Some (existT _ lang st1, lc1))
-      (STEPS: rtc (@Thread.pf_tau_step _) (Thread.mk _ st1 lc1 (Configuration.global c1)) e2)
-      (STEP: Thread.step true e e2 (Thread.mk _ st3 lc3 gl3)):
+      (STEPS: rtc (Thread.pf_tau_step (Global.max_reserved (Configuration.global c1)))
+                  (Thread.mk _ st1 lc1 (Configuration.global c1)) e2)
+      (STEP: Thread.step (Global.max_reserved (Configuration.global c1)) true e
+                         e2 (Thread.mk _ st3 lc3 gl3)):
       step (ThreadEvent.get_machine_event_pf e) tid
            c1
            (Configuration.mk (IdentMap.add tid (existT _ _ st3, lc3) (Configuration.threads c1)) gl3)

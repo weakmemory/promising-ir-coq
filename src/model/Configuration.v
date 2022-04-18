@@ -10,6 +10,7 @@ From PromisingLib Require Import Event.
 
 Require Import Time.
 Require Import View.
+Require Import BoolMap.
 Require Import Promises.
 Require Import Reserves.
 Require Import Cell.
@@ -66,8 +67,8 @@ Module Threads.
       econs; ss.
       + apply TView.bot_wf.
       + apply TView.bot_closed.
-      + apply Promises.bot_finite.
-      + apply Reserves.bot_finite.
+      + apply BoolMap.bot_finite.
+      + apply BoolMap.bot_finite.
   Qed.
 
 
@@ -164,8 +165,9 @@ Module Configuration.
   | step_intro
       pf e tid c1 lang st1 lc1 e2 st3 lc3 gl3
       (TID: IdentMap.find tid (threads c1) = Some (existT _ lang st1, lc1))
-      (STEPS: rtc (@Thread.tau_step _) (Thread.mk _ st1 lc1 (global c1)) e2)
-      (STEP: Thread.step pf e e2 (Thread.mk _ st3 lc3 gl3))
+      (STEPS: rtc (Thread.tau_step (Global.max_reserved (global c1)))
+                  (Thread.mk _ st1 lc1 (global c1)) e2)
+      (STEP: Thread.step (Global.max_reserved (global c1)) pf e e2 (Thread.mk _ st3 lc3 gl3))
       (CONSISTENT: ThreadEvent.get_machine_event e <> MachineEvent.failure ->
                    Thread.consistent (Thread.mk _ st3 lc3 gl3)):
       step (ThreadEvent.get_machine_event e) tid

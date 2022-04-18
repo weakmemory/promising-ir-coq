@@ -43,4 +43,7 @@ Module Global.
       apply Memory.init_closed.
     - apply Memory.init_closed.
   Qed.
+
+  Definition max_reserved (gl: t): OptTimeMap.t :=
+    Memory.max_opt_timemap (reserves gl) (memory gl).
 End Global.

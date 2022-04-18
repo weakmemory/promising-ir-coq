@@ -13,6 +13,7 @@ From PromisingLib Require Import Event.
 
 Require Import Time.
 Require Import View.
+Require Import BoolMap.
 Require Import Promises.
 Require Import Reserves.
 Require Import Cell.
@@ -62,6 +63,7 @@ Qed.
 Module Thread.
   Section Thread.
     Variable (lang: language).
+    Variable (reserved: OptTimeMap.t).
 
     Structure t := mk {
       state: (Language.state lang);
@@ -77,7 +79,7 @@ Module Thread.
     | step_program
         e st1 lc1 gl1 st2 lc2 gl2
         (STATE: Language.step lang (ThreadEvent.get_program_event e) st1 st2)
-        (STEP: Local.program_step e lc1 gl1 lc2 gl2):
+        (STEP: Local.program_step reserved e lc1 gl1 lc2 gl2):
         step true e (mk st1 lc1 gl1) (mk st2 lc2 gl2)
     .
     #[local]
@@ -143,22 +145,11 @@ Module Thread.
 
 
     Definition steps_failure (e1: t): Prop :=
-      exists e e2 e3,
+      exists e pf e2 e3,
         <<STEPS: rtc tau_step e1 e2>> /\
-        <<STEP_FAILURE: step true e e2 e3>> /\
+        <<STEP_FAILURE: step pf e e2 e3>> /\
         <<EVENT_FAILURE: ThreadEvent.get_machine_event e = MachineEvent.failure>>.
     Hint Unfold steps_failure: core.
-
-
-    (* consistency *)
-
-    Definition consistent (e: t): Prop :=
-        <<FAILURE: steps_failure (mk (state e) (local e)
-                                     (Global.max_reserves (Local.reserves (local e)) (global e)))>> \/
-        exists e2,
-          <<STEPS: rtc tau_step (mk (state e) (local e)
-                                    (Global.max_reserves (Local.reserves (local e)) (global e))) e2>> /\
-          <<PROMISES: (Local.promises (local e2)) = Promises.bot>>.
 
 
     (* step_future *)
@@ -424,4 +415,13 @@ Module Thread.
     (*   i. inv H. eauto. *)
     (* Qed. *)
   End Thread.
+
+
+  (* consistency *)
+
+  Definition consistent {lang: language} (e: t lang): Prop :=
+    (<<FAILURE: @steps_failure lang (Global.max_reserved (global e)) e>>) \/
+    exists e2,
+      (<<STEPS: rtc (@tau_step lang (Global.max_reserved (global e))) e e2>>) /\
+      (<<PROMISES: (Local.promises (local e2)) = BoolMap.bot>>).
 End Thread.

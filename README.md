@@ -25,3 +25,4 @@ make -j
 - `src/model/Local.v`: Definition of a local state and local transitions
 - `src/model/Thread.v`: Definition of a thread and thread steps
 - `src/model/Configuration.v`: Definition of a machine configuration and machine steps
+- `src/model/PFConfiguration.v`: Definition of promise-free machine steps

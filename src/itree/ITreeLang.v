@@ -176,7 +176,7 @@ Module ILang.
   .
   #[export] Hint Constructors step: core.
 
-  Inductive opt_step R:
+  Variant opt_step R:
     forall (e:ProgramEvent.t) (s1: itree MemE.t R) (s2: itree MemE.t R), Prop :=
   | opt_step_none
       (st: itree MemE.t R):
@@ -262,7 +262,7 @@ Qed.
 
 
 Module Op1.
-  Inductive t :=
+  Variant t :=
   | not
   .
 
@@ -280,7 +280,7 @@ End Op1.
 
 
 Module Op2.
-  Inductive t :=
+  Variant t :=
   | add
   | sub
   | mul

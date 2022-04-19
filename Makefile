@@ -1,6 +1,7 @@
 COQMODULE    := PromisingIR
 COQTHEORIES  := \
-	src/model/*.v
+	src/model/*.v \
+	src/itree/*.v
 
 .PHONY: all theories clean
 
@@ -14,6 +15,7 @@ quick: Makefile.coq
 
 Makefile.coq: Makefile $(COQTHEORIES)
 	(echo "-R src/model $(COQMODULE)"; \
+	 echo "-R src/itree $(COQMODULE)"; \
    \
    echo $(COQTHEORIES)) > _CoqProject
 	coq_makefile -f _CoqProject -o Makefile.coq

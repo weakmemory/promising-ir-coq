@@ -18,7 +18,7 @@ Set Implicit Arguments.
 Module Message.
   Variant t := mk (val: Const.t) (released: option View.t) (na: bool).
 
-  Definition elt: t := mk Const.undef None true.
+  Definition elt: t := mk 0 None true.
 
   Variant wf: t -> Prop :=
   | wf_intro
@@ -26,9 +26,30 @@ Module Message.
       (RELEASED: View.opt_wf released):
     wf (mk val released na)
   .
+  #[global] Hint Constructors wf: core.
 
   Definition elt_wf: wf elt.
   Proof. ss. Qed.
+
+  Variant le: t -> t -> Prop :=
+  | le_intro
+      val1 released1 na1
+      val2 released2 na2
+      (VAL: Const.le val2 val1)
+      (RELEASED: View.opt_le released1 released2)
+      (NA: implb na2 na1):
+    le (mk val1 released1 na1) (mk val2 released2 na2)
+  .
+  #[global] Hint Constructors le: core.
+
+  Global Program Instance le_PreOrder: PreOrder le.
+  Next Obligation.
+    ii. destruct x. econs; try refl. destruct na; ss.
+  Qed.
+  Next Obligation.
+    ii. inv H. inv H0. econs; try by (etrans; eauto).
+    destruct na1, na2, na3; ss.
+  Qed.
 
   Definition is_released_none (msg: t): bool :=
     match msg with

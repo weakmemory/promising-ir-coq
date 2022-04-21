@@ -46,4 +46,20 @@ Module Global.
 
   Definition max_reserved (gl: t): OptTimeMap.t :=
     Memory.max_opt_timemap (reserves gl) (memory gl).
+
+  Variant future (gl1 gl2: t): Prop :=
+  | future_intro
+      (SC: TimeMap.le (sc gl1) (sc gl2))
+      (MEMORY: Memory.future (memory gl1) (memory gl2))
+  .
+  #[global] Hint Constructors future: core.
+
+  Global Program Instance future_PreOrder: PreOrder future.
+  Next Obligation.
+    ii. destruct x. econs; refl.
+  Qed.
+  Next Obligation.
+    ii. destruct x, y, z. inv H. inv H0. ss.
+    econs; etrans; eauto.
+  Qed.
 End Global.

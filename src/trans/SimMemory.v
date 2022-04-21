@@ -8,8 +8,8 @@ From PromisingLib Require Import Basic.
 From PromisingLib Require Import Loc.
 From PromisingLib Require Import DenseOrder.
 From PromisingLib Require Import Language.
-
 From PromisingLib Require Import Event.
+
 Require Import Time.
 Require Import View.
 Require Import Cell.
@@ -24,7 +24,7 @@ Require Import Cover.
 Set Implicit Arguments.
 
 
-Inductive sim_memory (mem_src mem_tgt:Memory.t): Prop :=
+Variant sim_memory (mem_src mem_tgt:Memory.t): Prop :=
 | sim_memory_intro
     (COVER: forall loc ts, covered loc ts mem_src <-> covered loc ts mem_tgt)
     (MSG: forall loc from_tgt to msg_tgt
@@ -33,6 +33,7 @@ Inductive sim_memory (mem_src mem_tgt:Memory.t): Prop :=
           <<GET: Memory.get loc to mem_src = Some (from_src, msg_src)>> /\
           <<MSG: Message.le msg_src msg_tgt>>)
 .
+#[export] Hint Constructors sim_memory: core.
 
 Global Program Instance sim_memory_PreOrder: PreOrder sim_memory.
 Next Obligation.

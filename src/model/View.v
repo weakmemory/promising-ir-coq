@@ -541,7 +541,18 @@ Module OptTimeMap.
   Definition le (lhs rhs: t): Prop :=
     forall loc, option_le Time.le (lhs loc) (rhs loc).
 
-  Lemma le_antisym l r
+  Global Program Instance le_PreOrder: PreOrder le.
+  Next Obligation.
+    ii. destruct x; eauto. econs. refl.
+  Qed.
+  Next Obligation.
+    ii. specialize (H loc). specialize (H0 loc).
+    inv H; inv H0; ss; try congr.
+    rewrite <- H3 in *. inv H1.
+    econs. etrans; eauto.
+  Qed.
+
+  Lemma antisym l r
         (LR: le l r)
         (RL: le r l):
     l = r.

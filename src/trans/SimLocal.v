@@ -43,11 +43,20 @@ Next Obligation.
   econs; ss. etrans; eauto.
 Qed.
 
+Lemma sim_local_promises_bot
+      lc_src lc_tgt
+      (SIM: sim_local lc_src lc_tgt):
+  Local.promises lc_src = BoolMap.bot <->
+  Local.promises lc_tgt = BoolMap.bot.
+Proof.
+  inv SIM. rewrite PROMISES. ss.
+Qed.
+
 Lemma sim_local_is_terminal
       lc_src lc_tgt
       (SIM: sim_local lc_src lc_tgt):
   Local.is_terminal lc_src <-> Local.is_terminal lc_tgt.
 Proof.
-  destruct lc_src, lc_tgt. inv SIM. ss.
-  split; i; inv H; ss.
+  exploit sim_local_promises_bot; eauto. i. des.
+  split; i; inv H; eauto.
 Qed.

@@ -209,3 +209,18 @@ Lemma sim_memory_closed_message
 Proof.
   inv TGT; ss. econs. eapply sim_memory_closed_opt_view; eauto.
 Qed.
+
+Lemma sim_memory_max_opt_timemap
+      mem_src mem_tgt
+      rsv_src rsv_tgt
+      (SIM: sim_memory mem_src mem_tgt)
+      (RSV: rsv_src = rsv_tgt)
+      (CLOSED_SRC: Memory.closed mem_src)
+      (CLOSED_TGT: Memory.closed mem_tgt):
+  Memory.max_opt_timemap rsv_src mem_src =
+  Memory.max_opt_timemap rsv_tgt mem_tgt.
+Proof.
+  subst. extensionality x.
+  unfold Memory.max_opt_timemap. condtac; ss. f_equal.
+  apply sim_memory_max_ts; eauto.
+Qed.

@@ -213,7 +213,7 @@ Lemma sim_thread_opt_step
     (<<SIM: sim_thread sim_terminal st3_src lc3_src gl3_src st3_tgt lc3_tgt gl3_tgt>>).
 Proof.
   inv STEP.
-  - right. esplits; eauto; ss. econs 1.
+  - right. esplits; eauto; ss.
   - eapply sim_thread_step; eauto.
 Qed.
 
@@ -256,7 +256,7 @@ Proof.
   exploit sim_thread_step; eauto. i. des; eauto.
   exploit IHSTEPS; eauto. i. des.
   - left. inv FAILURE0. des.
-    unfold Thread.steps_failure. esplits; [|eauto|eauto].
+    econs; [|eauto|eauto].
     etrans; eauto. etrans; eauto. inv STEP0; eauto.
     econs 2; eauto. econs.
     + econs. eauto.
@@ -311,7 +311,7 @@ Proof.
   exploit Thread.rtc_tau_step_future; try exact STEPS0; eauto. s. i. des.
   exploit sim_thread_step; try exact STEP; try exact SIM0; eauto. s. i. des.
   - left. inv FAILURE. des.
-    unfold Thread.steps_failure. esplits; [|eauto|eauto].
+    econs; [|eauto|eauto].
     etrans; eauto.
   - right. rewrite STEPS1 in STEPS0.
     esplits; try exact STEPS0; try exact STEP0; eauto.
@@ -334,8 +334,7 @@ Lemma sim_thread_steps_failure
                         (Thread.state e_tgt) (Thread.local e_tgt) (Thread.global e_tgt)):
   (<<FAILURE: Thread.steps_failure reserved_src e_src>>).
 Proof.
-  destruct e_src, e_tgt. ss.
-  unfold Thread.steps_failure in *. des.
+  destruct e_src, e_tgt. ss. inv FAILURE.
   exploit sim_thread_plus_step; eauto. i. des; eauto.
   rewrite EVENT_FAILURE in *. inv STEP; ss.
   esplits; eauto.
@@ -372,15 +371,15 @@ Lemma sim_thread_consistent
 Proof.
   generalize SIM. intro X.
   exploit sim_global_max_reserved; try exact GLOBAL; eauto. i.
-  unfold Thread.consistent in *. ss. des.
+  inv CONSISTENT.
   - exploit sim_thread_steps_failure; eauto; ss; eauto.
     rewrite x0. refl.
   - exploit sim_thread_rtc_step; eauto.
-    { rewrite <- x0. refl. }
+    { s. rewrite <- x0. refl. }
     i. des; eauto. destruct e2. ss.
     punfold SIM0. exploit SIM0; try exact x0; eauto; try refl. i. des.
     exploit PROMISES0; eauto. i. des.
-    + left. unfold Thread.steps_failure in *. des.
-      esplits; [|eauto|eauto]. etrans; eauto.
-    + right. esplits; [etrans; eauto|]. ss.
+    + econs 1. inv FAILURE.
+      econs; [|eauto|eauto]. etrans; eauto.
+    + econs 2; [etrans; eauto|]. ss.
 Qed.

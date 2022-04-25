@@ -174,6 +174,7 @@ Module Configuration.
            c1
            (mk (IdentMap.add tid (existT _ _ st3, lc3) (threads c1)) gl3)
   .
+  #[global] Hint Constructors step: core.
 
   Variant normal_step (c1 c2: t): Prop :=
   | normal_step_intro
@@ -203,11 +204,13 @@ Module Configuration.
 
   Definition tau_step := union (step MachineEvent.silent).
 
-  Definition steps_failure (c1: t): Prop :=
-    exists tid c2 c3,
-      <<STEPS: rtc tau_step c1 c2>> /\
-      <<FAILURE: step MachineEvent.failure tid c2 c3>>.
-  #[global] Hint Unfold steps_failure: core.
+  Variant steps_failure (c1: t): Prop :=
+  | steps_failure_intro
+      tid c2 c3
+      (STEPS: rtc tau_step c1 c2)
+      (FAILURE: step MachineEvent.failure tid c2 c3)
+  .
+  #[global] Hint Constructors steps_failure: core.
 
   Lemma inj_option_pair
         A B

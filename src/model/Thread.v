@@ -82,16 +82,14 @@ Module Thread.
         (STEP: Local.program_step reserved e lc1 gl1 lc2 gl2):
         step true e (mk st1 lc1 gl1) (mk st2 lc2 gl2)
     .
-    #[local]
-    Hint Constructors step: core.
+    #[local] Hint Constructors step: core.
 
     Variant step_allpf (e:ThreadEvent.t) (e1 e2:t): Prop :=
     | step_nopf_intro
         pf
         (STEP: step pf e e1 e2)
     .
-    #[local]
-    Hint Constructors step_allpf: core.
+    #[local] Hint Constructors step_allpf: core.
 
     Lemma allpf pf: step pf <3= step_allpf.
     Proof.
@@ -116,7 +114,7 @@ Module Thread.
         (STEP: step pf e e1 e2):
         opt_step e e1 e2
     .
-    Hint Constructors opt_step: core.
+    #[local] Hint Constructors opt_step: core.
 
     Lemma tau_opt_tau
           e1 e2 e3 e
@@ -144,12 +142,13 @@ Module Thread.
     Qed.
 
 
-    Definition steps_failure (e1: t): Prop :=
-      exists e pf e2 e3,
-        <<STEPS: rtc tau_step e1 e2>> /\
-        <<STEP_FAILURE: step pf e e2 e3>> /\
-        <<EVENT_FAILURE: ThreadEvent.get_machine_event e = MachineEvent.failure>>.
-    Hint Unfold steps_failure: core.
+    Variant steps_failure (e1: t): Prop :=
+    | steps_failure_intro
+        e pf e2 e3
+        (STEPS: rtc tau_step e1 e2)
+        (STEP_FAILURE: step pf e e2 e3)
+        (EVENT_FAILURE: ThreadEvent.get_machine_event e = MachineEvent.failure)
+    .
 
 
     (* step_future *)
@@ -419,9 +418,17 @@ Module Thread.
 
   (* consistency *)
 
-  Definition consistent {lang: language} (e: t lang): Prop :=
-    (<<FAILURE: @steps_failure lang (Global.max_reserved (global e)) e>>) \/
-    exists e2,
-      (<<STEPS: rtc (@tau_step lang (Global.max_reserved (global e))) e e2>>) /\
-      (<<PROMISES: (Local.promises (local e2)) = BoolMap.bot>>).
+  Variant consistent {lang: language} (e: t lang): Prop :=
+  | consistent_failure
+      (FAILURE: @steps_failure lang (Global.max_reserved (global e)) e)
+  | consistent_promises
+      e2
+      (STEPS: rtc (@tau_step lang (Global.max_reserved (global e))) e e2)
+      (PROMISES: (Local.promises (local e2)) = BoolMap.bot)
+  .
 End Thread.
+#[export] Hint Constructors Thread.step: core.
+#[export] Hint Constructors Thread.step_allpf: core.
+#[export] Hint Constructors Thread.opt_step: core.
+#[export] Hint Constructors Thread.steps_failure: core.
+#[export] Hint Constructors Thread.consistent: core.

@@ -37,6 +37,7 @@ Module PFConfiguration.
            c1
            (Configuration.mk (IdentMap.add tid (existT _ _ st3, lc3) (Configuration.threads c1)) gl3)
   .
+  #[global] Hint Constructors step.
 
   Variant normal_step (c1 c2: Configuration.t): Prop :=
   | normal_step_intro
@@ -84,7 +85,7 @@ Module PFConfiguration.
     exploit THREADS; ss; eauto. i.
     exploit Thread.rtc_tau_step_future;
       try eapply rtc_implies; try eapply STEPS; eauto.
-    { i. inv H. econs; eauto. econs. eauto. }
+    { i. inv H. econs; eauto. }
     s. i. des.
     exploit Thread.step_future; eauto. s. i. des.
     splits; try by etrans; eauto.
@@ -93,14 +94,14 @@ Module PFConfiguration.
       + exploit THREADS; try apply TH1; eauto. i. des.
         exploit Thread.rtc_tau_step_disjoint;
           try eapply rtc_implies; try eapply STEPS; eauto.
-        { i. inv H. econs; eauto. econs. eauto. }
+        { i. inv H. econs; eauto. }
         s. i. des.
         exploit Thread.step_disjoint; eauto. s. i. des.
         symmetry. auto.
       + exploit THREADS; try apply TH2; eauto. i. des.
         exploit Thread.rtc_tau_step_disjoint;
           try eapply rtc_implies; try eapply STEPS; eauto.
-        { i. inv H. econs; eauto. econs. eauto. }
+        { i. inv H. econs; eauto. }
         s. i. des.
         exploit Thread.step_disjoint; eauto. i. des.
         auto.
@@ -109,7 +110,7 @@ Module PFConfiguration.
       exploit THREADS; try apply TH; eauto. i.
       exploit Thread.rtc_tau_step_disjoint;
         try eapply rtc_implies; try eapply STEPS; eauto.
-      { i. inv H. econs; eauto. econs. eauto. }
+      { i. inv H. econs; eauto. }
       s. i. des.
       exploit Thread.step_disjoint; eauto. s. i. des.
       auto.

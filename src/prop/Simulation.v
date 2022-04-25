@@ -37,13 +37,13 @@ Section Simulation.
             (<<STEPS_SRC: rtc Configuration.tau_step c1_src c2_src>>) /\
             (<<TERMINAL_SRC: Configuration.is_terminal c2_src>>)>>) /\
       (<<STEP:
-        forall e tid c2_tgt
-          (STEP_TGT: Configuration.step e tid c1_tgt c2_tgt),
+        forall e tid_tgt c3_tgt
+          (STEP_TGT: Configuration.step e tid_tgt c1_tgt c3_tgt),
           (<<FAILURE: Configuration.steps_failure c1_src>>) \/
-          exists c2_src,
-            (<<EVENT: e <> MachineEvent.failure>>) /\
-            (<<STEP_SRC: Configuration.opt_step e tid c1_src c2_src>>) /\
-            (<<SIM: sim c2_src c2_tgt>>)>>)
+          exists tid_src c2_src c3_src,
+            (<<STEPS_SRC: rtc Configuration.tau_step c1_src c2_src>>) /\
+            (<<STEP_SRC: Configuration.opt_step e tid_src c2_src c3_src>>) /\
+            (<<SIM: sim c3_src c3_tgt>>)>>)
   .
 
   Lemma _sim_mon: monotone2 _sim.
@@ -79,18 +79,24 @@ Proof.
     + inv FAILURE.
       eapply rtc_tau_step_behavior; eauto. econs 3; eauto.
     + exploit Configuration.step_future; try exact STEP; eauto. i. des.
-      exploit Configuration.opt_step_future; try exact STEP1; eauto. i. des.
+      exploit Configuration.rtc_step_future; try exact STEPS_SRC; eauto. i. des.
+      exploit Configuration.opt_step_future; try exact STEP_SRC; eauto. i. des.
+      eapply rtc_tau_step_behavior; eauto.
       inv SIM1; [|done]. inv STEP_SRC. econs 2; eauto.
   - punfold SIM0. exploit SIM0; eauto. i. des.
-    exploit STEP0; eauto. i. des; ss.
-    inv FAILURE.
-    eapply rtc_tau_step_behavior; eauto. econs 3; eauto.
+    exploit STEP0; eauto. i. des.
+    + inv FAILURE.
+      eapply rtc_tau_step_behavior; eauto. econs 3; eauto.
+    + inv STEP_SRC.
+      eapply rtc_tau_step_behavior; eauto. econs 3; eauto.
   - punfold SIM0. exploit SIM0; eauto. i. des.
     exploit STEP0; eauto. i. des.
     + inv FAILURE.
       eapply rtc_tau_step_behavior; eauto. econs 3; eauto.
     + exploit Configuration.step_future; try exact STEP; eauto. i. des.
-      exploit Configuration.opt_step_future; try exact STEP1; eauto. i. des.
+      exploit Configuration.rtc_step_future; try exact STEPS_SRC; eauto. i. des.
+      exploit Configuration.opt_step_future; try exact STEP_SRC; eauto. i. des.
+      eapply rtc_tau_step_behavior; eauto.
       inv SIM1; [|done]. inv STEP_SRC; eauto. econs 4; eauto.
   - econs 5.
 Qed.

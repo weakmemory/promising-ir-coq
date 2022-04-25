@@ -261,8 +261,7 @@ Module Configuration.
         (STEP: step e tid c1 c2)
         (WF1: wf c1):
     <<WF2: wf c2>> /\
-    <<SC_FUTURE: TimeMap.le (Global.sc (global c1)) (Global.sc (global c2))>> /\
-    <<MEM_FUTURE: Memory.future (Global.memory (global c1)) (Global.memory (global c2))>>.
+    <<GL_FUTURE: Global.future (global c1) (global c2)>>.
   Proof.
     inv WF1. inv WF. inv STEP; s.
     exploit THREADS; ss; eauto. i.
@@ -292,8 +291,7 @@ Module Configuration.
         (STEP: opt_step e tid c1 c2)
         (WF1: wf c1):
     <<WF2: wf c2>> /\
-    <<SC_FUTURE: TimeMap.le (Global.sc (global c1)) (Global.sc (global c2))>> /\
-    <<MEM_FUTURE: Memory.future (Global.memory (global c1)) (Global.memory (global c2))>>.
+    <<GL_FUTURE: Global.future (global c1) (global c2)>>.
   Proof.
     inv STEP.
     - splits; auto; refl.
@@ -305,8 +303,7 @@ Module Configuration.
         (STEP: normal_step c1 c2)
         (WF1: wf c1):
     <<WF2: wf c2>> /\
-    <<SC_FUTURE: TimeMap.le (Global.sc (global c1)) (Global.sc (global c2))>> /\
-    <<MEM_FUTURE: Memory.future (Global.memory (global c1)) (Global.memory (global c2))>>.
+    <<GL_FUTURE: Global.future (global c1) (global c2)>>.
   Proof.
     inv STEP. eauto using step_future.
   Qed.
@@ -316,8 +313,7 @@ Module Configuration.
         (STEP: all_step c1 c2)
         (WF1: wf c1):
     <<WF2: wf c2>> /\
-    <<SC_FUTURE: TimeMap.le (Global.sc (global c1)) (Global.sc (global c2))>> /\
-    <<MEM_FUTURE: Memory.future (Global.memory (global c1)) (Global.memory (global c2))>>.
+    <<GL_FUTURE: Global.future (global c1) (global c2)>>.
   Proof.
     inv STEP. eauto using step_future.
   Qed.
@@ -327,8 +323,7 @@ Module Configuration.
         (STEPS: rtc tau_step c1 c2)
         (WF1: wf c1):
     <<WF2: wf c2>> /\
-    <<SC_FUTURE: TimeMap.le (Global.sc (global c1)) (Global.sc (global c2))>> /\
-    <<MEM_FUTURE: Memory.future (Global.memory (global c1)) (Global.memory (global c2))>>.
+    <<GL_FUTURE: Global.future (global c1) (global c2)>>.
   Proof.
     induction STEPS; i.
     - splits; auto; refl.
@@ -343,8 +338,7 @@ Module Configuration.
         (STEPS: rtc normal_step c1 c2)
         (WF1: wf c1):
     <<WF2: wf c2>> /\
-    <<SC_FUTURE: TimeMap.le (Global.sc (global c1)) (Global.sc (global c2))>> /\
-    <<MEM_FUTURE: Memory.future (Global.memory (global c1)) (Global.memory (global c2))>>.
+    <<GL_FUTURE: Global.future (global c1) (global c2)>>.
   Proof.
     induction STEPS; i.
     - splits; auto; refl.
@@ -359,8 +353,7 @@ Module Configuration.
         (STEPS: rtc all_step c1 c2)
         (WF1: wf c1):
     <<WF2: wf c2>> /\
-    <<SC_FUTURE: TimeMap.le (Global.sc (global c1)) (Global.sc (global c2))>> /\
-    <<MEM_FUTURE: Memory.future (Global.memory (global c1)) (Global.memory (global c2))>>.
+    <<GL_FUTURE: Global.future (global c1) (global c2)>>.
   Proof.
     induction STEPS; i.
     - splits; auto; refl.

@@ -377,13 +377,12 @@ Module Local.
     <<LC_WF2: wf lc2 gl2>> /\
     <<GL_WF2: Global.wf gl2>> /\
     <<TVIEW_FUTURE: TView.le (tview lc1) (tview lc2)>> /\
-    <<SC_FUTURE: TimeMap.le (Global.sc gl1) (Global.sc gl2)>> /\
-    <<MEM_FUTURE: Memory.future (Global.memory gl1) (Global.memory gl2)>>.
+    <<GL_FUTURE: Global.future gl1 gl2>>.
   Proof.
     inv LC_WF1. inv GL_WF1. inv STEP. ss.
     hexploit Promises.promise_le; eauto. i.
     hexploit Promises.promise_finite; eauto. i.
-    splits; ss; refl.
+    splits; ss; try refl. econs; refl.
   Qed.
 
   Lemma reserve_step_future
@@ -394,14 +393,13 @@ Module Local.
     <<LC_WF2: wf lc2 gl2>> /\
     <<GL_WF2: Global.wf gl2>> /\
     <<TVIEW_FUTURE: TView.le (tview lc1) (tview lc2)>> /\
-    <<SC_FUTURE: TimeMap.le (Global.sc gl1) (Global.sc gl2)>> /\
-    <<MEM_FUTURE: Memory.future (Global.memory gl1) (Global.memory gl2)>>.
+    <<GL_FUTURE: Global.future gl1 gl2>>.
   Proof.
     inv LC_WF1. inv GL_WF1. inv STEP. ss.
     hexploit Reserves.reserve_le; eauto. i.
     hexploit Reserves.reserve_finite; eauto. i.
     inv RESERVE.
-    splits; ss; try refl.
+    splits; ss; try refl. econs; refl.
   Qed.
 
   Lemma cancel_step_future
@@ -412,15 +410,13 @@ Module Local.
     <<LC_WF2: wf lc2 gl2>> /\
     <<GL_WF2: Global.wf gl2>> /\
     <<TVIEW_FUTURE: TView.le (tview lc1) (tview lc2)>> /\
-    <<SC_FUTURE: TimeMap.le (Global.sc gl1) (Global.sc gl2)>> /\
-    <<MEM_FUTURE: Memory.future (Global.memory gl1) (Global.memory gl2)>>.
+    <<GL_FUTURE: Global.future gl1 gl2>>.
   Proof.
     inv LC_WF1. inv GL_WF1. inv STEP. ss.
     hexploit Reserves.cancel_le; eauto. i.
     hexploit Reserves.cancel_finite; eauto. i.
     inv CANCEL.
-    splits; try refl; econs; ss;
-      eapply remove_closed_reserves; eauto.
+    splits; try refl; econs; ss; try refl.
   Qed.
 
   Lemma read_step_future
@@ -454,8 +450,7 @@ Module Local.
     <<LC_WF2: wf lc2 gl2>> /\
     <<GL_WF2: Global.wf gl2>> /\
     <<TVIEW_FUTURE: TView.le (tview lc1) (tview lc2)>> /\
-    <<SC_FUTURE: TimeMap.le (Global.sc gl1) (Global.sc gl2)>> /\
-    <<MEM_FUTURE: Memory.future (Global.memory gl1) (Global.memory gl2)>> /\
+    <<GL_FUTURE: Global.future gl1 gl2>> /\
     <<REL_WF: View.opt_wf released>> /\
     <<REL_TS: Time.le ((View.rlx (View.unwrap released)) loc) to>> /\
     <<REL_CLOSED: Memory.closed_opt_view released (Global.memory gl2)>>.
@@ -471,7 +466,7 @@ Module Local.
     splits; eauto.
     - econs; eauto.
     - apply TViewFacts.write_tview_incr. auto.
-    - refl.
+    - econs; ss. refl.
     - eapply TViewFacts.write_released_ts; eauto.
   Qed.
 
@@ -483,8 +478,7 @@ Module Local.
     <<LC_WF2: wf lc2 gl2>> /\
     <<GL_WF2: Global.wf gl2>> /\
     <<TVIEW_FUTURE: TView.le (tview lc1) (tview lc2)>> /\
-    <<SC_FUTURE: TimeMap.le (Global.sc gl1) (Global.sc gl2)>> /\
-    <<MEM_FUTURE: Memory.future (Global.memory gl1) (Global.memory gl2)>>.
+    <<GL_FUTURE: Global.future gl1 gl2>>.
   Proof.
     inv LC_WF1. inv GL_WF1. inv STEP. ss.
     exploit TViewFacts.read_fence_future; eauto. i. des.
@@ -495,7 +489,8 @@ Module Local.
       + apply TViewFacts.write_fence_tview_incr. auto.
       + apply TViewFacts.write_fence_tview_mon; eauto; try refl.
         apply TViewFacts.read_fence_tview_incr. auto.
-    - apply TViewFacts.write_fence_sc_incr.
+    - econs; try refl.
+      apply TViewFacts.write_fence_sc_incr.
   Qed.
 
   Lemma internal_step_future
@@ -506,8 +501,7 @@ Module Local.
     <<LC_WF2: wf lc2 gl2>> /\
     <<GL_WF2: Global.wf gl2>> /\
     <<TVIEW_FUTURE: TView.le (tview lc1) (tview lc2)>> /\
-    <<SC_FUTURE: TimeMap.le (Global.sc gl1) (Global.sc gl2)>> /\
-    <<MEM_FUTURE: Memory.future (Global.memory gl1) (Global.memory gl2)>>.
+    <<GL_FUTURE: Global.future gl1 gl2>>.
   Proof.
     inv STEP.
     - eapply promise_step_future; eauto.
@@ -523,8 +517,7 @@ Module Local.
     <<LC_WF2: wf lc2 gl2>> /\
     <<GL_WF2: Global.wf gl2>> /\
     <<TVIEW_FUTURE: TView.le (tview lc1) (tview lc2)>> /\
-    <<SC_FUTURE: TimeMap.le (Global.sc gl1) (Global.sc gl2)>> /\
-    <<MEM_FUTURE: Memory.future (Global.memory gl1) (Global.memory gl2)>>.
+    <<GL_FUTURE: Global.future gl1 gl2>>.
   Proof.
     inv STEP; try by (esplits; eauto; try refl).
     - exploit read_step_future; eauto. i. des.

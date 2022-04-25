@@ -67,19 +67,20 @@ Module PFConfiguration.
 
   Definition tau_step := union (step MachineEvent.silent).
 
-  Definition steps_failure (c1: Configuration.t): Prop :=
-    exists tid c2 c3,
-      <<STEPS: rtc tau_step c1 c2>> /\
-      <<FAILURE: step MachineEvent.failure tid c2 c3>>.
-  #[global] Hint Unfold steps_failure: core.
+  Variant steps_failure (c1: Configuration.t): Prop :=
+  | steps_failure_intro
+      tid c2 c3
+      (STEPS: rtc tau_step c1 c2)
+      (FAILURE: step MachineEvent.failure tid c2 c3)
+  .
+  #[global] Hint Constructors steps_failure: core.
 
   Lemma step_future
         e tid c1 c2
         (STEP: step e tid c1 c2)
         (WF1: Configuration.wf c1):
     <<WF2: Configuration.wf c2>> /\
-    <<SC_FUTURE: TimeMap.le (Global.sc (Configuration.global c1)) (Global.sc (Configuration.global c2))>> /\
-    <<MEM_FUTURE: Memory.future (Global.memory (Configuration.global c1)) (Global.memory (Configuration.global c2))>>.
+    <<GL_FUTURE: Global.future (Configuration.global c1) (Configuration.global c2)>>.
   Proof.
     inv WF1. inv WF. inv STEP; s.
     exploit THREADS; ss; eauto. i.
@@ -121,8 +122,7 @@ Module PFConfiguration.
         (STEP: opt_step e tid c1 c2)
         (WF1: Configuration.wf c1):
     <<WF2: Configuration.wf c2>> /\
-    <<SC_FUTURE: TimeMap.le (Global.sc (Configuration.global c1)) (Global.sc (Configuration.global c2))>> /\
-    <<MEM_FUTURE: Memory.future (Global.memory (Configuration.global c1)) (Global.memory (Configuration.global c2))>>.
+    <<GL_FUTURE: Global.future (Configuration.global c1) (Configuration.global c2)>>.
   Proof.
     inv STEP.
     - splits; auto; refl.
@@ -134,8 +134,7 @@ Module PFConfiguration.
         (STEP: normal_step c1 c2)
         (WF1: Configuration.wf c1):
     <<WF2: Configuration.wf c2>> /\
-    <<SC_FUTURE: TimeMap.le (Global.sc (Configuration.global c1)) (Global.sc (Configuration.global c2))>> /\
-    <<MEM_FUTURE: Memory.future (Global.memory (Configuration.global c1)) (Global.memory (Configuration.global c2))>>.
+    <<GL_FUTURE: Global.future (Configuration.global c1) (Configuration.global c2)>>.
   Proof.
     inv STEP. eauto using step_future.
   Qed.
@@ -145,8 +144,7 @@ Module PFConfiguration.
         (STEP: all_step c1 c2)
         (WF1: Configuration.wf c1):
     <<WF2: Configuration.wf c2>> /\
-    <<SC_FUTURE: TimeMap.le (Global.sc (Configuration.global c1)) (Global.sc (Configuration.global c2))>> /\
-    <<MEM_FUTURE: Memory.future (Global.memory (Configuration.global c1)) (Global.memory (Configuration.global c2))>>.
+    <<GL_FUTURE: Global.future (Configuration.global c1) (Configuration.global c2)>>.
   Proof.
     inv STEP. eauto using step_future.
   Qed.
@@ -156,8 +154,7 @@ Module PFConfiguration.
         (STEPS: rtc tau_step c1 c2)
         (WF1: Configuration.wf c1):
     <<WF2: Configuration.wf c2>> /\
-    <<SC_FUTURE: TimeMap.le (Global.sc (Configuration.global c1)) (Global.sc (Configuration.global c2))>> /\
-    <<MEM_FUTURE: Memory.future (Global.memory (Configuration.global c1)) (Global.memory (Configuration.global c2))>>.
+    <<GL_FUTURE: Global.future (Configuration.global c1) (Configuration.global c2)>>.
   Proof.
     induction STEPS; i.
     - splits; auto; refl.
@@ -172,8 +169,7 @@ Module PFConfiguration.
         (STEPS: rtc normal_step c1 c2)
         (WF1: Configuration.wf c1):
     <<WF2: Configuration.wf c2>> /\
-    <<SC_FUTURE: TimeMap.le (Global.sc (Configuration.global c1)) (Global.sc (Configuration.global c2))>> /\
-    <<MEM_FUTURE: Memory.future (Global.memory (Configuration.global c1)) (Global.memory (Configuration.global c2))>>.
+    <<GL_FUTURE: Global.future (Configuration.global c1) (Configuration.global c2)>>.
   Proof.
     induction STEPS; i.
     - splits; auto; refl.
@@ -188,8 +184,7 @@ Module PFConfiguration.
         (STEPS: rtc all_step c1 c2)
         (WF1: Configuration.wf c1):
     <<WF2: Configuration.wf c2>> /\
-    <<SC_FUTURE: TimeMap.le (Global.sc (Configuration.global c1)) (Global.sc (Configuration.global c2))>> /\
-    <<MEM_FUTURE: Memory.future (Global.memory (Configuration.global c1)) (Global.memory (Configuration.global c2))>>.
+    <<GL_FUTURE: Global.future (Configuration.global c1) (Configuration.global c2)>>.
   Proof.
     induction STEPS; i.
     - splits; auto; refl.

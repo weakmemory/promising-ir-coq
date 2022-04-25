@@ -161,8 +161,7 @@ Module Thread.
       <<LC_WF2: Local.wf (local e2) (global e2)>> /\
       <<GL_WF2: Global.wf (global e2)>> /\
       <<TVIEW_FUTURE: TView.le (Local.tview (local e1)) (Local.tview (local e2))>> /\
-      <<SC_FUTURE: TimeMap.le (Global.sc (global e1)) (Global.sc (global e2))>> /\
-      <<MEM_FUTURE: Memory.future (Global.memory (global e1)) (Global.memory (global e2))>>.
+      <<GL_FUTURE: Global.future (global e1) (global e2)>>.
     Proof.
       inv STEP; ss.
       - eapply Local.internal_step_future; eauto.
@@ -177,8 +176,7 @@ Module Thread.
       <<LC_WF2: Local.wf (local e2) (global e2)>> /\
       <<GL_WF2: Global.wf (global e2)>> /\
       <<TVIEW_FUTURE: TView.le (Local.tview (local e1)) (Local.tview (local e2))>> /\
-      <<SC_FUTURE: TimeMap.le (Global.sc (global e1)) (Global.sc (global e2))>> /\
-      <<MEM_FUTURE: Memory.future (Global.memory (global e1)) (Global.memory (global e2))>>.
+      <<GL_FUTURE: Global.future (global e1) (global e2)>>.
     Proof.
       inv STEP.
       - esplits; eauto; refl.
@@ -193,8 +191,7 @@ Module Thread.
       <<LC_WF2: Local.wf (local e2) (global e2)>> /\
       <<GL_WF2: Global.wf (global e2)>> /\
       <<TVIEW_FUTURE: TView.le (Local.tview (local e1)) (Local.tview (local e2))>> /\
-      <<SC_FUTURE: TimeMap.le (Global.sc (global e1)) (Global.sc (global e2))>> /\
-      <<MEM_FUTURE: Memory.future (Global.memory (global e1)) (Global.memory (global e2))>>.
+      <<GL_FUTURE: Global.future (global e1) (global e2)>>.
     Proof.
       revert LC_WF1. induction STEP.
       - i. splits; ss; refl.
@@ -212,8 +209,7 @@ Module Thread.
       <<LC_WF2: Local.wf (local e2) (global e2)>> /\
       <<GL_WF2: Global.wf (global e2)>> /\
       <<TVIEW_FUTURE: TView.le (Local.tview (local e1)) (Local.tview (local e2))>> /\
-      <<SC_FUTURE: TimeMap.le (Global.sc (global e1)) (Global.sc (global e2))>> /\
-      <<MEM_FUTURE: Memory.future (Global.memory (global e1)) (Global.memory (global e2))>>.
+      <<GL_FUTURE: Global.future (global e1) (global e2)>>.
     Proof.
       apply rtc_all_step_future; auto.
       eapply rtc_implies; [|eauto].
@@ -228,8 +224,7 @@ Module Thread.
       <<LC_WF2: Local.wf (local e2) (global e2)>> /\
       <<GL_WF2: Global.wf (global e2)>> /\
       <<TVIEW_FUTURE: TView.le (Local.tview (local e1)) (Local.tview (local e2))>> /\
-      <<SC_FUTURE: TimeMap.le (Global.sc (global e1)) (Global.sc (global e2))>> /\
-      <<MEM_FUTURE: Memory.future (Global.memory (global e1)) (Global.memory (global e2))>> /\
+      <<GL_FUTURE: Global.future (global e1) (global e2)>> /\
       <<STATE: (state e1) = (state e2)>>.
     Proof.
       exploit step_future; eauto. i. des.
@@ -244,8 +239,7 @@ Module Thread.
       <<LC_WF2: Local.wf (local e2) (global e2)>> /\
       <<GL_WF2: Global.wf (global e2)>> /\
       <<TVIEW_FUTURE: TView.le (Local.tview (local e1)) (Local.tview (local e2))>> /\
-      <<SC_FUTURE: TimeMap.le (Global.sc (global e1)) (Global.sc (global e2))>> /\
-      <<MEM_FUTURE: Memory.future (Global.memory (global e1)) (Global.memory (global e2))>> /\
+      <<GL_FUTURE: Global.future (global e1) (global e2)>> /\
       <<STATE: (state e1) = (state e2)>>.
     Proof.
       revert LC_WF1. induction STEP.

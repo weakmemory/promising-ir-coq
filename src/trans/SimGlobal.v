@@ -46,6 +46,9 @@ Next Obligation.
   econs; ss; etrans; eauto.
 Qed.
 
+Lemma init_sim_global: sim_global Global.init Global.init.
+Proof. refl. Qed.
+
 Lemma sim_global_max_reserved
       gl_src gl_tgt
       (SIM: sim_global gl_src gl_tgt)

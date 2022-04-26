@@ -37,7 +37,7 @@ Module PFConfiguration.
            c1
            (Configuration.mk (IdentMap.add tid (existT _ _ st3, lc3) (Configuration.threads c1)) gl3)
   .
-  #[global] Hint Constructors step.
+  #[global] Hint Constructors step: core.
 
   Variant normal_step (c1 c2: Configuration.t): Prop :=
   | normal_step_intro

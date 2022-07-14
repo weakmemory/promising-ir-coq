@@ -27,12 +27,11 @@ Set Implicit Arguments.
 Module PFConfiguration.
   Variant step: forall (e: MachineEvent.t) (tid: Ident.t) (c1 c2: Configuration.t), Prop :=
   | step_intro
-      e tid c1 lang st1 lc1 e2 st3 lc3 gl3
+      e tid c1 lang st1 lc1 st3 lc3 gl3
       (TID: IdentMap.find tid (Configuration.threads c1) = Some (existT _ lang st1, lc1))
-      (STEPS: rtc (Thread.pf_tau_step (Global.max_reserved (Configuration.global c1)))
-                  (Thread.mk _ st1 lc1 (Configuration.global c1)) e2)
       (STEP: Thread.step (Global.max_reserved (Configuration.global c1)) true e
-                         e2 (Thread.mk _ st3 lc3 gl3)):
+                         (Thread.mk _ st1 lc1 (Configuration.global c1))
+                         (Thread.mk _ st3 lc3 gl3)):
       step (ThreadEvent.get_machine_event_pf e) tid
            c1
            (Configuration.mk (IdentMap.add tid (existT _ _ st3, lc3) (Configuration.threads c1)) gl3)
@@ -84,35 +83,19 @@ Module PFConfiguration.
   Proof.
     inv WF1. inv WF. inv STEP; s.
     exploit THREADS; ss; eauto. i.
-    exploit Thread.rtc_tau_step_future;
-      try eapply rtc_implies; try eapply STEPS; eauto.
-    { i. inv H. econs; eauto. }
-    s. i. des.
     exploit Thread.step_future; eauto. s. i. des.
-    splits; try by etrans; eauto.
+    splits; eauto.
     econs; ss. econs.
     - i. Configuration.simplify.
       + exploit THREADS; try apply TH1; eauto. i. des.
-        exploit Thread.rtc_tau_step_disjoint;
-          try eapply rtc_implies; try eapply STEPS; eauto.
-        { i. inv H. econs; eauto. }
-        s. i. des.
         exploit Thread.step_disjoint; eauto. s. i. des.
         symmetry. auto.
       + exploit THREADS; try apply TH2; eauto. i. des.
-        exploit Thread.rtc_tau_step_disjoint;
-          try eapply rtc_implies; try eapply STEPS; eauto.
-        { i. inv H. econs; eauto. }
-        s. i. des.
         exploit Thread.step_disjoint; eauto. i. des.
         auto.
       + eapply DISJOINT; [|eauto|eauto]. auto.
     - i. Configuration.simplify.
       exploit THREADS; try apply TH; eauto. i.
-      exploit Thread.rtc_tau_step_disjoint;
-        try eapply rtc_implies; try eapply STEPS; eauto.
-      { i. inv H. econs; eauto. }
-      s. i. des.
       exploit Thread.step_disjoint; eauto. s. i. des.
       auto.
   Qed.

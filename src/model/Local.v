@@ -4,9 +4,9 @@ From sflib Require Import sflib.
 
 From PromisingLib Require Import Axioms.
 From PromisingLib Require Import Basic.
+From PromisingLib Require Import Loc.
 From PromisingLib Require Import DataStructure.
 From PromisingLib Require Import DenseOrder.
-From PromisingLib Require Import Loc.
 From PromisingLib Require Import Event.
 
 Require Import Time.
@@ -110,6 +110,14 @@ Module ThreadEvent.
     | racy_read loc _ _ _
     | racy_write loc _ _ _
     | racy_update loc _ _ _ _ _ => loc = l
+    | _ => False
+    end.
+
+  Definition is_race (e: t): Prop :=
+    match e with
+    | racy_read _ _ _ _
+    | racy_write _ _ _ _
+    | racy_update _ _ _ _ _ _ => True
     | _ => False
     end.
 

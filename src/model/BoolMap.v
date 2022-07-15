@@ -159,4 +159,46 @@ Module BoolMap.
     exists x. unfold LocFun.add. intro.
     condtac; ss; eauto.
   Qed.
+
+
+  Definition minus (gbm bm: t): t :=
+    fun loc => andb (gbm loc) (negb (bm loc)).
+
+  Lemma minus_true_spec gbm bm loc:
+    minus gbm bm loc = true <->
+    gbm loc = true /\ bm loc = false.
+  Proof.
+    unfold minus. split; i.
+    - rewrite Bool.andb_true_iff in *. des. split; ss.
+      destruct (bm loc); ss.
+    - des. rewrite H, H0. ss.
+  Qed.
+
+  Lemma add_minus
+        gbm1 gbm2
+        bm1 bm2
+        loc
+        (GADD: add gbm1 loc gbm2)
+        (ADD: add bm1 loc bm2):
+    minus gbm1 bm1 = minus gbm2 bm2.
+  Proof.
+    extensionality l. unfold minus.
+    inv GADD. inv ADD.
+    unfold LocFun.add. condtac; ss. subst.
+    rewrite GET, GET0. ss.
+  Qed.
+
+  Lemma remove_minus
+        gbm1 gbm2
+        bm1 bm2
+        loc
+        (GREMOVE: remove gbm1 loc gbm2)
+        (REMOVE: remove bm1 loc bm2):
+    minus gbm1 bm1 = minus gbm2 bm2.
+  Proof.
+    extensionality l. unfold minus.
+    inv GREMOVE. inv REMOVE.
+    unfold LocFun.add. condtac; ss. subst.
+    rewrite GET, GET0. ss.
+  Qed.
 End BoolMap.

@@ -1,4 +1,4 @@
-\Require Import RelationClasses.
+Require Import RelationClasses.
 
 From sflib Require Import sflib.
 

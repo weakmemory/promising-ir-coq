@@ -101,4 +101,20 @@ Module Reserves.
   Proof.
     inv CANCEL. eauto using remove_finite.
   Qed.
+
+  Lemma reserve_minus
+        rsv1 grsv1 loc rsv2 grsv2
+        (RESERVE: reserve rsv1 grsv1 loc rsv2 grsv2):
+    minus grsv1 rsv1 = minus grsv2 rsv2.
+  Proof.
+    inv RESERVE. eauto using add_minus.
+  Qed.
+
+  Lemma cancel_minus
+        rsv1 grsv1 loc rsv2 grsv2
+        (CANCEL: cancel rsv1 grsv1 loc rsv2 grsv2):
+    minus grsv1 rsv1 = minus grsv2 rsv2.
+  Proof.
+    inv CANCEL. eauto using remove_minus.
+  Qed.
 End Reserves.

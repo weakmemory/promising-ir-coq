@@ -105,4 +105,20 @@ Module Promises.
   Proof.
     inv FULFILL; auto. eauto using remove_finite.
   Qed.
+
+  Lemma promise_minus
+        prm1 gprm1 loc prm2 gprm2
+        (PROMISE: promise prm1 gprm1 loc prm2 gprm2):
+    minus gprm1 prm1 = minus gprm2 prm2.
+  Proof.
+    inv PROMISE. eauto using add_minus.
+  Qed.
+
+  Lemma fulfill_minus
+        prm1 gprm1 loc ord prm2 gprm2
+        (FULFILL: fulfill prm1 gprm1 loc ord prm2 gprm2):
+    minus gprm1 prm1 = minus gprm2 prm2.
+  Proof.
+    inv FULFILL; ss. eauto using remove_minus.
+  Qed.
 End Promises.

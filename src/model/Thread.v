@@ -41,6 +41,14 @@ Variant union E T (step: forall (e:E) (th1 th2:T), Prop) (th1 th2:T): Prop :=
 .
 #[export] Hint Constructors union: core.
 
+Variant pstep E T (step: forall (e: E) (th1 th2: T), Prop) (P: E -> Prop) (th1 th2: T): Prop :=
+| pstep_intro
+    e
+    (STEP: step e th1 th2)
+    (EVENT: P e)
+.
+#[export] Hint Constructors pstep: core.
+
 Lemma tau_mon T (step1 step2: forall (e:ThreadEvent.t) (th1 th2:T), Prop)
       (STEP: step1 <3= step2):
   tau step1 <2= tau step2.
@@ -55,9 +63,23 @@ Proof.
   i. inv PR. econs; eauto.
 Qed.
 
+Lemma pstep_mon E T (step1 step2: forall (e:E) (th1 th2:T), Prop) P1 P2
+      (STEP: step1 <3= step2)
+      (P: P1 <1= P2):
+  pstep step1 P1 <2= pstep step2 P2.
+Proof.
+  i. inv PR. econs; eauto.
+Qed.
+
 Lemma tau_union: tau <4= (@union ThreadEvent.t).
 Proof.
   ii. inv PR. econs. eauto.
+Qed.
+
+Lemma pstep_union E T step P:
+  @pstep E T step P <2= @union E T step.
+Proof.
+  i. inv PR. eauto.
 Qed.
 
 
@@ -107,12 +129,12 @@ Module Thread.
     Hint Unfold all_step: core.
 
     Variant opt_step: forall (e:ThreadEvent.t) (th1 th2:t), Prop :=
-    | step_none
-        e:
+      | step_none
+          e:
         opt_step ThreadEvent.silent e e
-    | step_some
-        pf e th1 th2
-        (STEP: step pf e th1 th2):
+      | step_some
+          pf e th1 th2
+          (STEP: step pf e th1 th2):
         opt_step e th1 th2
     .
     #[local] Hint Constructors opt_step: core.
@@ -414,12 +436,12 @@ Module Thread.
   (* consistency *)
 
   Variant consistent {lang: language} (th: t lang): Prop :=
-  | consistent_failure
-      (FAILURE: @steps_failure lang (Global.max_reserved (global th)) th)
-  | consistent_promises
-      th2
-      (STEPS: rtc (@tau_step lang (Global.max_reserved (global th))) th th2)
-      (PROMISES: Local.promises (Thread.local th2) = BoolMap.bot)
+    | consistent_failure
+        (FAILURE: @steps_failure lang (Global.max_reserved (global th)) th)
+    | consistent_promises
+        th2
+        (STEPS: rtc (@tau_step lang (Global.max_reserved (global th))) th th2)
+        (PROMISES: Local.promises (Thread.local th2) = BoolMap.bot)
   .
 End Thread.
 #[export] Hint Constructors Thread.step: core.

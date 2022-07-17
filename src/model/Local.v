@@ -121,6 +121,13 @@ Module ThreadEvent.
     | _ => False
     end.
 
+  Definition is_sc (e: t): Prop :=
+    match e with
+    | fence _ ordw => Ordering.le Ordering.seqcst ordw
+    | syscall _ => True
+    | _ => False
+    end.
+
   Lemma eq_program_event_eq_loc
         e1 e2 loc
         (EVENT: get_program_event e1 = get_program_event e2):
@@ -243,7 +250,7 @@ Module Local.
                      (promises lc1) (reserves lc1))
       (GL2: gl2 = Global.mk (TView.write_fence_sc tview2 (Global.sc gl1) ordw)
                             (Global.promises gl1) (Global.reserves gl1) (Global.memory gl1))
-      (PROMISES: ordw = Ordering.seqcst -> promises lc1 = BoolMap.bot):
+      (PROMISES: Ordering.le Ordering.seqcst ordw -> promises lc1 = BoolMap.bot):
       fence_step lc1 gl1 ordr ordw lc2 gl2
   .
   #[global] Hint Constructors fence_step: core.

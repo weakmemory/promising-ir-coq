@@ -154,7 +154,7 @@ Proof.
     exploit x2; try exact x; try exact x0; try refl; eauto. i. des.
     exploit TERMINAL; eauto. i. des.
     - (* failure *)
-      left. inv FAILURE. destruct e3.
+      left. inv FAILURE. destruct th3.
       econs; [refl|]. rewrite <- EVENT_FAILURE. econs; eauto. destruct e; ss.
     - (* non-failure *)
       exploit thread_rtc_step_rtc_step; try exact STEPS; eauto.
@@ -197,7 +197,7 @@ Proof.
     exploit sim_thread_plus_step; try exact STEPS; try exact x0; eauto.
     { rewrite <- x1. refl. }
     s. i. des.
-    { left. inv FAILURE. destruct e3.
+    { left. inv FAILURE. destruct th3.
       econs; try refl. rewrite <- EVENT_FAILURE. econs; eauto. destruct e; ss.
     }
     right. inv STEP0.

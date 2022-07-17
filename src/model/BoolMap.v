@@ -110,6 +110,14 @@ Module BoolMap.
     inv ADD. unfold LocFun.add. condtac; ss.
   Qed.
 
+  Lemma add_le
+        bm1 loc bm2
+        (ADD: add bm1 loc bm2):
+    le bm1 bm2.
+  Proof.
+    ii. erewrite add_o; eauto. condtac; ss.
+  Qed.
+
   Lemma add_finite
         bm1 loc bm2
         (ADD: add bm1 loc bm2)
@@ -147,6 +155,15 @@ Module BoolMap.
     (<<GET2: bm2 l = true>>).
   Proof.
     inv REMOVE. unfold LocFun.add. condtac; auto.
+  Qed.
+
+  Lemma remove_le
+        bm1 loc bm2
+        (REMOVE: remove bm1 loc bm2):
+    le bm2 bm1.
+  Proof.
+    ii. revert LHS.
+    erewrite remove_o; eauto. condtac; ss.
   Qed.
 
   Lemma remove_finite

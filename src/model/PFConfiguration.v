@@ -196,7 +196,7 @@ Module PFConfiguration.
     Qed.
   End PFConfiguration.
 End PFConfiguration.
-#[export] Hint Constructors step: core.
-#[export] Hint Constructors normal_step: core.
-#[export] Hint Constructors opt_step: core.
-#[export] Hint Constructors steps_failure: core.
+#[export] Hint Constructors PFConfiguration.step: core.
+#[export] Hint Constructors PFConfiguration.normal_step: core.
+#[export] Hint Constructors PFConfiguration.opt_step: core.
+#[export] Hint Constructors PFConfiguration.steps_failure: core.

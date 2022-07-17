@@ -419,7 +419,7 @@ Module Thread.
   | consistent_promises
       th2
       (STEPS: rtc (@tau_step lang (Global.max_reserved (global th))) th th2)
-      (PROMISES: (Local.promises (local th2)) = BoolMap.bot)
+      (PROMISES: Local.promises (Thread.local th2) = BoolMap.bot)
   .
 End Thread.
 #[export] Hint Constructors Thread.step: core.

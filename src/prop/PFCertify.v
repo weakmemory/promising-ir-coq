@@ -196,8 +196,8 @@ Section PFCertify.
     }
   Qed.
 
-  Variant sim_thread (th_src th_tgt: Thread.t lang): Prop :=
-    | sim_thread_intro
+  Variant pf_sim_thread (th_src th_tgt: Thread.t lang): Prop :=
+    | pf_sim_thread_intro
         (STATE: Thread.state th_src = Thread.state th_tgt)
         (TVIEW: Local.tview (Thread.local th_src) = Local.tview (Thread.local th_tgt))
         (SC: Global.sc (Thread.global th_src) = Global.sc (Thread.global th_tgt))
@@ -208,7 +208,7 @@ Section PFCertify.
         (MEMORY: Global.memory (Thread.global th_src) = Global.memory (Thread.global th_tgt))
   .
 
-  Program Instance sim_thread_Equivalence: Equivalence sim_thread.
+  Program Instance pf_sim_thread_Equivalence: Equivalence pf_sim_thread.
   Next Obligation.
     ii. econs; ss.
   Qed.
@@ -219,12 +219,12 @@ Section PFCertify.
     ii. inv H. inv H0. econs; try congr.
   Qed.
 
-  Lemma sim_thread_internal_step
+  Lemma pf_sim_thread_internal_step
         th1_src
         reserved e th1_tgt th2_tgt
-        (SIM1: sim_thread th1_src th1_tgt)
+        (SIM1: pf_sim_thread th1_src th1_tgt)
         (STEP_TGT: Thread.step reserved false e th1_tgt th2_tgt):
-    sim_thread th1_src th2_tgt.
+    pf_sim_thread th1_src th2_tgt.
   Proof.
     inv SIM1. inv STEP_TGT. ss. inv STEP.
     - inv LOCAL. econs; ss.
@@ -258,17 +258,17 @@ Section PFCertify.
     - rewrite <- TVIEW, <- MEMORY in *. eauto.
   Qed.
 
-  Lemma sim_thread_program_step
+  Lemma pf_sim_thread_program_step
         (reserved: OptTimeMap.t)
         th1_src
         e th1_tgt th2_tgt
         (RESERVED: forall loc, reserved loc <-> Global.reserves (Thread.global th1_src) loc)
-        (SIM1: sim_thread th1_src th1_tgt)
+        (SIM1: pf_sim_thread th1_src th1_tgt)
         (STEP_TGT: Thread.step reserved true e th1_tgt th2_tgt)
         (NONSC: ~ ThreadEvent.is_sc e):
     exists th2_src,
       (<<STEP_SRC: Thread.step reserved true e th1_src th2_src>>) /\
-      (<<SIM2: sim_thread th2_src th2_tgt>>).
+      (<<SIM2: pf_sim_thread th2_src th2_tgt>>).
   Proof.
     destruct th1_src as [st1_src [tview1_src prm1_src rsv1_src] [sc1_src gprm1_src grsv1_src mem1_src]],
         th1_tgt as [st1_tgt [tview1_tgt prm1_tgt rsv1_tgt] [sc1_tgt gprm1_tgt grsv1_tgt mem1_tgt]].
@@ -368,7 +368,7 @@ Section PFCertify.
   Lemma certify_pf_certify_aux
         (reserved: OptTimeMap.t)
         th_src th_tgt loc
-        (SIM: sim_thread th_src th_tgt)
+        (SIM: pf_sim_thread th_src th_tgt)
         (RESERVED: forall loc, reserved loc <-> Global.reserves (Thread.global th_src) loc)
         (CERTIFY: certify reserved loc th_tgt):
     pf_certify_aux reserved loc th_src.
@@ -377,13 +377,13 @@ Section PFCertify.
     { revert th_src SIM RESERVED.
       induction STEPS; i.
       { destruct pf; [|inv STEP_FAILURE; inv STEP; ss].
-        exploit sim_thread_program_step; try exact STEP_FAILURE; eauto.
+        exploit pf_sim_thread_program_step; try exact STEP_FAILURE; eauto.
         { destruct e; ss. }
         i. des.
         econs 1; [refl|..]; eauto.
       }
       inv H. inv STEP. destruct pf0.
-      { exploit sim_thread_program_step; try exact STEP0; eauto; try apply EVENT. i. des.
+      { exploit pf_sim_thread_program_step; try exact STEP0; eauto; try apply EVENT. i. des.
         exploit IHSTEPS; eauto.
         { i. erewrite <- program_step_reserves; eauto. }
         i. inv x1.
@@ -392,19 +392,19 @@ Section PFCertify.
         - econs 2; try exact STEP_FULFILL; eauto.
           econs 2; eauto. econs; eauto. apply EVENT.
       }
-      { eauto using sim_thread_internal_step. }
+      { eauto using pf_sim_thread_internal_step. }
     }
     { revert th_src SIM RESERVED.
       induction STEPS; i.
       { destruct pf; [|inv STEP_FULFILL; inv STEP; ss].
-        exploit sim_thread_program_step; try exact STEP_FAILURE; eauto.
+        exploit pf_sim_thread_program_step; try exact STEP_FAILURE; eauto.
         { destruct e; ss. }
         i. des.
         econs 2; [refl|..]; eauto.
         inv SIM. congr.
       }
       inv H. inv STEP. destruct pf0.
-      { exploit sim_thread_program_step; try exact STEP0; eauto; try apply EVENT. i. des.
+      { exploit pf_sim_thread_program_step; try exact STEP0; eauto; try apply EVENT. i. des.
         exploit IHSTEPS; eauto.
         { i. erewrite <- program_step_reserves; eauto. }
         i. inv x1.
@@ -413,7 +413,7 @@ Section PFCertify.
         - econs 2; try exact STEP_FULFILL0; eauto.
           econs 2; eauto. econs; eauto. apply EVENT.
       }
-      { eauto using sim_thread_internal_step. }
+      { eauto using pf_sim_thread_internal_step. }
     }
   Qed.
 

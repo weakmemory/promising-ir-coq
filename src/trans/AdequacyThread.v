@@ -62,7 +62,7 @@ Lemma thread_rtc_step_rtc_step
       ths1 tid lang st1 lc1 gl1 st2 lc2 gl2
       (WF: Configuration.wf (Configuration.mk ths1 gl1))
       (FIND: IdentMap.find tid ths1 = Some (existT _ lang st1, lc1))
-      (STEPS: rtc (@Thread.tau_step lang (Global.max_reserved gl1))
+      (STEPS: rtc (@Thread.tau_step lang (Memory.max_timemap (Global.memory gl1)))
                   (Thread.mk lang st1 lc1 gl1)
                   (Thread.mk lang st2 lc2 gl2))
       (CONS: Thread.consistent (Thread.mk lang st2 lc2 gl2)):
@@ -149,7 +149,7 @@ Proof.
     generalize WF_TGT. intro X. inv X. ss. inv WF. exploit THREADS0; eauto. intros x0.
     exploit (IN a); eauto. i. des.
     exploit TERMINAL_TGT; eauto. i. des.
-    exploit sim_global_max_reserved; try exact GLOBAL; eauto. i.
+    exploit sim_memory_max_timemap; try apply GLOBAL; try apply GL_WF; try apply GL_WF0. i.
     punfold x2.
     exploit x2; try exact x; try exact x0; try refl; eauto. i. des.
     exploit TERMINAL; eauto. i. des.
@@ -184,7 +184,7 @@ Proof.
   }
 
   { (* STEP CASE *)
-    i. inv STEP_TGT. destruct e2. ss.
+    i. inv STEP_TGT. destruct th2. ss.
     destruct (IdentMap.find tid_tgt ths_src) as [[[lang_src st_src] lc_src]|] eqn:FIND_SRC; cycle 1.
     { remember (Threads.tids ths_src) as tids eqn:TIDS_SRC.
       exploit tids_find; [exact TIDS_SRC|exact TIDS_TGT|..]. i. des.
@@ -193,7 +193,7 @@ Proof.
     dup WF_SRC. inv WF_SRC0. inv WF. ss.
     dup WF_TGT. inv WF_TGT0. inv WF. ss.
     exploit SIM; eauto. i. des.
-    exploit sim_global_max_reserved; eauto. i.
+    exploit sim_memory_max_timemap; try apply GLOBAL; try apply GL_WF; try apply GL_WF0; eauto. i.
     exploit sim_thread_plus_step; try exact STEPS; try exact x0; eauto.
     { rewrite <- x1. refl. }
     s. i. des.

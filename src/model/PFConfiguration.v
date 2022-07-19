@@ -30,7 +30,7 @@ Module PFConfiguration.
     | estep_intro
         e tid c1 lang st1 lc1 st3 lc3 gl3
         (TID: IdentMap.find tid (Configuration.threads c1) = Some (existT _ lang st1, lc1))
-        (STEP: Thread.step (Global.max_reserved (Configuration.global c1)) true e
+        (STEP: Thread.step TimeMap.bot true e
                            (Thread.mk _ st1 lc1 (Configuration.global c1))
                            (Thread.mk _ st3 lc3 gl3)):
       estep e tid

@@ -16,6 +16,7 @@ Module BoolMap.
   Definition t :=  Loc.t -> bool.
 
   Definition bot: t := fun _ => false.
+  Definition top: t := fun _ => true.
 
   Definition le (lhs rhs: t): Prop :=
     forall loc (LHS: lhs loc = true), rhs loc = true.
@@ -40,6 +41,11 @@ Module BoolMap.
   Qed.
 
   Lemma bot_spec bm: le bot bm.
+  Proof.
+    ii. ss.
+  Qed.
+
+  Lemma top_spec bm: le bm top.
   Proof.
     ii. ss.
   Qed.

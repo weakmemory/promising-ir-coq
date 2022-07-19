@@ -49,16 +49,10 @@ Qed.
 Lemma init_sim_global: sim_global Global.init Global.init.
 Proof. refl. Qed.
 
-Lemma sim_global_max_reserved
+Lemma sim_global_fully_reserved
       gl_src gl_tgt
-      (SIM: sim_global gl_src gl_tgt)
-      (GL_WF_SRC: Global.wf gl_src)
-      (GL_WF_TGT: Global.wf gl_tgt):
-  Global.max_reserved gl_src = Global.max_reserved gl_tgt.
+      (SIM: sim_global gl_src gl_tgt):
+  sim_global (Global.fully_reserved gl_src) (Global.fully_reserved gl_tgt).
 Proof.
-  destruct gl_src as [sc_src prm_src rsv_src mem_src].
-  destruct gl_tgt as [sc_tgt prm_tgt rsv_tgt mem_tgt].
-  unfold Global.max_reserved. ss.
-  eapply sim_memory_max_opt_timemap;
-    try apply SIM; try apply GL_WF_SRC; try apply GL_WF_TGT.
+  inv SIM. econs; eauto.
 Qed.

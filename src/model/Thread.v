@@ -86,7 +86,7 @@ Qed.
 Module Thread.
   Section Thread.
     Variable (lang: language).
-    Variable (reserved: OptTimeMap.t).
+    Variable (reserved: TimeMap.t).
 
     Structure t := mk {
       state: (Language.state lang);
@@ -435,12 +435,17 @@ Module Thread.
 
   (* consistency *)
 
+  Definition fully_reserved {lang: language} (th: t lang): t lang :=
+    mk lang (state th) (local th) (Global.fully_reserved (global th)).
+
   Variant consistent {lang: language} (th: t lang): Prop :=
     | consistent_failure
-        (FAILURE: @steps_failure lang (Global.max_reserved (global th)) th)
+        (FAILURE: @steps_failure lang (Memory.max_timemap (Global.memory (global th)))
+                                 (fully_reserved th))
     | consistent_promises
         th2
-        (STEPS: rtc (@tau_step lang (Global.max_reserved (global th))) th th2)
+        (STEPS: rtc (@tau_step lang (Memory.max_timemap (Global.memory (global th))))
+                    (fully_reserved th) th2)
         (PROMISES: Local.promises (Thread.local th2) = BoolMap.bot)
   .
 End Thread.
@@ -448,4 +453,5 @@ End Thread.
 #[export] Hint Constructors Thread.step_allpf: core.
 #[export] Hint Constructors Thread.opt_step: core.
 #[export] Hint Constructors Thread.steps_failure: core.
+#[export] Hint Unfold Thread.fully_reserved: core.
 #[export] Hint Constructors Thread.consistent: core.

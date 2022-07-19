@@ -165,6 +165,14 @@ Module Local.
   .
   #[global] Hint Constructors wf: core.
 
+  Lemma fully_reserved_wf
+        lc gl
+        (WF: wf lc gl):
+    wf lc (Global.fully_reserved gl).
+  Proof.
+    inv WF. econs; ss.
+  Qed.
+
   Variant disjoint (lc1 lc2:t): Prop :=
   | disjoint_intro
       (PROMISES_DISJOINT: BoolMap.disjoint (promises lc1) (promises lc2))
@@ -222,7 +230,7 @@ Module Local.
   #[global] Hint Constructors read_step: core.
 
   Variant write_step
-          (reserved: OptTimeMap.t)
+          (reserved: TimeMap.t)
           (lc1: t) (gl1: Global.t)
           (loc: Loc.t) (from to: Time.t)
           (val: Const.t) (releasedm released: option View.t) (ord: Ordering.t)
@@ -231,8 +239,7 @@ Module Local.
       prm2 gprm2 mem2
       (RELEASED: released = TView.write_released (tview lc1) (Global.sc gl1) loc to releasedm ord)
       (WRITABLE: TView.writable (TView.cur (tview lc1)) (Global.sc gl1) loc to ord)
-      (NON_RESERVED: forall ts (GET: reserved loc = Some ts),
-          reserves lc1 loc = true \/ Time.lt ts from)
+      (NON_RESERVED: reserves lc1 loc = false -> Time.lt (reserved loc) from)
       (FULFILL: Promises.fulfill (promises lc1) (Global.promises gl1) loc ord prm2 gprm2)
       (WRITE: Memory.add (Global.memory gl1) loc from to
                          (Message.mk val released (Ordering.le ord Ordering.na)) mem2)
@@ -324,7 +331,7 @@ Module Local.
     internal_step (ThreadEvent.cancel loc) lc1 gl1 lc2 gl2
   .
 
-  Variant program_step (reserved: OptTimeMap.t):
+  Variant program_step (reserved: TimeMap.t):
     forall (e: ThreadEvent.t) (lc1: t) (gl1: Global.t) (lc2: t) (gl2: Global.t), Prop :=
   | step_silent
       lc1 gl1:

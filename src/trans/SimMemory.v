@@ -145,6 +145,17 @@ Proof.
     inv ITV. ss. etrans; eauto.
 Qed.
 
+Lemma sim_memory_max_timemap
+      mem_src mem_tgt
+      (SIM: sim_memory mem_src mem_tgt)
+      (CLOSED_SRC: Memory.closed mem_src)
+      (CLOSED_TGT: Memory.closed mem_tgt):
+  Memory.max_timemap mem_src = Memory.max_timemap mem_tgt.
+Proof.
+  extensionality loc.
+  eapply sim_memory_max_ts; eauto.
+Qed.
+
 Lemma sim_memory_add
       mem1_src mem1_tgt msg_src
       mem2_src mem2_tgt msg_tgt

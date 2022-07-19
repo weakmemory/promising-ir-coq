@@ -164,11 +164,12 @@ Module Configuration.
 
   Variant step: forall (e: MachineEvent.t) (tid: Ident.t) (c1 c2: t), Prop :=
   | step_intro
-      pf e tid c1 lang st1 lc1 e2 st3 lc3 gl3
+      pf e tid c1 lang st1 lc1 th2 st3 lc3 gl3
       (TID: IdentMap.find tid (threads c1) = Some (existT _ lang st1, lc1))
-      (STEPS: rtc (Thread.tau_step (Global.max_reserved (global c1)))
-                  (Thread.mk _ st1 lc1 (global c1)) e2)
-      (STEP: Thread.step (Global.max_reserved (global c1)) pf e e2 (Thread.mk _ st3 lc3 gl3))
+      (STEPS: rtc (Thread.tau_step (Memory.max_timemap (Global.memory (global c1))))
+                  (Thread.mk _ st1 lc1 (global c1)) th2)
+      (STEP: Thread.step (Memory.max_timemap (Global.memory (global c1)))
+                         pf e th2 (Thread.mk _ st3 lc3 gl3))
       (CONSISTENT: ThreadEvent.get_machine_event e <> MachineEvent.failure ->
                    Thread.consistent (Thread.mk _ st3 lc3 gl3)):
       step (ThreadEvent.get_machine_event e) tid

@@ -30,11 +30,16 @@ Module Global.
 
   Definition init := mk TimeMap.bot BoolMap.bot BoolMap.bot Memory.init.
 
+  Definition fully_reserved (gl: t): t :=
+    mk (sc gl) (promises gl) BoolMap.top (memory gl).
+  #[export] Hint Unfold fully_reserved: core.
+
   Variant wf (gl: t): Prop :=
   | wf_intro
       (SC_CLOSED: Memory.closed_timemap (sc gl) (memory gl))
       (MEM_CLOSED: Memory.closed (memory gl))
   .
+  #[export] Hint Constructors wf: core.
 
   Lemma init_wf: wf init.
   Proof.
@@ -44,15 +49,20 @@ Module Global.
     - apply Memory.init_closed.
   Qed.
 
-  Definition max_reserved (gl: t): OptTimeMap.t :=
-    Memory.max_opt_timemap (reserves gl) (memory gl).
+  Lemma fully_reserved_wf
+        gl
+        (WF: wf gl):
+    wf (fully_reserved gl).
+  Proof.
+    inv WF. econs; ss.
+  Qed.
 
   Variant future (gl1 gl2: t): Prop :=
   | future_intro
       (SC: TimeMap.le (sc gl1) (sc gl2))
       (MEMORY: Memory.future (memory gl1) (memory gl2))
   .
-  #[global] Hint Constructors future: core.
+  #[export] Hint Constructors future: core.
 
   Global Program Instance future_PreOrder: PreOrder future.
   Next Obligation.

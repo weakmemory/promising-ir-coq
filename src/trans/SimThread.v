@@ -72,7 +72,7 @@ Section SimulationThread.
              (st1_tgt:(Language.state lang_tgt)) (lc1_tgt:Local.t) (gl0_tgt:Global.t): Prop :=
     forall reserved_src reserved_tgt
       gl1_src gl1_tgt
-      (RESERVED: OptTimeMap.le reserved_src reserved_tgt)
+      (RESERVED: TimeMap.le reserved_src reserved_tgt)
       (GLOBAL: sim_global gl1_src gl1_tgt)
       (GL_FUTURE_SRC: Global.future gl0_src gl1_src)
       (GL_FUTURE_TGT: Global.future gl0_tgt gl1_tgt)
@@ -144,7 +144,7 @@ Lemma sim_thread_step
       (STEP: @Thread.step lang_tgt reserved_tgt pf_tgt e_tgt
                           (Thread.mk _ st1_tgt lc1_tgt gl1_tgt)
                           (Thread.mk _ st3_tgt lc3_tgt gl3_tgt))
-      (RESERVED: OptTimeMap.le reserved_src reserved_tgt)
+      (RESERVED: TimeMap.le reserved_src reserved_tgt)
       (GLOBAL: sim_global gl1_src gl1_tgt)
       (LC_WF_SRC: Local.wf lc1_src gl1_src)
       (LC_WF_TGT: Local.wf lc1_tgt gl1_tgt)
@@ -188,7 +188,7 @@ Lemma sim_thread_opt_step
       (STEP: @Thread.opt_step lang_tgt reserved_tgt e_tgt
                               (Thread.mk _ st1_tgt lc1_tgt gl1_tgt)
                               (Thread.mk _ st3_tgt lc3_tgt gl3_tgt))
-      (RESERVED: OptTimeMap.le reserved_src reserved_tgt)
+      (RESERVED: TimeMap.le reserved_src reserved_tgt)
       (GLOBAL: sim_global gl1_src gl1_tgt)
       (LC_WF_SRC: Local.wf lc1_src gl1_src)
       (LC_WF_TGT: Local.wf lc1_tgt gl1_tgt)
@@ -224,7 +224,7 @@ Lemma sim_thread_rtc_step
       st1_src lc1_src gl1_src
       th1_tgt th2_tgt
       (STEPS: rtc (@Thread.tau_step lang_tgt reserved_tgt) th1_tgt th2_tgt)
-      (RESERVED: OptTimeMap.le reserved_src reserved_tgt)
+      (RESERVED: TimeMap.le reserved_src reserved_tgt)
       (GLOBAL: sim_global gl1_src (Thread.global th1_tgt))
       (LC_WF_SRC: Local.wf lc1_src gl1_src)
       (LC_WF_TGT: Local.wf (Thread.local th1_tgt) (Thread.global th1_tgt))
@@ -278,7 +278,7 @@ Lemma sim_thread_plus_step
       th1_tgt th2_tgt th3_tgt
       (STEPS: rtc (@Thread.tau_step lang_tgt reserved_tgt) th1_tgt th2_tgt)
       (STEP: @Thread.step lang_tgt reserved_tgt pf_tgt e_tgt th2_tgt th3_tgt)
-      (RESERVED: OptTimeMap.le reserved_src reserved_tgt)
+      (RESERVED: TimeMap.le reserved_src reserved_tgt)
       (GLOBAL: sim_global gl1_src (Thread.global th1_tgt))
       (LC_WF_SRC: Local.wf lc1_src gl1_src)
       (LC_WF_TGT: Local.wf (Thread.local th1_tgt) (Thread.global th1_tgt))
@@ -323,7 +323,7 @@ Lemma sim_thread_steps_failure
       sim_terminal
       e_src e_tgt
       (FAILURE: Thread.steps_failure reserved_tgt e_tgt)
-      (RESERVED: OptTimeMap.le reserved_src reserved_tgt)
+      (RESERVED: TimeMap.le reserved_src reserved_tgt)
       (GLOBAL: sim_global (Thread.global e_src) (Thread.global e_tgt))
       (LC_WF_SRC: Local.wf (Thread.local e_src) (Thread.global e_src))
       (LC_WF_TGT: Local.wf (Thread.local e_tgt) (Thread.global e_tgt))
@@ -354,6 +354,19 @@ Proof.
   punfold SIM. exploit SIM; (try by etrans; eauto); eauto.
 Qed.
 
+Lemma sim_thread_fully_reserved
+      lang_src lang_tgt
+      sim_terminal
+      st_src lc_src gl_src
+      st_tgt lc_tgt gl_tgt
+      (SIM: @sim_thread lang_src lang_tgt sim_terminal st_src lc_src gl_src st_tgt lc_tgt gl_tgt):
+  sim_thread sim_terminal
+             st_src lc_src (Global.fully_reserved gl_src)
+             st_tgt lc_tgt (Global.fully_reserved gl_tgt).
+Proof.
+  eapply sim_thread_future; eauto; econs; ss; try refl.
+Qed.
+
 
 Lemma sim_thread_consistent
       lang_src lang_tgt
@@ -370,9 +383,15 @@ Lemma sim_thread_consistent
   Thread.consistent (Thread.mk lang_src st_src lc_src gl_src).
 Proof.
   generalize SIM. intro X.
-  exploit sim_global_max_reserved; try exact GLOBAL; eauto. i.
+  exploit sim_memory_max_timemap; try eapply GLOBAL; try apply GL_WF_SRC; try apply GL_WF_TGT. i.
+  exploit sim_thread_fully_reserved; try exact SIM. i.
+  exploit sim_global_fully_reserved; try exact GLOBAL. i.
+  exploit Local.fully_reserved_wf; try exact LC_WF_SRC. i.
+  exploit Local.fully_reserved_wf; try exact LC_WF_TGT. i.
+  exploit Global.fully_reserved_wf; try exact GL_WF_SRC. i.
+  exploit Global.fully_reserved_wf; try exact GL_WF_TGT. i.
   inv CONSISTENT.
-  - exploit sim_thread_steps_failure; eauto; ss; eauto.
+  - exploit sim_thread_steps_failure; try exact x2; eauto; s; eauto.
     rewrite x0. refl.
   - exploit sim_thread_rtc_step; eauto.
     { s. rewrite <- x0. refl. }

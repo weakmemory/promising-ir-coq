@@ -33,20 +33,22 @@ Module PFCertify.
     Variant pf_certify (loc: Loc.t) (th: Thread.t lang): Prop :=
       | pf_certify_failure
           pf e th1 th2
-          (STEPS: rtc (tau (Thread.step (Global.max_reserved (Thread.global th)) true)) th th1)
-          (STEP_FAILURE: Thread.step (Global.max_reserved (Thread.global th)) pf e th1 th2)
+          (STEPS: rtc (tau (Thread.step (Memory.max_timemap (Global.memory (Thread.global th))) true))
+                      (Thread.fully_reserved th) th1)
+          (STEP_FAILURE: Thread.step (Memory.max_timemap (Global.memory (Thread.global th))) pf e th1 th2)
           (EVENT_FAILURE: ThreadEvent.get_machine_event e = MachineEvent.failure)
       | pf_certify_fulfill
           pf e th1 th2
           from to val released ord
-          (STEPS: rtc (tau (Thread.step (Global.max_reserved (Thread.global th)) true)) th th1)
-          (STEP_FULFILL: Thread.step (Global.max_reserved (Thread.global th)) pf e th1 th2)
+          (STEPS: rtc (tau (Thread.step (Memory.max_timemap (Global.memory (Thread.global th))) true))
+                      (Thread.fully_reserved th) th1)
+          (STEP_FULFILL: Thread.step (Memory.max_timemap (Global.memory (Thread.global th))) pf e th1 th2)
           (EVENT_FULFILL: ThreadEvent.is_writing e = Some (loc, from, to, val, released, ord))
           (TO: Time.lt (Memory.max_ts loc (Global.memory (Thread.global th1))) to)
           (ORD: Ordering.le ord Ordering.na)
     .
 
-    Variant pf_certify_aux (reserved: OptTimeMap.t) (loc: Loc.t) (th: Thread.t lang): Prop :=
+    Variant pf_certify_aux (reserved: TimeMap.t) (loc: Loc.t) (th: Thread.t lang): Prop :=
       | pf_certify_aux_failure
           pf e th1 th2
           (STEPS: rtc (tau (Thread.step reserved true)) th th1)
@@ -65,7 +67,7 @@ Module PFCertify.
     Definition non_sc (e: ThreadEvent.t): Prop :=
       ~ ThreadEvent.is_sc e /\ ThreadEvent.get_machine_event e = MachineEvent.silent.
 
-    Variant certify (reserved: OptTimeMap.t) (loc: Loc.t) (th: Thread.t lang): Prop :=
+    Variant certify (reserved: TimeMap.t) (loc: Loc.t) (th: Thread.t lang): Prop :=
       | certify_failure
           pf e th1 th2
           (STEPS: rtc (pstep (Thread.step_allpf reserved) non_sc) th th1)
@@ -84,12 +86,19 @@ Module PFCertify.
     Variant non_sc_consistent (th: Thread.t lang): Prop :=
       | non_sc_consistent_failure
           pf e th1 th2
-          (STEPS: rtc (pstep (Thread.step_allpf (Global.max_reserved (Thread.global th))) non_sc) th th1)
-          (STEP_FAILURE: Thread.step (Global.max_reserved (Thread.global th)) pf e th1 th2)
+          (STEPS: rtc (pstep (Thread.step_allpf
+                                (Memory.max_timemap (Global.memory (Thread.global th))))
+                             non_sc)
+                      th th1)
+          (STEP_FAILURE: Thread.step (Memory.max_timemap (Global.memory (Thread.global th)))
+                                     pf e th1 th2)
           (EVENT_FAILURE: ThreadEvent.get_machine_event e = MachineEvent.failure)
       | non_sc_consistent_promises
           th2
-          (STEPS: rtc (pstep (Thread.step_allpf (Global.max_reserved (Thread.global th))) non_sc) th th2)
+          (STEPS: rtc (pstep (Thread.step_allpf
+                                (Memory.max_timemap (Global.memory (Thread.global th))))
+                             non_sc)
+                      th th2)
           (PROMISES: Local.promises (Thread.local th2) = BoolMap.bot)
     .
 
@@ -119,7 +128,7 @@ Module PFCertify.
     Lemma consistent_non_sc_consistent
           th
           (CONS: Thread.consistent th):
-      non_sc_consistent th.
+      non_sc_consistent (Thread.fully_reserved th).
     Proof.
       inv CONS.
       - inv FAILURE.
@@ -137,11 +146,11 @@ Module PFCertify.
           (GL_WF: Global.wf (Thread.global th))
           (CONS: non_sc_consistent th)
           (PROMISED: Local.promises (Thread.local th) loc = true):
-      certify (Global.max_reserved (Thread.global th)) loc th.
+      certify (Memory.max_timemap (Global.memory (Thread.global th))) loc th.
     Proof.
       inv CONS.
       { econs 1; eauto. }
-      remember (Global.max_reserved (Thread.global th)) as reserved.
+      remember (Memory.max_timemap (Global.memory (Thread.global th))) as reserved.
       clear Heqreserved. revert PROMISED.
       induction STEPS; i.
       { rewrite PROMISES in *. ss. }
@@ -203,27 +212,22 @@ Module PFCertify.
       | sim_thread_intro
           (STATE: Thread.state th_src = Thread.state th_tgt)
           (TVIEW: Local.tview (Thread.local th_src) = Local.tview (Thread.local th_tgt))
+          (RESERVES: BoolMap.le (Local.reserves (Thread.local th_tgt))
+                                (Local.reserves (Thread.local th_src)))
           (SC: Global.sc (Thread.global th_src) = Global.sc (Thread.global th_tgt))
           (PROMISES: BoolMap.minus (Global.promises (Thread.global th_src))
                                    (Local.promises (Thread.local th_src)) =
                      BoolMap.minus (Global.promises (Thread.global th_tgt))
                                    (Local.promises (Thread.local th_tgt)))
-          (RESERVES: BoolMap.minus (Global.reserves (Thread.global th_src))
-                                   (Local.reserves (Thread.local th_src)) =
-                     BoolMap.minus (Global.reserves (Thread.global th_tgt))
-                                   (Local.reserves (Thread.local th_tgt)))
+          (GRESERVES: forall loc (GET: Local.reserves (Thread.local th_src) loc = false),
+              Global.reserves (Thread.global th_tgt) loc = true)
           (MEMORY: Global.memory (Thread.global th_src) = Global.memory (Thread.global th_tgt))
     .
 
-    Program Instance sim_thread_Equivalence: Equivalence sim_thread.
-    Next Obligation.
-      ii. econs; ss.
-    Qed.
-    Next Obligation.
-      ii. inv H. ss.
-    Qed.
-    Next Obligation.
-      ii. inv H. inv H0. econs; try congr.
+    Lemma fully_reserved_sim_thread th:
+      sim_thread (Thread.fully_reserved th) (Thread.fully_reserved th).
+    Proof.
+      econs; ss.
     Qed.
 
     Lemma sim_thread_internal_step
@@ -238,11 +242,20 @@ Module PFCertify.
         rewrite PROMISES.
         eauto using Promises.promise_minus.
       - inv LOCAL. econs; ss.
-        rewrite RESERVES.
-        eauto using Reserves.reserve_minus.
+        + inv RESERVE. ii. revert LHS.
+          erewrite BoolMap.add_o; eauto. condtac; auto. i. subst.
+          destruct (Local.reserves (Thread.local th1_src) loc) eqn:GET; ss.
+          exploit GRESERVES; try exact GET. i.
+          exploit BoolMap.add_get0; try exact GADD. i. des. congr.
+        + i. inv RESERVE.
+          erewrite BoolMap.add_o; eauto. condtac; auto.
       - inv LOCAL. econs; ss.
-        rewrite RESERVES.
-        eauto using Reserves.cancel_minus.
+        + inv CANCEL. ii. revert LHS.
+          erewrite BoolMap.remove_o; eauto. condtac; ss. auto.
+        + i. inv CANCEL.
+          erewrite BoolMap.remove_o; eauto. condtac; ss; auto. subst.
+          exploit BoolMap.remove_get0; try exact REMOVE. i. des.
+          exploit RESERVES; try exact GET1. i. congr.
     Qed.
 
     Lemma sim_is_racy
@@ -266,10 +279,9 @@ Module PFCertify.
     Qed.
 
     Lemma sim_thread_program_step
-          (reserved: OptTimeMap.t)
+          reserved
           th1_src
           e th1_tgt th2_tgt
-          (RESERVED: forall loc, reserved loc <-> Global.reserves (Thread.global th1_src) loc)
           (SIM1: sim_thread th1_src th1_tgt)
           (STEP_TGT: Thread.step reserved true e th1_tgt th2_tgt)
           (NONSC: ~ ThreadEvent.is_sc e):
@@ -296,15 +308,10 @@ Module PFCertify.
         inv LOCAL. ss.
         esplits.
         - econs; [|econs 3]; eauto.
-          econs; s; eauto. i.
-          exploit NON_RESERVED; eauto. i. des; auto.
-          specialize (RESERVED loc). rewrite GET in *.
-          destruct (grsv1_src loc) eqn:GRSV_SRC; ss; try by intuition.
-          destruct (rsv1_src loc) eqn:RSV_SRC; auto.
-          eapply equal_f in RESERVES.
-          unfold BoolMap.minus in RESERVES.
-          rewrite GRSV_SRC, RSV_SRC, x0 in RESERVES. ss.
-          destruct (grsv1_tgt loc); ss.
+          econs; s; eauto.
+          i. apply NON_RESERVED.
+          destruct (rsv1_tgt loc) eqn:RSV; ss.
+          exploit RESERVES; try exact RSV. i. congr.
         - econs; ss.
           rewrite PROMISES.
           eauto using Promises.fulfill_minus.
@@ -313,15 +320,10 @@ Module PFCertify.
         inv LOCAL1. inv LOCAL2. ss.
         esplits.
         - econs; [|econs 4]; eauto.
-          econs; s; eauto. i.
-          exploit NON_RESERVED; eauto. i. des; auto.
-          specialize (RESERVED loc). rewrite GET0 in *.
-          destruct (grsv1_src loc) eqn:GRSV_SRC; ss; try by intuition.
-          destruct (rsv1_src loc) eqn:RSV_SRC; auto.
-          eapply equal_f in RESERVES.
-          unfold BoolMap.minus in RESERVES.
-          rewrite GRSV_SRC, RSV_SRC, x0 in RESERVES. ss.
-          destruct (grsv1_tgt loc); ss.
+          econs; s; eauto.
+          i. apply NON_RESERVED.
+          destruct (rsv1_tgt loc) eqn:RSV; ss.
+          exploit RESERVES; try exact RSV. i. congr.
         - econs; ss.
           rewrite PROMISES.
           eauto using Promises.fulfill_minus.
@@ -366,6 +368,7 @@ Module PFCertify.
     Lemma program_step_reserves
           reserved e (th1 th2: Thread.t lang)
           (STEP: Thread.step reserved true e th1 th2):
+      Local.reserves (Thread.local th1) = Local.reserves (Thread.local th2) /\
       Global.reserves (Thread.global th1) = Global.reserves (Thread.global th2).
     Proof.
       inv STEP. inv STEP0; ss; try by (inv LOCAL; ss).
@@ -373,15 +376,14 @@ Module PFCertify.
     Qed.
 
     Lemma certify_pf_certify_aux
-          (reserved: OptTimeMap.t)
+          reserved
           th_src th_tgt loc
           (SIM: sim_thread th_src th_tgt)
-          (RESERVED: forall loc, reserved loc <-> Global.reserves (Thread.global th_src) loc)
           (CERTIFY: certify reserved loc th_tgt):
       pf_certify_aux reserved loc th_src.
     Proof.
       inv CERTIFY.
-      { revert th_src SIM RESERVED.
+      { revert th_src SIM.
         induction STEPS; i.
         { destruct pf; [|inv STEP_FAILURE; inv STEP; ss].
           exploit sim_thread_program_step; try exact STEP_FAILURE; eauto.
@@ -391,9 +393,7 @@ Module PFCertify.
         }
         inv H. inv STEP. destruct pf0.
         { exploit sim_thread_program_step; try exact STEP0; eauto; try apply EVENT. i. des.
-          exploit IHSTEPS; eauto.
-          { i. erewrite <- program_step_reserves; eauto. }
-          i. inv x1.
+          exploit IHSTEPS; eauto. i. inv x1.
           - econs 1; try exact STEP_FAILURE0; eauto.
             econs 2; eauto. econs; eauto. apply EVENT.
           - econs 2; try exact STEP_FULFILL; eauto.
@@ -401,7 +401,7 @@ Module PFCertify.
         }
         { eauto using sim_thread_internal_step. }
       }
-      { revert th_src SIM RESERVED.
+      { revert th_src SIM.
         induction STEPS; i.
         { destruct pf; [|inv STEP_FULFILL; inv STEP; ss].
           exploit sim_thread_program_step; try exact STEP_FAILURE; eauto.
@@ -412,9 +412,7 @@ Module PFCertify.
         }
         inv H. inv STEP. destruct pf0.
         { exploit sim_thread_program_step; try exact STEP0; eauto; try apply EVENT. i. des.
-          exploit IHSTEPS; eauto.
-          { i. erewrite <- program_step_reserves; eauto. }
-          i. inv x1.
+          exploit IHSTEPS; eauto. i. inv x1.
           - econs 1; try exact STEP_FAILURE; eauto.
             econs 2; eauto. econs; eauto. apply EVENT.
           - econs 2; try exact STEP_FULFILL0; eauto.
@@ -426,11 +424,12 @@ Module PFCertify.
 
     Lemma certify_pf_certify
           th loc
-          (CERTIFY: certify (Global.max_reserved (Thread.global th)) loc th):
+          (CERTIFY: certify (Memory.max_timemap (Global.memory (Thread.global th)))
+                            loc (Thread.fully_reserved th)):
       pf_certify loc th.
     Proof.
-      exploit certify_pf_certify_aux; try exact CERTIFY; try refl.
-      { i. unfold Global.max_reserved, Memory.max_opt_timemap. condtac; ss. }
+      exploit certify_pf_certify_aux; try exact CERTIFY;
+        try apply fully_reserved_sim_thread.
       i. inv x0.
       - econs 1; eauto.
       - econs 2; eauto.
@@ -445,6 +444,10 @@ Module PFCertify.
       pf_certify loc th.
     Proof.
       apply certify_pf_certify; auto.
+      apply Local.fully_reserved_wf in LC_WF.
+      apply Global.fully_reserved_wf in GL_WF.
+      replace (Global.memory (Thread.global th)) with
+        (Global.memory (Thread.global (Thread.fully_reserved th))) by ss.
       apply non_sc_consistent_certify; auto.
       apply consistent_non_sc_consistent; auto.
     Qed.

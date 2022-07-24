@@ -770,28 +770,30 @@ Module Memory.
 
   (* next & previous message *)
 
+  Definition empty (mem: Memory.t) (loc: Loc.t) (ts1 ts2: Time.t): Prop :=
+    forall ts (TS1: Time.lt ts1 ts) (TS2: Time.lt ts ts2),
+      get loc ts mem = None.
+
   Lemma next_exists
-        mem loc f t m ts
+        ts mem loc f t m
         (GET: get loc t mem = Some (f, m))
         (TS: Time.lt ts (max_ts loc mem)):
     exists from to msg,
       get loc to mem = Some (from, msg) /\
       Time.lt ts to /\
-      forall ts' (TS1: Time.lt ts ts') (TS2: Time.lt ts' to),
-        get loc ts' mem = None.
+      empty mem loc ts to.
   Proof.
     exploit Cell.next_exists; eauto.
   Qed.
 
   Lemma prev_exists
-        mem loc f t m ts
+        ts mem loc f t m
         (GET: get loc t mem = Some (f, m))
         (TS: Time.lt t ts):
     exists from to msg,
       get loc to mem = Some (from, msg) /\
       Time.lt to ts /\
-      forall ts' (TS1: Time.lt to ts') (TS2: Time.lt ts' ts),
-        get loc ts' mem = None.
+      empty mem loc to ts.
   Proof.
     exploit Cell.prev_exists; eauto.
   Qed.

@@ -17,6 +17,8 @@ Module TimeFacts := DenseOrderFacts.
 Ltac timetac :=
   repeat
     (try match goal with
+         | [|- Time.le Time.bot ?x] => apply Time.bot_spec
+         | [H: Time.lt ?x Time.bot |- _] => by inv H
          | [H: Some _ = None |- _] => inv H
          | [H: None = Some _ |- _] => inv H
          | [H: ?x <> ?x |- _] => by contradict H

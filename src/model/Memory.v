@@ -766,4 +766,33 @@ Module Memory.
     i. des.
     eexists. econs; eauto.
   Qed.
+
+
+  (* next & previous message *)
+
+  Lemma next_exists
+        mem loc f t m ts
+        (GET: get loc t mem = Some (f, m))
+        (TS: Time.lt ts (max_ts loc mem)):
+    exists from to msg,
+      get loc to mem = Some (from, msg) /\
+      Time.lt ts to /\
+      forall ts' (TS1: Time.lt ts ts') (TS2: Time.lt ts' to),
+        get loc ts' mem = None.
+  Proof.
+    exploit Cell.next_exists; eauto.
+  Qed.
+
+  Lemma prev_exists
+        mem loc f t m ts
+        (GET: get loc t mem = Some (f, m))
+        (TS: Time.lt t ts):
+    exists from to msg,
+      get loc to mem = Some (from, msg) /\
+      Time.lt to ts /\
+      forall ts' (TS1: Time.lt to ts') (TS2: Time.lt ts' ts),
+        get loc ts' mem = None.
+  Proof.
+    exploit Cell.prev_exists; eauto.
+  Qed.
 End Memory.

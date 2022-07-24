@@ -414,4 +414,283 @@ Module Cell.
   Proof.
     destruct cell. destruct WF0. eauto.
   Qed.
+
+
+  (* next & previous greater timestamp *)
+
+  Fixpoint next (t: Time.t) (l: list Time.t) (res: option Time.t): option Time.t :=
+    match l with
+    | [] => res
+    | hd :: tl =>
+      if (Time.le_lt_dec hd t)
+      then next t tl res
+      else
+        match res with
+        | Some res =>
+          if (Time.le_lt_dec res hd)
+          then next t tl (Some res)
+          else next t tl (Some hd)
+        | None => next t tl (Some hd)
+        end
+    end.
+
+  Lemma next_le
+        t tnext init l
+        (NEXT: next t l (Some init) = Some tnext):
+    Time.le tnext init.
+  Proof.
+    revert init NEXT. induction l; ss; i.
+    - inv NEXT. refl.
+    - revert NEXT. repeat (condtac; ss); i.
+      + exploit IHl; try exact NEXT. i. auto.
+      + exploit IHl; try exact NEXT. i. auto.
+      + exploit IHl; try exact NEXT. i.
+        econs. eapply TimeFacts.le_lt_lt; eauto.
+  Qed.
+
+  Lemma next_spec_Some_aux
+        t tnext init l
+        (NEXT: next t l init = Some tnext):
+    (init = Some tnext /\
+     forall ts (TS1: Time.lt t ts) (TS2: Time.lt ts tnext),
+       ~ List.In ts l) \/
+    (List.In tnext l /\
+     Time.lt t tnext /\
+     forall ts (TS1: Time.lt t ts) (TS2: Time.lt ts tnext),
+       ~ List.In ts l).
+  Proof.
+    revert t tnext init NEXT. induction l; ss; i.
+    { left. ss. }
+    revert NEXT. condtac; ss; i.
+    - exploit IHl; eauto. intros x. des.
+      + subst. left. split; auto. ii. des.
+        * subst. timetac.
+        * eapply x0; eauto.
+      + right. splits; eauto. ii. des.
+        * subst. timetac.
+        * eapply x1; eauto.
+    - destruct init0.
+      + revert NEXT. condtac; ss; i.
+        * exploit IHl; eauto. intros x. des.
+          { inv x. left. split; auto. ii. des.
+            - subst. timetac.
+            - eapply x0; eauto. }
+          { right. splits; eauto. ii. des.
+            - subst. exploit next_le; eauto. i.
+              rewrite l1 in x3. timetac.
+            - eapply x1; eauto. }
+        * exploit IHl; eauto. intros x. des.
+          { inv x. right. splits; eauto. ii. des.
+            - subst. timetac.
+            - eapply x0; eauto. }
+          { right. splits; eauto. ii. des.
+            - subst. exploit next_le; eauto. i. timetac.
+            - eapply x1; eauto. }
+      + right. exploit IHl; eauto. intros x. des.
+        * inv x. esplits; eauto. ii. des.
+          { subst. timetac. }
+          { eapply x0; eauto. }
+        * esplits; eauto. ii. des.
+          { subst. exploit next_le; eauto. i. timetac. }
+          { eapply x1; eauto. }
+  Qed.
+
+  Lemma next_spec_Some
+        t tnext l
+        (NEXT: next t l None = Some tnext):
+    List.In tnext l /\
+    Time.lt t tnext /\
+    forall ts (TS1: Time.lt t ts) (TS2: Time.lt ts tnext),
+      ~ List.In ts l.
+  Proof.
+    exploit next_spec_Some_aux; eauto. i.
+    des; try congr; eauto.
+  Qed.
+
+  Lemma next_spec_None_aux
+        t init l:
+    next t l (Some init) <> None.
+  Proof.
+    revert t init. induction l; ss; i.
+    repeat condtac; ss; eauto.
+  Qed.
+
+  Lemma next_spec_None
+        t l
+        (NEXT: next t l None = None):
+    forall ts (IN: List.In ts l),
+      Time.le ts t.
+  Proof.
+    revert t NEXT. induction l; ss; i. des.
+    - subst. revert NEXT. condtac; ss; i.
+      specialize (next_spec_None_aux t0 ts l). congr.
+    - revert NEXT. condtac; ss; i.
+      + exploit IHl; eauto.
+      + specialize (next_spec_None_aux t0 a l). congr.
+  Qed.
+
+  Lemma next_exists
+        cell f t m ts
+        (INHABITED: get t cell = Some (f, m))
+        (TS: Time.lt ts (max_ts cell)):
+    exists from to msg,
+      get to cell = Some (from, msg) /\
+      Time.lt ts to /\
+      forall ts' (TS1: Time.lt ts ts') (TS2: Time.lt ts' to),
+        get ts' cell = None.
+  Proof.
+    destruct cell. unfold get in *. ss.
+    destruct (next ts (List.map (fun x => fst x) (DOMap.elements raw0)) None) eqn:NEXT.
+    - exploit next_spec_Some; eauto. i. des.
+      exploit in_prod_inv; eauto. i. des. destruct b.
+      exploit DOMap.elements_complete; eauto. i.
+      esplits; try exact x4; eauto. i.
+      destruct (DOMap.find ts' raw0) as [[]|] eqn:GET; ss.
+      exploit DOMap.elements_correct; try exact GET. i.
+      exploit in_prod; try exact x5. i.
+      exploit x2; eauto. ss.
+    - exploit (@max_ts_spec t f m (Cell.mk WF0)); ss. i. des.
+      unfold get in *. ss.
+      exploit DOMap.elements_correct; try exact GET. i.
+      exploit in_prod; try exact x0. i.
+      exploit next_spec_None; eauto. i. timetac.
+  Qed.
+
+  Fixpoint prev (t: Time.t) (l: list Time.t) (res: option Time.t): option Time.t :=
+    match l with
+    | [] => res
+    | hd :: tl =>
+      if (Time.le_lt_dec t hd)
+      then prev t tl res
+      else
+        match res with
+        | Some res =>
+          if (Time.le_lt_dec hd res)
+          then prev t tl (Some res)
+          else prev t tl (Some hd)
+        | None => prev t tl (Some hd)
+        end
+    end.
+
+  Lemma prev_le
+        t tprev init l
+        (PREV: prev t l (Some init) = Some tprev):
+    Time.le init tprev.
+  Proof.
+    revert init PREV. induction l; ss; i.
+    - inv PREV. refl.
+    - revert PREV. repeat (condtac; ss); i.
+      + exploit IHl; try exact PREV. i. auto.
+      + exploit IHl; try exact PREV. i. auto.
+      + exploit IHl; try exact PREV. i.
+        econs. eapply TimeFacts.lt_le_lt; eauto.
+  Qed.
+
+  Lemma prev_spec_Some_aux
+        t tprev init l
+        (PREV: prev t l init = Some tprev):
+    (init = Some tprev /\
+     forall ts (TS1: Time.lt tprev ts) (TS2: Time.lt ts t),
+       ~ List.In ts l) \/
+    (List.In tprev l /\
+     Time.lt tprev t /\
+     forall ts (TS1: Time.lt tprev ts) (TS2: Time.lt ts t),
+       ~ List.In ts l).
+  Proof.
+    revert t tprev init PREV. induction l; ss; i.
+    { left. ss. }
+    revert PREV. condtac; ss; i.
+    - exploit IHl; eauto. intros x. des.
+      + subst. left. split; auto. ii. des.
+        * subst. timetac.
+        * eapply x0; eauto.
+      + right. splits; eauto. ii. des.
+        * subst. timetac.
+        * eapply x1; eauto.
+    - destruct init0.
+      + revert PREV. condtac; ss; i.
+        * exploit IHl; eauto. intros x. des.
+          { inv x. left. split; auto. ii. des.
+            - subst. timetac.
+            - eapply x0; eauto. }
+          { right. splits; eauto. ii. des.
+            - subst. exploit prev_le; eauto. i.
+              eapply Time.lt_strorder.
+              eapply TimeFacts.le_lt_lt; try exact TS1.
+              etrans; eauto.
+            - eapply x1; eauto. }
+        * exploit IHl; eauto. intros x. des.
+          { inv x. right. splits; eauto. ii. des.
+            - subst. timetac.
+            - eapply x0; eauto. }
+          { right. splits; eauto. ii. des.
+            - subst. exploit prev_le; eauto. i. timetac.
+            - eapply x1; eauto. }
+      + right. exploit IHl; eauto. intros x. des.
+        * inv x. esplits; eauto. ii. des.
+          { subst. timetac. }
+          { eapply x0; eauto. }
+        * esplits; eauto. ii. des.
+          { subst. exploit prev_le; eauto. i. timetac. }
+          { eapply x1; eauto. }
+  Qed.
+
+  Lemma prev_spec_Some
+        t tprev l
+        (PREV: prev t l None = Some tprev):
+    List.In tprev l /\
+    Time.lt tprev t /\
+    forall ts (TS1: Time.lt tprev ts) (TS2: Time.lt ts t),
+      ~ List.In ts l.
+  Proof.
+    exploit prev_spec_Some_aux; eauto. i.
+    des; try congr; eauto.
+  Qed.
+
+  Lemma prev_spec_None_aux
+        t init l:
+    prev t l (Some init) <> None.
+  Proof.
+    revert t init. induction l; ss; i.
+    repeat condtac; ss; eauto.
+  Qed.
+
+  Lemma prev_spec_None
+        t l
+        (PREV: prev t l None = None):
+    forall ts (IN: List.In ts l),
+      Time.le t ts.
+  Proof.
+    revert t PREV. induction l; ss; i. des.
+    - subst. revert PREV. condtac; ss; i.
+      specialize (prev_spec_None_aux t0 ts l). congr.
+    - revert PREV. condtac; ss; i.
+      + exploit IHl; eauto.
+      + specialize (prev_spec_None_aux t0 a l). congr.
+  Qed.
+
+  Lemma prev_exists
+        cell f t m ts
+        (INHABITED: get t cell = Some (f, m))
+        (TS: Time.lt t ts):
+    exists from to msg,
+      get to cell = Some (from, msg) /\
+      Time.lt to ts /\
+      forall ts' (TS1: Time.lt to ts') (TS2: Time.lt ts' ts),
+        get ts' cell = None.
+  Proof.
+    destruct cell. unfold get in *. ss.
+    destruct (prev ts (List.map (fun x => fst x) (DOMap.elements raw0)) None) eqn:PREV.
+    - exploit prev_spec_Some; eauto. i. des.
+      exploit in_prod_inv; eauto. i. des. destruct b.
+      exploit DOMap.elements_complete; eauto. i.
+      esplits; try exact x4; eauto. i.
+      destruct (DOMap.find ts' raw0) as [[]|] eqn:GET; ss.
+      exploit DOMap.elements_correct; try exact GET. i.
+      exploit in_prod; try exact x5. i.
+      exploit x2; eauto. ss.
+    - exploit DOMap.elements_correct; try exact INHABITED. i.
+      exploit in_prod; try exact x0. i.
+      exploit prev_spec_None; eauto. i. timetac.
+  Qed.
 End Cell.

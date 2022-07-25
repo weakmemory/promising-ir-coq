@@ -192,6 +192,7 @@ Module FutureCertify.
   Definition map_add (loc: Loc.t) (ts fts: Time.t) (f: map_t): map_t :=
     fun loc' ts' fts' =>
       (loc' = loc /\ ts' = ts /\ fts' = fts) \/ f loc' ts' fts'.
+  #[local] Hint Unfold map_add.
 
   Lemma map_add_incr loc ts fts f:
     f <3= map_add loc ts fts f.
@@ -692,9 +693,29 @@ Module FutureCertify.
           }
 
           subst. rewrite RSV. econs.
-          { admit.
+          { instantiate (1:=fmax). i. revert GET.
+            erewrite Memory.add_o; eauto. condtac; ss.
+            - i. des. inv GET.
+              exploit Memory.add_get0; try exact x1. i. des.
+              esplits; try exact GET0; auto 6.
+              etrans; eauto.
+            - i. des; ss.
+              exploit SOUND; eauto. i. des.
+              exploit Memory.add_get1; try exact FGET1; eauto. i.
+              esplits; try exact x2; auto.
+              do 2 (eapply message_map_incr; try eapply map_add_incr). ss.
           }
-          { admit.
+          { i. revert FGET1.
+            erewrite Memory.add_o; eauto. condtac; ss.
+            - i. des. inv FGET1.
+              exploit Memory.add_get0; try exact ADD. i. des.
+              right. esplits; try exact GET0; auto 6.
+              etrans; eauto.
+            - i. des; ss.
+              exploit COMPLETE; try exact FGET1. i. des; auto.
+              exploit Memory.add_get1; try exact GET; eauto. i.
+              right. esplits; try exact x2; auto 6.
+              do 2 (eapply message_map_incr; try eapply map_add_incr). ss.
           }
         }
       }

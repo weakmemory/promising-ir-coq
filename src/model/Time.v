@@ -24,6 +24,8 @@ Ltac timetac :=
          | [H: ?x <> ?x |- _] => by contradict H
          | [H: Time.lt ?x ?x |- _] =>
            apply Time.lt_strorder in H; by inv H
+         | [H1: Time.lt ?a ?b, H2: Time.lt ?b ?a |- _] =>
+           rewrite H1 in H2; apply Time.lt_strorder in H2; by inv H2
          | [H1: Time.lt ?a ?b, H2: Time.le ?b ?a |- _] =>
            exploit (@TimeFacts.lt_le_lt a b a); eauto;
            let H := fresh "H" in

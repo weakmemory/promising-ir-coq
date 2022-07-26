@@ -187,6 +187,21 @@ Module FutureCertify.
 
     Definition memory_map (max: TimeMap.t) (rsv: BoolMap.t) (mem fmem: Memory.t): Prop :=
       forall loc, memory_map_loc loc (max loc) (rsv loc) mem fmem.
+
+    Variant local_map (lc flc: Local.t): Prop :=
+      | local_map_intro
+          (TVIEW: tview_map (Local.tview lc) (Local.tview flc))
+          (PROMISES: Local.promises lc = Local.promises flc)
+          (RESERVES: Local.reserves lc = Local.reserves flc)
+    .
+
+    Variant global_map (max: TimeMap.t) (rsv: BoolMap.t) (gl fgl: Global.t): Prop :=
+      | global_map_intro
+          (SC: timemap_map (Global.sc gl) (Global.sc fgl))
+          (PROMISES: Global.promises gl = Global.promises fgl)
+          (RESERVES: Global.reserves gl = Global.reserves fgl)
+          (MEMORY: memory_map max rsv (Global.memory gl) (Global.memory fgl))
+    .
   End FutureCertify.
 
 
@@ -1576,4 +1591,22 @@ Module FutureCertify.
       }
     }
   Qed.
+
+  Lemma memory_map_read_step
+        max rsv
+        f1 lc1 gl1 flc1 fgl1
+        loc to val released ord lc2
+        (MAP_WF1: map_wf f1)
+        (MAP_COMPLETE1: map_complete f1 (Global.memory gl1) (Global.memory fgl1))
+        (LC_MAP1: local_map f1 lc1 flc1)
+        (GL_MAP1: global_map f1 max rsv gl1 fgl1)
+        (MAX: Memory.closed_timemap max (Global.memory gl1))
+        (STEP: Local.read_step lc1 gl1 loc to val released ord lc2):
+    exists fto freleased flc2,
+      (<<FSTEP: Local.read_step flc1 fgl1 loc fto val freleased ord flc2>>) /\
+      (<<TO_MAP: f1 loc to fto>>) /\
+      (<<RELEASED_MAP: opt_view_map f1 released freleased>>) /\
+      (<<LC_MAP2: local_map f1 lc2 flc2>>).
+  Proof.
+  Admitted.
 End FutureCertify.

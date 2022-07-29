@@ -309,9 +309,10 @@ Module PFCertify.
         esplits.
         - econs; [|econs 3]; eauto.
           econs; s; eauto.
-          i. apply NON_RESERVED.
-          destruct (rsv1_tgt loc) eqn:RSV; ss.
-          exploit RESERVES; try exact RSV. i. congr.
+          i. des. apply RESERVED.
+          destruct (rsv1_tgt loc) eqn:RSV.
+          + apply RESERVES in RSV. congr.
+          + exploit GRESERVES; eauto.
         - econs; ss.
           rewrite PROMISES.
           eauto using Promises.fulfill_minus.
@@ -321,9 +322,10 @@ Module PFCertify.
         esplits.
         - econs; [|econs 4]; eauto.
           econs; s; eauto.
-          i. apply NON_RESERVED.
-          destruct (rsv1_tgt loc) eqn:RSV; ss.
-          exploit RESERVES; try exact RSV. i. congr.
+          i. des. apply RESERVED.
+          destruct (rsv1_tgt loc) eqn:RSV.
+          + apply RESERVES in RSV. congr.
+          + exploit GRESERVES; eauto.
         - econs; ss.
           rewrite PROMISES.
           eauto using Promises.fulfill_minus.

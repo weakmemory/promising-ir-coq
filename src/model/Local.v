@@ -239,7 +239,7 @@ Module Local.
       prm2 gprm2 mem2
       (RELEASED: released = TView.write_released (tview lc1) (Global.sc gl1) loc to releasedm ord)
       (WRITABLE: TView.writable (TView.cur (tview lc1)) (Global.sc gl1) loc to ord)
-      (NON_RESERVED: reserves lc1 loc = false -> Time.lt (reserved loc) from)
+      (RESERVED: Global.reserves gl1 loc = true /\ reserves lc1 loc = false -> Time.lt (reserved loc) from)
       (FULFILL: Promises.fulfill (promises lc1) (Global.promises gl1) loc ord prm2 gprm2)
       (WRITE: Memory.add (Global.memory gl1) loc from to
                          (Message.mk val released (Ordering.le ord Ordering.na)) mem2)

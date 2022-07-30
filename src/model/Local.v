@@ -222,7 +222,7 @@ Module Local.
       tview2
       (GET: Memory.get loc to (Global.memory gl1) = Some (from, Message.mk val' released na))
       (VAL: Const.le val val')
-      (READABLE: TView.readable (TView.cur (tview lc1)) loc to released ord)
+      (READABLE: TView.readable (TView.cur (tview lc1)) loc to ord)
       (TVIEW: TView.read_tview (tview lc1) loc to released ord = tview2)
       (LC2: lc2 = mk tview2 (promises lc1) (reserves lc1)):
       read_step lc1 gl1 loc to val released ord lc2
@@ -237,13 +237,13 @@ Module Local.
           (lc2: t) (gl2: Global.t): Prop :=
   | write_step_intro
       prm2 gprm2 mem2
-      (RELEASED: released = TView.write_released (tview lc1) (Global.sc gl1) loc to releasedm ord)
-      (WRITABLE: TView.writable (TView.cur (tview lc1)) (Global.sc gl1) loc to ord)
+      (RELEASED: released = TView.write_released (tview lc1) loc to releasedm ord)
+      (WRITABLE: TView.writable (TView.cur (tview lc1)) loc to ord)
       (RESERVED: Global.reserves gl1 loc = true /\ reserves lc1 loc = false -> Time.lt (reserved loc) from)
       (FULFILL: Promises.fulfill (promises lc1) (Global.promises gl1) loc ord prm2 gprm2)
       (WRITE: Memory.add (Global.memory gl1) loc from to
                          (Message.mk val released (Ordering.le ord Ordering.na)) mem2)
-      (LC2: lc2 = mk (TView.write_tview (tview lc1) (Global.sc gl1) loc to ord) prm2 (reserves lc1))
+      (LC2: lc2 = mk (TView.write_tview (tview lc1) loc to ord) prm2 (reserves lc1))
       (GL2: gl2 = Global.mk (Global.sc gl1) gprm2 (Global.reserves gl1) mem2):
       write_step reserved lc1 gl1 loc from to val releasedm released ord lc2 gl2
   .
@@ -486,7 +486,8 @@ Module Local.
     i. des.
     exploit Memory.add_get0; try apply WRITE; eauto. i. des.
     splits; eauto.
-    - econs; eauto.
+    - econs; eauto. ss.
+      eapply Memory.future_closed_timemap; eauto.
     - apply TViewFacts.write_tview_incr. auto.
     - econs; ss. refl.
     - eapply TViewFacts.write_released_ts; eauto.

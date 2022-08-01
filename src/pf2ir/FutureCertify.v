@@ -36,6 +36,9 @@ Module FutureCertify.
   Section FutureCertify.
     Variable f: map_t.
 
+    Definition map_inhabited: Prop :=
+      forall loc, f loc Time.bot Time.bot.
+
     Definition map_eq: Prop :=
       forall loc x y fx fy
         (EQ: x = y)
@@ -94,6 +97,7 @@ Module FutureCertify.
 
     Variant map_wf: Prop :=
       | map_wf_intro
+          (MAP_INHABITED: map_inhabited)
           (MAP_EQ: map_eq)
           (MAP_EQ_INV: map_eq_inv)
           (MAP_LT: map_lt)
@@ -204,6 +208,95 @@ Module FutureCertify.
     .
   End FutureCertify.
 
+  Lemma bot_timemap_map
+        f
+        (MAP_WF: map_wf f):
+    timemap_map f TimeMap.bot TimeMap.bot.
+  Proof.
+    ii. apply MAP_WF.
+  Qed.
+
+  Lemma bot_view_map
+        f
+        (MAP_WF: map_wf f):
+    view_map f View.bot View.bot.
+  Proof.
+    econs; eauto using bot_timemap_map.
+  Qed.
+
+  Lemma unwrap_map
+        f v fv
+        (MAP_WF: map_wf f)
+        (VIEW: opt_view_map f v fv):
+    view_map f (View.unwrap v) (View.unwrap fv).
+  Proof.
+    inv VIEW; ss.
+    apply bot_view_map; auto.
+  Qed.
+
+  Lemma time_join_map
+        f loc t1 t2 ft1 ft2
+        (MAP_WF: map_wf f)
+        (TIME1: f loc t1 ft1)
+        (TIME2: f loc t2 ft2):
+    f loc (Time.join t1 t2) (Time.join ft1 ft2).
+  Proof.
+    unfold Time.join. repeat condtac; ss.
+    - exploit map_le; eauto; try apply MAP_WF. i. timetac.
+    - exploit map_le_inv; eauto; try apply MAP_WF. i. timetac.
+  Qed.
+
+  Lemma timemap_join_map
+        f tm1 tm2 ftm1 ftm2
+        (MAP_WF: map_wf f)
+        (TIMEMAP1: timemap_map f tm1 ftm1)
+        (TIMEMAP2: timemap_map f tm2 ftm2):
+    timemap_map f (TimeMap.join tm1 tm2) (TimeMap.join ftm1 ftm2).
+  Proof.
+    ii. unfold TimeMap.join.
+    eapply time_join_map; eauto.
+  Qed.
+
+  Lemma view_join_map
+        f view1 view2 fview1 fview2
+        (MAP_WF: map_wf f)
+        (VIEW1: view_map f view1 fview1)
+        (VIEW2: view_map f view2 fview2):
+    view_map f (View.join view1 view2) (View.join fview1 fview2).
+  Proof.
+    inv VIEW1. inv VIEW2.
+    econs; ss; eauto using timemap_join_map.
+  Qed.
+
+  Lemma singleton_ur_map
+        f loc to fto
+        (MAP_WF: map_wf f)
+        (MAP: f loc to fto):
+    view_map f (View.singleton_ur loc to) (View.singleton_ur loc fto).
+  Proof.
+    unfold View.singleton_ur, TimeMap.singleton, LocFun.add, LocFun.find, LocFun.init.
+    econs; ss; ii; condtac; subst; ss; try apply MAP_WF.
+  Qed.
+
+  Lemma singleton_rw_map
+        f loc to fto
+        (MAP_WF: map_wf f)
+        (MAP: f loc to fto):
+    view_map f (View.singleton_rw loc to) (View.singleton_rw loc fto).
+  Proof.
+    unfold View.singleton_rw, TimeMap.singleton, LocFun.add, LocFun.find, LocFun.init.
+    econs; ss; ii; try condtac; subst; ss; try apply MAP_WF.
+  Qed.
+
+  Lemma singleton_ur_if_map
+        f c loc to fto
+        (MAP_WF: map_wf f)
+        (MAP: f loc to fto):
+    view_map f (View.singleton_ur_if c loc to) (View.singleton_ur_if c loc fto).
+  Proof.
+    unfold View.singleton_ur_if.
+    condtac; auto using singleton_ur_map, singleton_rw_map.
+  Qed.
 
   Definition map_add (loc: Loc.t) (ts fts: Time.t) (f: map_t): map_t :=
     fun loc' ts' fts' =>
@@ -216,17 +309,12 @@ Module FutureCertify.
     unfold map_add. auto.
   Qed.
 
-  Lemma map_add_eq
-        (f: map_t) loc ts fts
-        (MAP: f loc ts fts):
-    map_add loc ts fts f = f.
+  Lemma add_map_inhabited
+        f loc ts fts
+        (MAP_INHABITED: map_inhabited f):
+    map_inhabited (map_add loc ts fts f).
   Proof.
-    extensionality loc'.
-    extensionality ts'.
-    extensionality fts'.
-    apply propositional_extensionality.
-    unfold map_add.
-    split; auto. i. des; subst; ss.
+    ii. auto.
   Qed.
 
   Lemma add_map_eq
@@ -315,6 +403,46 @@ Module FutureCertify.
     eauto using opt_view_map_incr.
   Qed.
 
+  Lemma tview_map_incr
+        f1 f2
+        (INCR: f1 <3= f2):
+    tview_map f1 <2= tview_map f2.
+  Proof.
+    i. inv PR. econs; eauto using view_map_incr.
+  Qed.
+
+  Lemma memory_map_get
+        f max rsv mem fmem
+        loc from to msg
+        (MAP: memory_map f max rsv mem fmem)
+        (GET: Memory.get loc to mem = Some (from, msg)):
+    exists ffrom fto fmsg,
+      (<<FGET: Memory.get loc fto fmem = Some (ffrom, fmsg)>>) /\
+      (<<FROM: f loc from ffrom>>) /\
+      (<<TO: f loc to fto>>) /\
+      (<<MSG: message_map f msg fmsg>>).
+  Proof.
+    destruct (MAP loc).
+    - exploit SOUND; eauto. i. des. esplits; eauto.
+    - exploit SOUND; eauto. i. des. esplits; eauto.
+  Qed.
+
+  Lemma memory_map_closed_timemap
+        f max rsv mem fmem
+        tm ftm
+        (WF: map_wf f)
+        (MEMORY: memory_map f max rsv mem fmem)
+        (TIMEMAP: timemap_map f tm ftm)
+        (CLOSED: Memory.closed_timemap tm mem):
+    Memory.closed_timemap ftm fmem.
+  Proof.
+    ii. specialize (CLOSED loc). des.
+    exploit memory_map_get; eauto. i. des.
+    specialize (TIMEMAP loc).
+    inv WF. exploit MAP_EQ; [|exact TIMEMAP|exact TO|]; ss. i. subst.
+    eauto.
+  Qed.
+
   Lemma lt_get_from
         mem loc
         from1 to1 msg1
@@ -391,12 +519,12 @@ Module FutureCertify.
         (RESERVE: rsv loc = false -> Time.lt (max loc) from):
     exists ffrom fto f2,
       (<<F2: f2 = map_add loc from ffrom (map_add loc to fto f1)>>) /\
+      (<<WF2: map_wf f2>>) /\
       forall fmsg
         (FMSG_WF: Message.wf fmsg)
         (MSG_MAP: message_map f2 msg fmsg),
       exists fmem2,
         (<<FADD: Memory.add fmem1 loc ffrom fto fmsg fmem2>>) /\
-        (<<WF2: map_wf f2>>) /\
         (<<COMPLETE2: map_complete f2 mem2 fmem2>>) /\
         (<<MAP2: memory_map f2 max rsv mem2 fmem2>>).
   Proof.
@@ -491,37 +619,12 @@ Module FutureCertify.
           - inv H0. exists fpto. unguard. splits; ss. refl.
         }
         des.
-        exists ffrom, fto. esplits; [refl|]. i.
-
-        exploit (@Memory.add_exists fmem1 loc); try exact FTS; try exact FMSG_WF.
-        { ii. inv LHS. inv RHS. ss.
-          exploit TimeFacts.lt_le_lt; [exact FROM1|exact TO2|]. i.
-          exploit TimeFacts.lt_le_lt; [exact FROM2|exact TO1|]. i.
-          clear x FROM1 TO1 FROM2 TO2.
-          exploit COMPLETE; try exact GET2. i. des.
-          { rewrite x3 in FFROM_OUT.
-            rewrite FFROM_OUT in FTO_IN0.
-            timetac.
-          }
-          exploit TimeFacts.le_lt_lt; [exact FPREV_FROM|exact x2|]. i.
-          exploit TimeFacts.lt_le_lt; [exact x3|exact FNEXT_FROM|]. i.
-          exploit MAP_LT_INV; try exact x1; try eassumption. i.
-          exploit MAP_LT_INV; try exact x4; try eassumption. i.
-          destruct (TimeFacts.le_lt_dec to to0); cycle 1.
-          { exploit PEMPTY; try exact l; try eassumption. i. congr. }
-          inv l; cycle 1.
-          { exploit Memory.add_get0; try eassumption. i. des. congr. }
-          destruct (TimeFacts.le_lt_dec nto to0); cycle 1.
-          { exploit NEMPTY; try exact l; try eassumption. i. congr. }
-          exploit Memory.get_disjoint; [exact GET|exact NGET|]. i.
-          des; subst; timetac.
-          apply (x7 nto); econs; ss; try refl.
-          etrans; eauto.
-        }
-        i. des. esplits; try exact x1.
+        exists ffrom, fto. esplits; [refl|..].
 
         { (* map_wf *)
           econs.
+          - (* map_inhabited *)
+            repeat apply add_map_inhabited. ss.
           - (* map_eq *)
             apply add_map_eq.
             { apply add_map_eq; ss. i.
@@ -560,7 +663,7 @@ Module FutureCertify.
                 - eapply TimeFacts.le_lt_lt; try exact l.
                   eapply TimeFacts.le_lt_lt; eauto.
                 - exploit map_le; try exact l; try eassumption. i.
-                  eapply TimeFacts.le_lt_lt; try exact x2. ss.
+                  eapply TimeFacts.le_lt_lt; try exact x1. ss.
               }
               destruct (TimeFacts.le_lt_dec nfrom ts'); cycle 1.
               { exploit EMPTY; try exact MAP; ss. }
@@ -577,14 +680,14 @@ Module FutureCertify.
               right. right. split.
               - eapply TimeFacts.le_lt_lt; try exact H0; ss.
               - exploit MAP_LT; try exact H0; try eassumption. i.
-                eapply TimeFacts.le_lt_lt; try exact x2; ss.
+                eapply TimeFacts.le_lt_lt; try exact x1; ss.
             }
             unfold map_add. i. des; subst; timetac.
             destruct (TimeFacts.le_lt_dec pto ts'); cycle 1.
             { left. split.
               - eapply TimeFacts.lt_le_lt; try exact l; ss.
               - exploit MAP_LT; try exact l; try eassumption. i.
-                eapply TimeFacts.lt_le_lt; try exact x2; ss.
+                eapply TimeFacts.lt_le_lt; try exact x1; ss.
             }
             inv l; cycle 1.
             { inv H0. inv PREV_FROM.
@@ -602,7 +705,7 @@ Module FutureCertify.
             + eapply TimeFacts.lt_le_lt; try exact l.
               eapply TimeFacts.lt_le_lt; eauto.
             + exploit map_le; try exact l; try eassumption. i.
-              eapply TimeFacts.lt_le_lt; try exact x2.
+              eapply TimeFacts.lt_le_lt; try exact x1.
               eapply TimeFacts.lt_le_lt; eauto.
           - (* map_lt_inv *)
             apply add_map_lt_inv.
@@ -610,7 +713,7 @@ Module FutureCertify.
               destruct (TimeFacts.le_lt_dec fts' fpto).
               { left. split.
                 - exploit map_le_inv; try exact l; try eassumption. i.
-                  eapply TimeFacts.le_lt_lt; try exact x2. ss.
+                  eapply TimeFacts.le_lt_lt; try exact x1. ss.
                 - eapply TimeFacts.le_lt_lt; try exact l.
                   eapply TimeFacts.le_lt_lt; eauto.
               }
@@ -628,14 +731,14 @@ Module FutureCertify.
               }
               right. right. split.
               - exploit MAP_LT_INV; try exact H0; try eassumption. i.
-                eapply TimeFacts.le_lt_lt; try exact x2; ss.
+                eapply TimeFacts.le_lt_lt; try exact x1; ss.
               - eapply TimeFacts.le_lt_lt; try exact H0; ss.
             }
             unfold map_add. i. des; subst; timetac.
             destruct (TimeFacts.le_lt_dec fpto fts'); cycle 1.
             { left. split.
               - exploit MAP_LT_INV; try exact l; try eassumption. i.
-                eapply TimeFacts.lt_le_lt; try exact x2; ss.
+                eapply TimeFacts.lt_le_lt; try exact x1; ss.
               - eapply TimeFacts.lt_le_lt; try exact l; ss.
             }
             inv l; cycle 1.
@@ -652,11 +755,38 @@ Module FutureCertify.
             { exploit FEMPTY; try exact MAP; ss. }
             right. right. split.
             + exploit map_le_inv; try exact l; try eassumption. i.
-              eapply TimeFacts.lt_le_lt; try exact x2.
+              eapply TimeFacts.lt_le_lt; try exact x1.
               eapply TimeFacts.lt_le_lt; eauto.
             + eapply TimeFacts.lt_le_lt; try exact l.
               eapply TimeFacts.lt_le_lt; eauto.
         }
+
+        i. exploit (@Memory.add_exists fmem1 loc); try exact FTS; try exact FMSG_WF.
+        { ii. inv LHS. inv RHS. ss.
+          exploit TimeFacts.lt_le_lt; [exact FROM1|exact TO2|]. i.
+          exploit TimeFacts.lt_le_lt; [exact FROM2|exact TO1|]. i.
+          clear x FROM1 TO1 FROM2 TO2.
+          exploit COMPLETE; try exact GET2. i. des.
+          { rewrite x3 in FFROM_OUT.
+            rewrite FFROM_OUT in FTO_IN0.
+            timetac.
+          }
+          exploit TimeFacts.le_lt_lt; [exact FPREV_FROM|exact x2|]. i.
+          exploit TimeFacts.lt_le_lt; [exact x3|exact FNEXT_FROM|]. i.
+          exploit MAP_LT_INV; try exact x1; try eassumption. i.
+          exploit MAP_LT_INV; try exact x4; try eassumption. i.
+          destruct (TimeFacts.le_lt_dec to to0); cycle 1.
+          { exploit PEMPTY; try exact l; try eassumption. i. congr. }
+          inv l; cycle 1.
+          { exploit Memory.add_get0; try eassumption. i. des. congr. }
+          destruct (TimeFacts.le_lt_dec nto to0); cycle 1.
+          { exploit NEMPTY; try exact l; try eassumption. i. congr. }
+          exploit Memory.get_disjoint; [exact GET|exact NGET|]. i.
+          des; subst; timetac.
+          apply (x7 nto); econs; ss; try refl.
+          etrans; eauto.
+        }
+        i. des. esplits; try exact x1.
 
         { (* map_complete *)
           exploit Memory.add_get0; try exact ADD. i. des.
@@ -789,22 +919,12 @@ Module FutureCertify.
           - inv H. exists fpto. unguard. splits; ss. refl.
         }
         des.
-        exists ffrom, fto. esplits; [refl|]. i.
-
-        exploit (@Memory.add_exists fmem1 loc); try exact FTS; try exact FMSG_WF.
-        { ii. inv LHS. inv RHS. ss.
-          exploit TimeFacts.lt_le_lt; [exact FROM0|exact TO1|]. i.
-          exploit TimeFacts.lt_le_lt; [exact FROM1|exact TO0|]. i.
-          clear x FROM0 TO0 FROM1 TO1.
-          exploit COMPLETE; try exact GET2. i. des.
-          { rewrite x2 in FFROM_OUT. timetac. }
-          exploit TimeFacts.le_lt_lt; [exact FPREV_FROM|exact x1|]. i.
-          exploit MAP_LT_INV; try exact x0; try eassumption. i. eauto.
-        }
-        i. des. esplits; try exact x0.
+        exists ffrom, fto. esplits; [refl|..].
 
         { (* map_wf *)
           econs.
+          - (* map_inhabited *)
+            repeat apply add_map_inhabited. ss.
           - (* map_eq *)
             apply add_map_eq.
             { apply add_map_eq; ss. i. exfalso. eauto. }
@@ -830,7 +950,7 @@ Module FutureCertify.
                 - eapply TimeFacts.le_lt_lt; try exact l.
                   eapply TimeFacts.le_lt_lt; eauto.
                 - exploit map_le; try exact l; try eassumption. i.
-                  eapply TimeFacts.le_lt_lt; try exact x1. ss.
+                  eapply TimeFacts.le_lt_lt; try exact x0. ss.
               }
               exploit EMPTY; try exact l; eauto. ss.
             }
@@ -839,7 +959,7 @@ Module FutureCertify.
             { left. split.
               - eapply TimeFacts.lt_le_lt; try exact l; ss.
               - exploit MAP_LT; try exact l; try eassumption. i.
-                eapply TimeFacts.lt_le_lt; try exact x1; ss.
+                eapply TimeFacts.lt_le_lt; try exact x0; ss.
             }
             inv l; cycle 1.
             { inv H. inv PREV_FROM.
@@ -858,7 +978,7 @@ Module FutureCertify.
               destruct (TimeFacts.le_lt_dec fts' fpto).
               { left. split.
                 - exploit map_le_inv; try exact l; try eassumption. i.
-                  eapply TimeFacts.le_lt_lt; try exact x1. ss.
+                  eapply TimeFacts.le_lt_lt; try exact x0. ss.
                 - eapply TimeFacts.le_lt_lt; try exact l.
                   eapply TimeFacts.le_lt_lt; eauto.
               }
@@ -868,7 +988,7 @@ Module FutureCertify.
             destruct (TimeFacts.le_lt_dec fpto fts'); cycle 1.
             { left. split.
               - exploit MAP_LT_INV; try exact l; try eassumption. i.
-                eapply TimeFacts.lt_le_lt; try exact x1; ss.
+                eapply TimeFacts.lt_le_lt; try exact x0; ss.
               - eapply TimeFacts.lt_le_lt; try exact l; ss.
             }
             inv l; cycle 1.
@@ -883,6 +1003,18 @@ Module FutureCertify.
             }
             exploit FEMPTY; try exact H; eauto. ss.
         }
+
+        i. exploit (@Memory.add_exists fmem1 loc); try exact FTS; try exact FMSG_WF.
+        { ii. inv LHS. inv RHS. ss.
+          exploit TimeFacts.lt_le_lt; [exact FROM0|exact TO1|]. i.
+          exploit TimeFacts.lt_le_lt; [exact FROM1|exact TO0|]. i.
+          clear x FROM0 TO0 FROM1 TO1.
+          exploit COMPLETE; try exact GET2. i. des.
+          { rewrite x2 in FFROM_OUT. timetac. }
+          exploit TimeFacts.le_lt_lt; [exact FPREV_FROM|exact x1|]. i.
+          exploit MAP_LT_INV; try exact x0; try eassumption. i. eauto.
+        }
+        i. des. esplits; try exact x0.
 
         { (* map_complete *)
           exploit Memory.add_get0; try exact ADD. i. des.
@@ -1092,35 +1224,12 @@ Module FutureCertify.
           - inv H0. exists fpto. unguard. splits; ss; try refl. auto.
         }
         des.
-        exists ffrom, fto. esplits; [refl|]. i.
-
-        exploit (@Memory.add_exists fmem1 loc); try exact FTS; try exact FMSG_WF.
-        { ii. inv LHS. inv RHS. ss.
-          exploit TimeFacts.lt_le_lt; [exact FROM1|exact TO2|]. i.
-          exploit TimeFacts.lt_le_lt; [exact FROM2|exact TO1|]. i.
-          clear x FROM1 TO1 FROM2 TO2.
-          exploit COMPLETE; try exact GET2.
-          { etrans; eassumption. }
-          i. des.
-          exploit TimeFacts.le_lt_lt; [exact FPREV_FROM|exact x2|]. i.
-          exploit TimeFacts.lt_le_lt; [exact x3|exact FNEXT_FROM|]. i.
-          exploit MAP_LT_INV; try exact x1; try eassumption. i.
-          exploit MAP_LT_INV; try exact x4; try eassumption. i.
-          destruct (TimeFacts.le_lt_dec to to0); cycle 1.
-          { exploit PEMPTY; try exact l; try eassumption. i. congr. }
-          inv l; cycle 1.
-          { exploit Memory.add_get0; try eassumption. i. des. congr. }
-          destruct (TimeFacts.le_lt_dec nto to0); cycle 1.
-          { exploit NEMPTY; try exact l; try eassumption. i. congr. }
-          exploit Memory.get_disjoint; [exact GET|exact NGET|]. i.
-          des; subst; timetac.
-          apply (x7 nto); econs; ss; try refl.
-          etrans; eauto.
-        }
-        i. des. esplits; try exact x1.
+        exists ffrom, fto. esplits; [refl|..].
 
         { (* map_wf *)
           econs.
+          - (* map_inhabited *)
+            repeat apply add_map_inhabited. ss.
           - (* map_eq *)
             apply add_map_eq.
             { apply add_map_eq; ss. i.
@@ -1159,7 +1268,7 @@ Module FutureCertify.
                 - eapply TimeFacts.le_lt_lt; try exact l.
                   eapply TimeFacts.le_lt_lt; eauto.
                 - exploit map_le; try exact l; try eassumption. i.
-                  eapply TimeFacts.le_lt_lt; try exact x2. ss.
+                  eapply TimeFacts.le_lt_lt; try exact x1. ss.
               }
               destruct (TimeFacts.le_lt_dec nfrom ts'); cycle 1.
               { exploit EMPTY; try exact MAP; ss. }
@@ -1176,14 +1285,14 @@ Module FutureCertify.
               right. right. split.
               - eapply TimeFacts.le_lt_lt; try exact H0; ss.
               - exploit MAP_LT; try exact H0; try eassumption. i.
-                eapply TimeFacts.le_lt_lt; try exact x2; ss.
+                eapply TimeFacts.le_lt_lt; try exact x1; ss.
             }
             unfold map_add. i. des; subst; timetac.
             destruct (TimeFacts.le_lt_dec pto ts'); cycle 1.
             { left. split.
               - eapply TimeFacts.lt_le_lt; try exact l; ss.
               - exploit MAP_LT; try exact l; try eassumption. i.
-                eapply TimeFacts.lt_le_lt; try exact x2; ss.
+                eapply TimeFacts.lt_le_lt; try exact x1; ss.
             }
             inv l; cycle 1.
             { inv H0. inv PREV_FROM.
@@ -1201,7 +1310,7 @@ Module FutureCertify.
             + eapply TimeFacts.lt_le_lt; try exact l.
               eapply TimeFacts.lt_le_lt; eauto.
             + exploit map_le; try exact l; try eassumption. i.
-              eapply TimeFacts.lt_le_lt; try exact x2.
+              eapply TimeFacts.lt_le_lt; try exact x1.
               eapply TimeFacts.lt_le_lt; eauto.
           - (* map_lt_inv *)
             apply add_map_lt_inv.
@@ -1209,7 +1318,7 @@ Module FutureCertify.
               destruct (TimeFacts.le_lt_dec fts' fpto).
               { left. split.
                 - exploit map_le_inv; try exact l; try eassumption. i.
-                  eapply TimeFacts.le_lt_lt; try exact x2. ss.
+                  eapply TimeFacts.le_lt_lt; try exact x1. ss.
                 - eapply TimeFacts.le_lt_lt; try exact l.
                   eapply TimeFacts.le_lt_lt; eauto.
               }
@@ -1227,14 +1336,14 @@ Module FutureCertify.
               }
               right. right. split.
               - exploit MAP_LT_INV; try exact H0; try eassumption. i.
-                eapply TimeFacts.le_lt_lt; try exact x2; ss.
+                eapply TimeFacts.le_lt_lt; try exact x1; ss.
               - eapply TimeFacts.le_lt_lt; try exact H0; ss.
             }
             unfold map_add. i. des; subst; timetac.
             destruct (TimeFacts.le_lt_dec fpto fts'); cycle 1.
             { left. split.
               - exploit MAP_LT_INV; try exact l; try eassumption. i.
-                eapply TimeFacts.lt_le_lt; try exact x2; ss.
+                eapply TimeFacts.lt_le_lt; try exact x1; ss.
               - eapply TimeFacts.lt_le_lt; try exact l; ss.
             }
             inv l; cycle 1.
@@ -1251,11 +1360,36 @@ Module FutureCertify.
             { exploit FEMPTY; try exact MAP; ss. }
             right. right. split.
             + exploit map_le_inv; try exact l; try eassumption. i.
-              eapply TimeFacts.lt_le_lt; try exact x2.
+              eapply TimeFacts.lt_le_lt; try exact x1.
               eapply TimeFacts.lt_le_lt; eauto.
             + eapply TimeFacts.lt_le_lt; try exact l.
               eapply TimeFacts.lt_le_lt; eauto.
         }
+
+        i. exploit (@Memory.add_exists fmem1 loc); try exact FTS; try exact FMSG_WF.
+        { ii. inv LHS. inv RHS. ss.
+          exploit TimeFacts.lt_le_lt; [exact FROM1|exact TO2|]. i.
+          exploit TimeFacts.lt_le_lt; [exact FROM2|exact TO1|]. i.
+          clear x FROM1 TO1 FROM2 TO2.
+          exploit COMPLETE; try exact GET2.
+          { etrans; eassumption. }
+          i. des.
+          exploit TimeFacts.le_lt_lt; [exact FPREV_FROM|exact x2|]. i.
+          exploit TimeFacts.lt_le_lt; [exact x3|exact FNEXT_FROM|]. i.
+          exploit MAP_LT_INV; try exact x1; try eassumption. i.
+          exploit MAP_LT_INV; try exact x4; try eassumption. i.
+          destruct (TimeFacts.le_lt_dec to to0); cycle 1.
+          { exploit PEMPTY; try exact l; try eassumption. i. congr. }
+          inv l; cycle 1.
+          { exploit Memory.add_get0; try eassumption. i. des. congr. }
+          destruct (TimeFacts.le_lt_dec nto to0); cycle 1.
+          { exploit NEMPTY; try exact l; try eassumption. i. congr. }
+          exploit Memory.get_disjoint; [exact GET|exact NGET|]. i.
+          des; subst; timetac.
+          apply (x7 nto); econs; ss; try refl.
+          etrans; eauto.
+        }
+        i. des. esplits; try exact x1.
 
         { (* map_complete *)
           exploit Memory.add_get0; try exact ADD. i. des.
@@ -1411,28 +1545,12 @@ Module FutureCertify.
           - inv H. exists fpto. unguard. splits; ss; try refl. auto.
         }
         des.
-        exists ffrom, fto. esplits; [refl|]. i.
-
-        exploit (@Memory.add_exists fmem1 loc); try exact FTS; try exact FMSG_WF.
-        { ii. inv LHS. inv RHS. ss.
-          exploit TimeFacts.lt_le_lt; [exact FROM0|exact TO1|]. i.
-          exploit TimeFacts.lt_le_lt; [exact FROM1|exact TO0|]. i.
-          clear x FROM0 TO0 FROM1 TO1.
-          exploit COMPLETE; try exact GET2.
-          { etrans; eassumption. }
-          i. des.
-          exploit TimeFacts.le_lt_lt; [exact FPREV_FROM|exact x1|]. i.
-          exploit MAP_LT_INV; try exact x0; try eassumption. i.
-          exploit COMPLETE; try exact GET2.
-          { etrans; try exact x1. ss. }
-          i. des.
-          exploit TimeFacts.le_lt_lt; [exact FPREV_FROM|exact x1|]. i.
-          exploit MAP_LT_INV; try exact x0; try eassumption. i. eauto.
-        }
-        i. des. esplits; try exact x0.
+        exists ffrom, fto. esplits; [refl|..].
 
         { (* map_wf *)
           econs.
+          - (* map_inhabited *)
+            repeat apply add_map_inhabited. ss.
           - (* map_eq *)
             apply add_map_eq.
             { apply add_map_eq; ss. i. exfalso. eauto. }
@@ -1458,7 +1576,7 @@ Module FutureCertify.
                 - eapply TimeFacts.le_lt_lt; try exact l.
                   eapply TimeFacts.le_lt_lt; eauto.
                 - exploit map_le; try exact l; try eassumption. i.
-                  eapply TimeFacts.le_lt_lt; try exact x1. ss.
+                  eapply TimeFacts.le_lt_lt; try exact x0. ss.
               }
               exploit EMPTY; try exact l; eauto. ss.
             }
@@ -1467,7 +1585,7 @@ Module FutureCertify.
             { left. split.
               - eapply TimeFacts.lt_le_lt; try exact l; ss.
               - exploit MAP_LT; try exact l; try eassumption. i.
-                eapply TimeFacts.lt_le_lt; try exact x1; ss.
+                eapply TimeFacts.lt_le_lt; try exact x0; ss.
             }
             inv l; cycle 1.
             { inv H. inv PREV_FROM.
@@ -1486,7 +1604,7 @@ Module FutureCertify.
               destruct (TimeFacts.le_lt_dec fts' fpto).
               { left. split.
                 - exploit map_le_inv; try exact l; try eassumption. i.
-                  eapply TimeFacts.le_lt_lt; try exact x1. ss.
+                  eapply TimeFacts.le_lt_lt; try exact x0. ss.
                 - eapply TimeFacts.le_lt_lt; try exact l.
                   eapply TimeFacts.le_lt_lt; eauto.
               }
@@ -1496,7 +1614,7 @@ Module FutureCertify.
             destruct (TimeFacts.le_lt_dec fpto fts'); cycle 1.
             { left. split.
               - exploit MAP_LT_INV; try exact l; try eassumption. i.
-                eapply TimeFacts.lt_le_lt; try exact x1; ss.
+                eapply TimeFacts.lt_le_lt; try exact x0; ss.
               - eapply TimeFacts.lt_le_lt; try exact l; ss.
             }
             inv l; cycle 1.
@@ -1511,6 +1629,24 @@ Module FutureCertify.
             }
             exploit FEMPTY; try exact H; eauto. ss.
         }
+
+        i. exploit (@Memory.add_exists fmem1 loc); try exact FTS; try exact FMSG_WF.
+        { ii. inv LHS. inv RHS. ss.
+          exploit TimeFacts.lt_le_lt; [exact FROM0|exact TO1|]. i.
+          exploit TimeFacts.lt_le_lt; [exact FROM1|exact TO0|]. i.
+          clear x FROM0 TO0 FROM1 TO1.
+          exploit COMPLETE; try exact GET2.
+          { etrans; eassumption. }
+          i. des.
+          exploit TimeFacts.le_lt_lt; [exact FPREV_FROM|exact x1|]. i.
+          exploit MAP_LT_INV; try exact x0; try eassumption. i.
+          exploit COMPLETE; try exact GET2.
+          { etrans; try exact x1. ss. }
+          i. des.
+          exploit TimeFacts.le_lt_lt; [exact FPREV_FROM|exact x1|]. i.
+          exploit MAP_LT_INV; try exact x0; try eassumption. i. eauto.
+        }
+        i. des. esplits; try exact x0.
 
         { (* map_complete *)
           exploit Memory.add_get0; try exact ADD. i. des.
@@ -1592,6 +1728,38 @@ Module FutureCertify.
     }
   Qed.
 
+  Lemma map_readable
+        f tview ftview
+        loc to fto ord
+        (MAP_WF: map_wf f)
+        (TVIEW: tview_map f tview ftview)
+        (TO: f loc to fto)
+        (READABLE: TView.readable (TView.cur tview) loc to ord):
+    TView.readable (TView.cur ftview) loc fto ord.
+  Proof.
+    inv READABLE. econs.
+    - eapply map_le; try exact PLN; try apply MAP_WF; eauto. apply TVIEW.
+    - i. eapply map_le; try eapply RLX; try apply MAP_WF; eauto. apply TVIEW.
+  Qed.
+
+  Lemma read_tview_map
+        f tview ftview
+        loc to fto released freleased ord
+        (MAP_WF: map_wf f)
+        (TVIEW: tview_map f tview ftview)
+        (TO: f loc to fto)
+        (RELEASED: opt_view_map f released freleased):
+    tview_map f
+              (TView.read_tview tview loc to released ord)
+              (TView.read_tview ftview loc fto freleased ord).
+  Proof.
+    unfold TView.read_tview.
+    econs; s; (try condtac); (repeat apply view_join_map); ss;
+      try apply TVIEW; try apply bot_view_map; ss;
+      try apply unwrap_map; ss;
+      eauto using singleton_rw_map, singleton_ur_map, singleton_ur_if_map.
+  Qed.
+
   Lemma memory_map_read_step
         max rsv
         f1 lc1 gl1 flc1 fgl1
@@ -1608,5 +1776,281 @@ Module FutureCertify.
       (<<RELEASED_MAP: opt_view_map f1 released freleased>>) /\
       (<<LC_MAP2: local_map f1 lc2 flc2>>).
   Proof.
-  Admitted.
+    inv STEP. exploit memory_map_get; try apply GL_MAP1; eauto. i. des. inv MSG.
+    esplits; eauto.
+    - econs; eauto.
+      eapply map_readable; try apply LC_MAP1; eauto.
+    - econs; s; try apply LC_MAP1.
+      apply read_tview_map; ss. apply LC_MAP1.
+  Qed.
+
+  Lemma map_writable
+        f tview ftview
+        loc to fto ord
+        (MAP_WF: map_wf f)
+        (TVIEW: tview_map f tview ftview)
+        (TO: f loc to fto)
+        (WRITABLE: TView.writable (TView.cur tview) loc to ord):
+    TView.writable (TView.cur ftview) loc fto ord.
+  Proof.
+    inv MAP_WF. inv WRITABLE. econs.
+    eapply MAP_LT; try exact TS; eauto. apply TVIEW.
+  Qed.
+
+  Lemma write_tview_map
+        f tview ftview
+        loc to fto ord
+        (MAP_WF: map_wf f)
+        (TVIEW: tview_map f tview ftview)
+        (TO: f loc to fto):
+    tview_map f (TView.write_tview tview loc to ord) (TView.write_tview ftview loc fto ord).
+  Proof.
+    econs; s; i.
+    - unfold LocFun.add.
+      repeat condtac; try apply TVIEW.
+      + apply view_join_map; ss; try apply TVIEW.
+        apply singleton_ur_map; ss.
+      + apply view_join_map; ss; try apply TVIEW.
+        apply singleton_ur_map; ss.
+    - apply view_join_map; ss; try apply TVIEW.
+      apply singleton_ur_map; ss.
+    - apply view_join_map; ss; try apply TVIEW.
+      apply singleton_ur_map; ss.
+  Qed.
+
+  Lemma write_released_map
+        f tview ftview
+        loc to fto releasedm freleasedm ord
+        (MAP_WF: map_wf f)
+        (TVIEW: tview_map f tview ftview)
+        (TO: f loc to fto)
+        (RELEASEDM: opt_view_map f releasedm freleasedm):
+    opt_view_map f
+                 (TView.write_released tview loc to releasedm ord)
+                 (TView.write_released ftview loc fto freleasedm ord).
+  Proof.
+    unfold TView.write_released. condtac; econs.
+    apply view_join_map; ss.
+    - apply unwrap_map; ss.
+    - unfold LocFun.add. condtac; ss.
+      condtac; apply view_join_map; ss;
+        try apply TVIEW; apply singleton_ur_map; ss.
+  Qed.
+
+  Lemma memory_map_write_step
+        reserved freserved rsv
+        f1 lc1 gl1 flc1 fgl1
+        loc from to val releasedm released ord lc2 gl2
+        freleasedm
+        (MAP_WF1: map_wf f1)
+        (MAP_COMPLETE1: map_complete f1 (Global.memory gl1) (Global.memory fgl1))
+        (LC_MAP1: local_map f1 lc1 flc1)
+        (GL_MAP1: global_map f1 reserved rsv gl1 fgl1)
+        (LC_WF1: Local.wf lc1 gl1)
+        (GL_WF1: Global.wf gl1)
+        (FLC_WF1: Local.wf flc1 fgl1)
+        (RESERVED: Memory.closed_timemap reserved (Global.memory gl1))
+        (RESERVES: Local.reserves lc1 = rsv)
+        (GRESERVES: Global.reserves gl1 = BoolMap.top)
+        (RESERVED_MAP: timemap_map f1 reserved freserved)
+        (RELEASEDM_MAP: opt_view_map f1 releasedm freleasedm)
+        (FRELEASEDM: View.opt_wf freleasedm)
+        (STEP: Local.write_step reserved lc1 gl1 loc from to val releasedm released ord lc2 gl2):
+    exists f2 ffrom fto freleased flc2 fgl2,
+      (<<FSTEP: Local.write_step freserved flc1 fgl1 loc ffrom fto val freleasedm freleased ord flc2 fgl2>>) /\
+      (<<MAP_WF2: map_wf f2>>) /\
+      (<<MAP_COMPLETE2: map_complete f2 (Global.memory gl2) (Global.memory fgl2)>>) /\
+      (<<FROM_MAP: f2 loc from ffrom>>) /\
+      (<<TO_MAP: f2 loc to fto>>) /\
+      (<<RELEASED_MAP: opt_view_map f2 released freleased>>) /\
+      (<<LC_MAP2: local_map f2 lc2 flc2>>) /\
+      (<<GL_MAP2: global_map f2 reserved rsv gl2 fgl2>>).
+  Proof.
+    destruct lc1 as [tview1 prm1 rsv1].
+    destruct flc1 as [ftview1 fprm1 frsv1].
+    destruct gl1 as [sc1 gprm1 grsv1 mem1].
+    destruct fgl1 as [fsc1 fgprm1 fgrsv1 fmem1].
+    inv LC_MAP1. inv GL_MAP1. ss. subst.
+    inv STEP. ss.
+    exploit memory_map_add; try exact MEMORY; eauto; try apply GL_WF1. i. des.
+    assert (REL: opt_view_map
+                   f2
+                   (TView.write_released tview1 loc to releasedm ord)
+                   (TView.write_released ftview1 loc fto freleasedm ord)).
+    { subst. eapply write_released_map; ss.
+      - eapply tview_map_incr; try exact TVIEW.
+        i. repeat apply map_add_incr. ss.
+      - auto 6.
+      - eapply opt_view_map_incr; try exact RELEASEDM_MAP.
+        i. repeat apply map_add_incr. ss.
+    }
+    exploit x0; [|econs; eauto|].
+    { econs. eapply TViewFacts.write_future0; ss. apply FLC_WF1. }
+    i. des. clear x0. subst.
+    esplits; eauto 6.
+    - econs; try exact FADD; eauto; s.
+      + eapply map_writable; try exact WRITABLE; try exact WF2; auto 6.
+        eapply tview_map_incr; try exact TVIEW.
+        i. repeat apply map_add_incr. ss.
+      + i. exploit RESERVED0; ss. i.
+        inv WF2. eapply MAP_LT; try exact x0; eauto.
+    - ss.
+    - econs; ss.
+      apply write_tview_map; ss; auto 6.
+      eapply tview_map_incr; try apply TVIEW.
+      i. repeat apply map_add_incr. ss.
+    - econs; ss.
+      eapply timemap_map_incr; try apply SC.
+      i. repeat apply map_add_incr. ss.
+  Qed.
+
+  Lemma write_fence_sc_map
+        f tview ftview sc fsc ord
+        (MAP_WF: map_wf f)
+        (TVIEW: tview_map f tview ftview)
+        (SC: timemap_map f sc fsc):
+    timemap_map f (TView.write_fence_sc tview sc ord) (TView.write_fence_sc ftview fsc ord).
+  Proof.
+    unfold TView.write_fence_sc. condtac; ss.
+    apply timemap_join_map; ss. apply TVIEW.
+  Qed.
+
+  Lemma write_fence_tview_map
+        f tview ftview sc fsc ord
+        (MAP_WF: map_wf f)
+        (TVIEW: tview_map f tview ftview)
+        (SC: timemap_map f sc fsc):
+    tview_map f (TView.write_fence_tview tview sc ord) (TView.write_fence_tview ftview fsc ord).
+  Proof.
+    econs; ss; i; repeat condtac;
+      try apply view_join_map; ss; try apply TVIEW;
+      try apply bot_view_map; ss;
+      econs; try apply write_fence_sc_map; ss.
+  Qed.
+
+  Lemma read_fence_tview_map
+        f tview ftview ord
+        (MAP_WF: map_wf f)
+        (TVIEW: tview_map f tview ftview):
+    tview_map f (TView.read_fence_tview tview ord) (TView.read_fence_tview ftview ord).
+  Proof.
+    econs; ss; i; repeat condtac;
+      try apply view_join_map; ss; try apply TVIEW;
+      try apply bot_view_map; ss.
+  Qed.
+
+  Lemma memory_map_fence_step
+        reserved rsv
+        f1 lc1 gl1 flc1 fgl1
+        ordr ordw lc2 gl2
+        (MAP_WF1: map_wf f1)
+        (MAP_COMPLETE1: map_complete f1 (Global.memory gl1) (Global.memory fgl1))
+        (LC_MAP1: local_map f1 lc1 flc1)
+        (GL_MAP1: global_map f1 reserved rsv gl1 fgl1)
+        (STEP: Local.fence_step lc1 gl1 ordr ordw lc2 gl2):
+    exists flc2 fgl2,
+      (<<FSTEP: Local.fence_step flc1 fgl1 ordr ordw flc2 fgl2>>) /\
+      (<<MAP_COMPLETE2: map_complete f1 (Global.memory gl2) (Global.memory fgl2)>>) /\
+      (<<LC_MAP2: local_map f1 lc2 flc2>>) /\
+      (<<GL_MAP2: global_map f1 reserved rsv gl2 fgl2>>).
+  Proof.
+    inv STEP.
+    esplits.
+    - econs; eauto.
+      i. apply PROMISES in H.
+      inv LC_MAP1. congr.
+    - ss.
+    - econs; try apply LC_MAP1. s.
+      apply write_fence_tview_map; ss; try apply GL_MAP1.
+      apply read_fence_tview_map; ss. apply LC_MAP1.
+    - econs; try apply GL_MAP1. s.
+      eapply write_fence_sc_map; ss; try apply GL_MAP1.
+      eapply read_fence_tview_map; ss. apply LC_MAP1.
+  Qed.
+
+  Lemma map_racy_view
+        f view fview loc ts fts
+        (MAP_WF: map_wf f)
+        (VIEW: view_map f view fview)
+        (TS: f loc ts fts)
+        (RACY: TView.racy_view view loc ts):
+    TView.racy_view fview loc fts.
+  Proof.
+    inv MAP_WF. unfold TView.racy_view in *.
+    eapply MAP_LT; try exact RACY; eauto.
+    apply VIEW.
+  Qed.
+
+  Lemma memory_map_is_racy
+        reserved rsv
+        f1 lc1 gl1 flc1 fgl1
+        loc to ord
+        (MAP_WF1: map_wf f1)
+        (LC_MAP1: local_map f1 lc1 flc1)
+        (GL_MAP1: global_map f1 reserved rsv gl1 fgl1)
+        (STEP: Local.is_racy lc1 gl1 loc to ord):
+    exists fto,
+      (<<FSTEP: Local.is_racy flc1 fgl1 loc fto ord>>) /\
+      (<<TO: option_rel (f1 loc) to fto>>).
+  Proof.
+    inv LC_MAP1. inv GL_MAP1.
+    inv STEP.
+    - esplits; [econs 1|]; ss; congr.
+    - exploit memory_map_get; eauto. i. des. inv MSG0.
+      esplits; [econs 2|]; eauto.
+      eapply map_racy_view; try apply TVIEW; eauto.
+  Qed.
+
+  Lemma memory_map_racy_read_step
+        reserved rsv
+        f1 lc1 gl1 flc1 fgl1
+        loc to val ord
+        (MAP_WF1: map_wf f1)
+        (LC_MAP1: local_map f1 lc1 flc1)
+        (GL_MAP1: global_map f1 reserved rsv gl1 fgl1)
+        (STEP: Local.racy_read_step lc1 gl1 loc to val ord):
+    exists fto,
+      (<<FSTEP: Local.racy_read_step flc1 fgl1 loc fto val ord>>) /\
+      (<<TO: option_rel (f1 loc) to fto>>).
+  Proof.
+    inv STEP.
+    exploit memory_map_is_racy; eauto. i. des.
+    esplits; eauto.
+  Qed.
+
+  Lemma memory_map_racy_write_step
+        reserved rsv
+        f1 lc1 gl1 flc1 fgl1
+        loc to ord
+        (MAP_WF1: map_wf f1)
+        (LC_MAP1: local_map f1 lc1 flc1)
+        (GL_MAP1: global_map f1 reserved rsv gl1 fgl1)
+        (STEP: Local.racy_write_step lc1 gl1 loc to ord):
+    exists fto,
+      (<<FSTEP: Local.racy_write_step flc1 fgl1 loc fto ord>>) /\
+      (<<TO: option_rel (f1 loc) to fto>>).
+  Proof.
+    inv STEP.
+    exploit memory_map_is_racy; eauto. i. des.
+    esplits; eauto.
+  Qed.
+
+  Lemma memory_map_racy_update_step
+        reserved rsv
+        f1 lc1 gl1 flc1 fgl1
+        loc to ordr ordw
+        (MAP_WF1: map_wf f1)
+        (LC_MAP1: local_map f1 lc1 flc1)
+        (GL_MAP1: global_map f1 reserved rsv gl1 fgl1)
+        (STEP: Local.racy_update_step lc1 gl1 loc to ordr ordw):
+    exists fto,
+      (<<FSTEP: Local.racy_update_step flc1 fgl1 loc fto ordr ordw>>) /\
+      (<<TO: option_rel (f1 loc) to fto>>).
+  Proof.
+    inv STEP.
+    - esplits; eauto. ss.
+    - esplits; eauto. ss.
+    - exploit memory_map_is_racy; eauto. i. des.
+      esplits; eauto.
+  Qed.
 End FutureCertify.

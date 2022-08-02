@@ -33,7 +33,7 @@ Set Nested Proofs Allowed.
 Module FutureCertify.
   Definition map_t: Type := Loc.t -> Time.t -> Time.t -> Prop.
 
-  Section FutureCertify.
+  Section Mapping.
     Variable f: map_t.
 
     Definition map_inhabited: Prop :=
@@ -195,18 +195,72 @@ Module FutureCertify.
     Variant local_map (lc flc: Local.t): Prop :=
       | local_map_intro
           (TVIEW: tview_map (Local.tview lc) (Local.tview flc))
-          (PROMISES: Local.promises lc = Local.promises flc)
-          (RESERVES: Local.reserves lc = Local.reserves flc)
     .
 
     Variant global_map (max: TimeMap.t) (rsv: BoolMap.t) (gl fgl: Global.t): Prop :=
       | global_map_intro
           (SC: timemap_map (Global.sc gl) (Global.sc fgl))
-          (PROMISES: Global.promises gl = Global.promises fgl)
-          (RESERVES: Global.reserves gl = Global.reserves fgl)
           (MEMORY: memory_map max rsv (Global.memory gl) (Global.memory fgl))
     .
-  End FutureCertify.
+
+    Variant event_map: forall (e fe: ThreadEvent.t), Prop :=
+      | event_map_promise
+          loc:
+        event_map (ThreadEvent.promise loc) (ThreadEvent.promise loc)
+      | event_map_reserve
+          loc:
+        event_map (ThreadEvent.reserve loc) (ThreadEvent.reserve loc)
+      | event_map_cancel
+          loc:
+        event_map (ThreadEvent.cancel loc) (ThreadEvent.cancel loc)
+      | event_map_silent:
+        event_map ThreadEvent.silent ThreadEvent.silent
+      | event_map_read
+          loc ts fts val released freleased ord
+          (TS: f loc ts fts)
+          (RELEASED: opt_view_map released freleased):
+        event_map (ThreadEvent.read loc ts val released ord)
+                  (ThreadEvent.read loc fts val freleased ord)
+      | event_map_write
+          loc from ffrom to fto val released freleased ord
+          (FROM: f loc from ffrom)
+          (TO: f loc to fto)
+          (RELEASED: opt_view_map released freleased):
+        event_map (ThreadEvent.write loc from to val released ord)
+                  (ThreadEvent.write loc ffrom fto val freleased ord)
+      | event_map_update
+          loc tsr ftsr tsw ftsw valr valw releasedr freleasedr releasedw freleasedw ordr ordw
+          (TSR: f loc tsr ftsr)
+          (TSW: f loc tsw ftsw)
+          (RELEASEDR: opt_view_map releasedr freleasedr)
+          (RELEASEDW: opt_view_map releasedw freleasedw):
+        event_map (ThreadEvent.update loc tsr tsw valr valw releasedr releasedw ordr ordw)
+                  (ThreadEvent.update loc ftsr ftsw valr valw freleasedr freleasedw ordr ordw)
+      | event_map_fence
+          ordr ordw:
+        event_map (ThreadEvent.fence ordr ordw) (ThreadEvent.fence ordr ordw)
+      | event_map_syscall
+          e:
+        event_map (ThreadEvent.syscall e) (ThreadEvent.syscall e)
+      | event_map_failure:
+        event_map ThreadEvent.failure ThreadEvent.failure
+      | event_map_racy_read
+          loc to fto val ord
+          (TO: option_rel (f loc) to fto):
+        event_map (ThreadEvent.racy_read loc to val ord)
+                  (ThreadEvent.racy_read loc fto val ord)
+      | event_map_racy_write
+          loc to fto val ord
+          (TO: option_rel (f loc) to fto):
+        event_map (ThreadEvent.racy_write loc to val ord)
+                  (ThreadEvent.racy_write loc fto val ord)
+      | event_map_racy_update
+          loc to fto valr valw ordr ordw
+          (TO: option_rel (f loc) to fto):
+        event_map (ThreadEvent.racy_update loc to valr valw ordr ordw)
+                  (ThreadEvent.racy_update loc fto valr valw ordr ordw)
+    .
+  End Mapping.
 
   Lemma bot_timemap_map
         f
@@ -409,6 +463,27 @@ Module FutureCertify.
     tview_map f1 <2= tview_map f2.
   Proof.
     i. inv PR. econs; eauto using view_map_incr.
+  Qed.
+
+  Lemma event_map_incr
+        f1 f2
+        (INCR: f1 <3= f2):
+    event_map f1 <2= event_map f2.
+  Proof.
+    i. inv PR.
+    - econs 1.
+    - econs 2.
+    - econs 3.
+    - econs 4.
+    - econs 5; eauto using opt_view_map_incr.
+    - econs 6; eauto using opt_view_map_incr.
+    - econs 7; eauto using opt_view_map_incr.
+    - econs 8.
+    - econs 9.
+    - econs 10.
+    - econs 11. destruct to, fto; ss. auto.
+    - econs 12. destruct to, fto; ss. auto.
+    - econs 13. destruct to, fto; ss. auto.
   Qed.
 
   Lemma memory_map_get
@@ -1760,7 +1835,7 @@ Module FutureCertify.
       eauto using singleton_rw_map, singleton_ur_map, singleton_ur_if_map.
   Qed.
 
-  Lemma memory_map_read_step
+  Lemma map_read_step
         max rsv
         f1 lc1 gl1 flc1 fgl1
         loc to val released ord lc2
@@ -1837,7 +1912,7 @@ Module FutureCertify.
         try apply TVIEW; apply singleton_ur_map; ss.
   Qed.
 
-  Lemma memory_map_write_step
+  Lemma map_write_step
         reserved freserved rsv
         f1 lc1 gl1 flc1 fgl1
         loc from to val releasedm released ord lc2 gl2
@@ -1852,12 +1927,13 @@ Module FutureCertify.
         (RESERVED: Memory.closed_timemap reserved (Global.memory gl1))
         (RESERVES: Local.reserves lc1 = rsv)
         (GRESERVES: Global.reserves gl1 = BoolMap.top)
-        (RESERVED_MAP: timemap_map f1 reserved freserved)
+        (FGRESERVES: Global.reserves fgl1 = BoolMap.bot)
         (RELEASEDM_MAP: opt_view_map f1 releasedm freleasedm)
         (FRELEASEDM: View.opt_wf freleasedm)
         (STEP: Local.write_step reserved lc1 gl1 loc from to val releasedm released ord lc2 gl2):
     exists f2 ffrom fto freleased flc2 fgl2,
       (<<FSTEP: Local.write_step freserved flc1 fgl1 loc ffrom fto val freleasedm freleased ord flc2 fgl2>>) /\
+      (<<F2: f2 = map_add loc from ffrom (map_add loc to fto f1)>>) /\
       (<<MAP_WF2: map_wf f2>>) /\
       (<<MAP_COMPLETE2: map_complete f2 (Global.memory gl2) (Global.memory fgl2)>>) /\
       (<<FROM_MAP: f2 loc from ffrom>>) /\
@@ -1892,8 +1968,7 @@ Module FutureCertify.
       + eapply map_writable; try exact WRITABLE; try exact WF2; auto 6.
         eapply tview_map_incr; try exact TVIEW.
         i. repeat apply map_add_incr. ss.
-      + i. exploit RESERVED0; ss. i.
-        inv WF2. eapply MAP_LT; try exact x0; eauto.
+      + i. des. ss.
     - ss.
     - econs; ss.
       apply write_tview_map; ss; auto 6.
@@ -1939,7 +2014,7 @@ Module FutureCertify.
       try apply bot_view_map; ss.
   Qed.
 
-  Lemma memory_map_fence_step
+  Lemma map_fence_step
         reserved rsv
         f1 lc1 gl1 flc1 fgl1
         ordr ordw lc2 gl2
@@ -1947,6 +2022,7 @@ Module FutureCertify.
         (MAP_COMPLETE1: map_complete f1 (Global.memory gl1) (Global.memory fgl1))
         (LC_MAP1: local_map f1 lc1 flc1)
         (GL_MAP1: global_map f1 reserved rsv gl1 fgl1)
+        (FPROMISES: Local.promises flc1 = BoolMap.bot)
         (STEP: Local.fence_step lc1 gl1 ordr ordw lc2 gl2):
     exists flc2 fgl2,
       (<<FSTEP: Local.fence_step flc1 fgl1 ordr ordw flc2 fgl2>>) /\
@@ -1957,8 +2033,6 @@ Module FutureCertify.
     inv STEP.
     esplits.
     - econs; eauto.
-      i. apply PROMISES in H.
-      inv LC_MAP1. congr.
     - ss.
     - econs; try apply LC_MAP1. s.
       apply write_fence_tview_map; ss; try apply GL_MAP1.
@@ -1981,67 +2055,67 @@ Module FutureCertify.
     apply VIEW.
   Qed.
 
-  Lemma memory_map_is_racy
+  Lemma map_is_racy
         reserved rsv
         f1 lc1 gl1 flc1 fgl1
         loc to ord
         (MAP_WF1: map_wf f1)
         (LC_MAP1: local_map f1 lc1 flc1)
         (GL_MAP1: global_map f1 reserved rsv gl1 fgl1)
-        (STEP: Local.is_racy lc1 gl1 loc to ord):
+        (STEP: Local.is_racy lc1 gl1 loc (Some to) ord):
     exists fto,
-      (<<FSTEP: Local.is_racy flc1 fgl1 loc fto ord>>) /\
-      (<<TO: option_rel (f1 loc) to fto>>).
+      (<<FSTEP: Local.is_racy flc1 fgl1 loc (Some fto) ord>>) /\
+      (<<TO: f1 loc to fto>>).
   Proof.
     inv LC_MAP1. inv GL_MAP1.
     inv STEP.
-    - esplits; [econs 1|]; ss; congr.
-    - exploit memory_map_get; eauto. i. des. inv MSG0.
-      esplits; [econs 2|]; eauto.
-      eapply map_racy_view; try apply TVIEW; eauto.
+    exploit memory_map_get; eauto. i. des. inv MSG0.
+    esplits; [econs 2|]; eauto.
+    eapply map_racy_view; try apply TVIEW; eauto.
   Qed.
 
-  Lemma memory_map_racy_read_step
+  Lemma map_racy_read_step
         reserved rsv
         f1 lc1 gl1 flc1 fgl1
         loc to val ord
         (MAP_WF1: map_wf f1)
         (LC_MAP1: local_map f1 lc1 flc1)
         (GL_MAP1: global_map f1 reserved rsv gl1 fgl1)
-        (STEP: Local.racy_read_step lc1 gl1 loc to val ord):
+        (STEP: Local.racy_read_step lc1 gl1 loc (Some to) val ord):
     exists fto,
-      (<<FSTEP: Local.racy_read_step flc1 fgl1 loc fto val ord>>) /\
-      (<<TO: option_rel (f1 loc) to fto>>).
+      (<<FSTEP: Local.racy_read_step flc1 fgl1 loc (Some fto) val ord>>) /\
+      (<<TO: f1 loc to fto>>).
   Proof.
     inv STEP.
-    exploit memory_map_is_racy; eauto. i. des.
+    exploit map_is_racy; eauto. i. des.
     esplits; eauto.
   Qed.
 
-  Lemma memory_map_racy_write_step
+  Lemma map_racy_write_step
         reserved rsv
         f1 lc1 gl1 flc1 fgl1
         loc to ord
         (MAP_WF1: map_wf f1)
         (LC_MAP1: local_map f1 lc1 flc1)
         (GL_MAP1: global_map f1 reserved rsv gl1 fgl1)
-        (STEP: Local.racy_write_step lc1 gl1 loc to ord):
+        (STEP: Local.racy_write_step lc1 gl1 loc (Some to) ord):
     exists fto,
-      (<<FSTEP: Local.racy_write_step flc1 fgl1 loc fto ord>>) /\
-      (<<TO: option_rel (f1 loc) to fto>>).
+      (<<FSTEP: Local.racy_write_step flc1 fgl1 loc (Some fto) ord>>) /\
+      (<<TO: f1 loc to fto>>).
   Proof.
     inv STEP.
-    exploit memory_map_is_racy; eauto. i. des.
+    exploit map_is_racy; eauto. i. des.
     esplits; eauto.
   Qed.
 
-  Lemma memory_map_racy_update_step
+  Lemma map_racy_update_step
         reserved rsv
         f1 lc1 gl1 flc1 fgl1
         loc to ordr ordw
         (MAP_WF1: map_wf f1)
         (LC_MAP1: local_map f1 lc1 flc1)
         (GL_MAP1: global_map f1 reserved rsv gl1 fgl1)
+        (RACE: to = None -> Ordering.le ordr Ordering.na \/ Ordering.le ordw Ordering.na)
         (STEP: Local.racy_update_step lc1 gl1 loc to ordr ordw):
     exists fto,
       (<<FSTEP: Local.racy_update_step flc1 fgl1 loc fto ordr ordw>>) /\
@@ -2050,7 +2124,80 @@ Module FutureCertify.
     inv STEP.
     - esplits; eauto. ss.
     - esplits; eauto. ss.
-    - exploit memory_map_is_racy; eauto. i. des.
-      esplits; eauto.
+    - destruct to.
+      + exploit map_is_racy; eauto. i. des. eauto.
+      + exploit RACE; eauto.
+        i. des; esplits; eauto; ss.
+  Qed.
+
+  Lemma map_program_step
+        reserved freserved
+        rsv
+        f1 lc1 gl1 flc1 fgl1
+        e lc2 gl2
+        (MAP_WF1: map_wf f1)
+        (MAP_COMPLETE1: map_complete f1 (Global.memory gl1) (Global.memory fgl1))
+        (LC_MAP1: local_map f1 lc1 flc1)
+        (GL_MAP1: global_map f1 reserved rsv gl1 fgl1)
+        (LC_WF1: Local.wf lc1 gl1)
+        (GL_WF1: Global.wf gl1)
+        (FLC_WF1: Local.wf flc1 fgl1)
+        (FGL_WF1: Global.wf fgl1)
+        (RESERVED: Memory.closed_timemap reserved (Global.memory gl1))
+        (FPROMISES: Local.promises flc1 = BoolMap.bot)
+        (RESERVES: Local.reserves lc1 = rsv)
+        (GRESERVES: Global.reserves gl1 = BoolMap.top)
+        (FGRESERVES: Global.reserves fgl1 = BoolMap.bot)
+        (STEP: Local.program_step reserved e lc1 gl1 lc2 gl2)
+        (EVENT: ~ ThreadEvent.is_racy_promise e):
+    exists f2 fe flc2 fgl2,
+      (<<FSTEP: Local.program_step freserved fe flc1 fgl1 flc2 fgl2>>) /\
+      (<<EVENT: event_map f2 e fe>>) /\
+      (<<MAP_INCR: f1 <3= f2>>) /\
+      (<<MAP_WF2: map_wf f2>>) /\
+      (<<MAP_COMPLETE2: map_complete f2 (Global.memory gl2) (Global.memory fgl2)>>) /\
+      (<<LC_MAP2: local_map f2 lc2 flc2>>) /\
+      (<<GL_MAP2: global_map f2 reserved rsv gl2 fgl2>>).
+  Proof.
+    inv STEP.
+    - esplits; [econs 1|..]; eauto. econs.
+    - exploit map_read_step; eauto. i. des.
+      esplits; [econs 2|..]; eauto. econs; ss.
+    - exploit map_write_step; eauto; try by econs. i. des.
+      esplits; [econs 3|..]; try exact MAP_WF2; eauto.
+      + econs; ss.
+      + i. subst. repeat apply map_add_incr; ss.
+    - exploit map_read_step; eauto. i. des.
+      exploit Local.read_step_future; try exact LOCAL1; eauto. i. des.
+      exploit Local.read_step_future; try exact FSTEP; eauto. i. des.
+      exploit map_write_step; try exact LOCAL2; eauto.
+      { inv LOCAL1. ss. }
+      i. des.
+      replace fto with ffrom in *; cycle 1.
+      { inv MAP_WF2. eapply MAP_EQ; [refl|exact FROM_MAP|..]. auto. }
+      esplits; [econs 4|..]; try exact MAP_WF2; eauto.
+      + econs; ss.
+        eapply opt_view_map_incr; try exact RELEASED_MAP.
+        i. subst. repeat apply map_add_incr; ss.
+      + i. subst. repeat apply map_add_incr; ss.
+    - exploit map_fence_step; eauto. i. des.
+      esplits; [econs 5|..]; eauto. econs; ss.
+    - exploit map_fence_step; eauto. i. des.
+      esplits; [econs 6|..]; eauto. econs; ss.
+    - esplits; [econs 7|..]; eauto. econs.
+    - destruct to; ss.
+      exploit map_racy_read_step; eauto. i. des.
+      esplits; [econs 8|..]; eauto. econs; ss.
+    - destruct to; ss.
+      exploit map_racy_write_step; eauto. i. des.
+      esplits; [econs 9|..]; eauto. econs; ss.
+    - exploit map_racy_update_step; eauto.
+      { i. subst. ss.
+        apply not_and_or in EVENT. des.
+        - left. destruct ordr; ss.
+        - right. destruct ordw; ss.
+      }
+      i. des.
+      esplits; [econs 10|..]; eauto. econs; ss.
   Qed.
 End FutureCertify.

@@ -113,11 +113,21 @@ Module ThreadEvent.
     | _ => False
     end.
 
-  Definition is_race (e: t): Prop :=
+  Definition is_racy (e: t): Prop :=
     match e with
     | racy_read _ _ _ _
     | racy_write _ _ _ _
     | racy_update _ _ _ _ _ _ => True
+    | _ => False
+    end.
+
+  Definition is_racy_promise (e: t): Prop :=
+    match e with
+    | racy_read _ None _ _
+    | racy_write _ None _ _ => True
+    | racy_update _ None _ _ ordr ordw =>
+        Ordering.le Ordering.plain ordr /\
+        Ordering.le Ordering.plain ordw
     | _ => False
     end.
 
@@ -126,6 +136,14 @@ Module ThreadEvent.
     | fence _ ordw => Ordering.le Ordering.seqcst ordw
     | syscall _ => True
     | _ => False
+    end.
+
+  Definition is_program (e: t): Prop :=
+    match e with
+    | promise _
+    | reserve _
+    | cancel _ => False
+    | _ => True
     end.
 
   Lemma eq_program_event_eq_loc

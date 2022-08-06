@@ -26,13 +26,13 @@ Require Import Thread.
 Set Implicit Arguments.
 
 
-
 Definition non_sc (e: ThreadEvent.t): Prop :=
   ~ ThreadEvent.is_sc e /\ ThreadEvent.get_machine_event e = MachineEvent.silent.
 #[export] Hint Unfold non_sc: core.
 
 Definition strict_pf (e: ThreadEvent.t): Prop := ~ ThreadEvent.is_racy_promise e.
 #[export] Hint Unfold strict_pf: core.
+
 
 Module PFConsistent.
   Section PFConsistent.
@@ -50,6 +50,32 @@ Module PFConsistent.
           (STEPS: rtc (tau (Thread.step (Memory.max_timemap (Global.memory (Thread.global th))) true))
                       (Thread.fully_reserved th) th2)
           (PROMISES: Local.promises (Thread.local th2) = BoolMap.bot)
+    .
+
+    Variant spf_consistent (th: Thread.t lang): Prop :=
+      | spf_consistent_failure
+          pf e th1 th2
+          (STEPS: rtc (pstep (Thread.step (Memory.max_timemap (Global.memory (Thread.global th))) true)
+                             (strict_pf /1\ ThreadEvent.is_silent))
+                      (Thread.fully_reserved th) th1)
+          (STEP_FAILURE: Thread.step (Memory.max_timemap (Global.memory (Thread.global th))) pf e th1 th2)
+          (EVENT_FAILURE: ThreadEvent.get_machine_event e = MachineEvent.failure)
+          (EVENT_PF: strict_pf e)
+      | spf_consistent_fulfill
+          th2
+          (STEPS: rtc (pstep (Thread.step (Memory.max_timemap (Global.memory (Thread.global th))) true)
+                             (strict_pf /1\ ThreadEvent.is_silent))
+                      (Thread.fully_reserved th) th2)
+          (PROMISES: Local.promises (Thread.local th2) = BoolMap.bot)
+    .
+
+    Variant spf_race (reserved: TimeMap.t) (th: Thread.t lang): Prop :=
+      | spf_race_intro
+          pf e th1 th2
+          (STEPS: rtc (pstep (Thread.step reserved true) (strict_pf /1\ ThreadEvent.is_silent))
+                      th th1)
+          (STEP_RACE: Thread.step reserved pf e th1 th2)
+          (EVENT_RACE: ThreadEvent.is_racy_promise e)
     .
 
     Variant pf_consistent_aux (reserved: TimeMap.t) (th: Thread.t lang): Prop :=
@@ -395,6 +421,39 @@ Module PFConsistent.
       eapply non_sc_consistent_pf_consistent_aux;
         try apply fully_reserved_sim_thread.
       apply consistent_non_sc_consistent. auto.
+    Qed.
+
+    Lemma rtc_pf_steps_rtc_spf_steps
+          reserved th1 th2
+          (STEPS: rtc (tau (Thread.step reserved true)) th1 th2):
+      (<<SPF_STEPS: rtc (pstep (Thread.step reserved true) (strict_pf /1\ ThreadEvent.is_silent))
+                        th1 th2>>) \/
+      (<<SPF_RACE: spf_race reserved th1>>).
+    Proof.
+      induction STEPS; eauto.
+      inv H. destruct (classic (ThreadEvent.is_racy_promise e)).
+      { right. econs; eauto. }
+      des.
+      - left. econs 2; eauto.
+      - right. inv SPF_RACE.
+        econs; [econs 2|..]; eauto.
+    Qed.
+
+    Lemma pf_consistent_spf_consistent
+          th
+          (CONS: pf_consistent th):
+      (<<SPF_CONS: spf_consistent th>>) \/
+      (<<SPF_RACE: spf_race
+                     (Memory.max_timemap (Global.memory (Thread.global th)))
+                     (Thread.fully_reserved th)>>).
+    Proof.
+      inv CONS.
+      - exploit rtc_pf_steps_rtc_spf_steps; eauto. i. des; eauto.
+        destruct (classic (ThreadEvent.is_racy_promise e)).
+        + right. econs; eauto.
+        + left. econs 1; eauto.
+      - exploit rtc_pf_steps_rtc_spf_steps; eauto. i. des; eauto.
+        left. econs 2; eauto.
     Qed.
   End PFConsistent.
 End PFConsistent.

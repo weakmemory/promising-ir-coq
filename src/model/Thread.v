@@ -342,6 +342,26 @@ Module Thread.
       apply tau_union.
     Qed.
 
+    Lemma program_step_promises
+          e th1 th2
+          (STEP: Thread.step true e th1 th2):
+      BoolMap.le (Local.promises (local th2)) (Local.promises (local th1)) /\
+      BoolMap.le (Global.reserves (global th2)) (Global.reserves (global th1)).
+    Proof.
+      inv STEP. ss.
+      eapply Local.program_step_promises; eauto.
+    Qed.
+
+    Lemma program_step_reserves
+          e th1 th2
+          (STEP: Thread.step true e th1 th2):
+      Local.reserves (local th1) = Local.reserves (local th2) /\
+      Global.reserves (global th1) = Global.reserves (global th2).
+    Proof.
+      inv STEP. ss.
+      eapply Local.program_step_reserves; eauto.
+    Qed.
+
     (* Lemma program_step_promises_bot *)
     (*       e th1 th2 *)
     (*       (STEP: program_step e th1 th2) *)

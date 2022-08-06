@@ -42,9 +42,7 @@ Module Promises.
         (LE1: le prm1 gprm1):
     le prm2 gprm2.
   Proof.
-    ii. revert LHS.
-    inv PROMISE. inv ADD. inv GADD.
-    unfold LocFun.add. condtac; ss. eauto.
+    inv PROMISE. eauto using BoolMap.le_add.
   Qed.
 
   Lemma fulfill_le
@@ -53,9 +51,7 @@ Module Promises.
         (LE1: le prm1 gprm1):
     le prm2 gprm2.
   Proof.
-    ii. revert LHS.
-    inv FULFILL; auto. inv REMOVE. inv GREMOVE.
-    unfold LocFun.add. condtac; ss. eauto.
+    inv FULFILL; eauto using BoolMap.le_remove.
   Qed.
 
   Lemma promise_disjoint
@@ -118,6 +114,22 @@ Module Promises.
         prm1 gprm1 loc ord prm2 gprm2
         (FULFILL: fulfill prm1 gprm1 loc ord prm2 gprm2):
     minus gprm1 prm1 = minus gprm2 prm2.
+  Proof.
+    inv FULFILL; ss. eauto using remove_minus.
+  Qed.
+
+  Lemma promise_minus_inv
+        prm1 gprm1 loc prm2 gprm2
+        (PROMISE: promise prm1 gprm1 loc prm2 gprm2):
+    minus prm1 gprm1 = minus prm2 gprm2.
+  Proof.
+    inv PROMISE. eauto using add_minus.
+  Qed.
+
+  Lemma fulfill_minus_inv
+        prm1 gprm1 loc ord prm2 gprm2
+        (FULFILL: fulfill prm1 gprm1 loc ord prm2 gprm2):
+    minus prm1 gprm1 = minus prm2 gprm2.
   Proof.
     inv FULFILL; ss. eauto using remove_minus.
   Qed.

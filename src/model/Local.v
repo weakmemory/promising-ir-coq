@@ -146,6 +146,9 @@ Module ThreadEvent.
     | _ => True
     end.
 
+  Definition is_silent (e: t): Prop :=
+    get_machine_event e = MachineEvent.silent.
+
   Lemma eq_program_event_eq_loc
         e1 e2 loc
         (EVENT: get_program_event e1 = get_program_event e2):
@@ -715,6 +718,29 @@ Module Local.
       exploit write_step_disjoint; eauto.
     - exploit fence_step_disjoint; eauto.
     - exploit fence_step_disjoint; eauto.
+  Qed.
+
+  Lemma program_step_promises
+        reserved e lc1 gl1 lc2 gl2
+        (STEP: program_step reserved e lc1 gl1 lc2 gl2):
+    BoolMap.le (promises lc2) (promises lc1) /\
+    BoolMap.le (Global.reserves gl2) (Global.reserves gl1).
+  Proof.
+    inv STEP; ss; try by (inv LOCAL; ss).
+    - inv LOCAL. inv FULFILL; ss.
+      split; eauto using BoolMap.remove_le.
+    - inv LOCAL1. inv LOCAL2. inv FULFILL; ss.
+      split; eauto using BoolMap.remove_le.
+  Qed.
+
+  Lemma program_step_reserves
+        reserved e lc1 gl1 lc2 gl2
+        (STEP: program_step reserved e lc1 gl1 lc2 gl2):
+    reserves lc1 = reserves lc2 /\
+    Global.reserves gl1 = Global.reserves gl2.
+  Proof.
+    inv STEP; ss; try by (inv LOCAL; ss).
+    inv LOCAL1. inv LOCAL2. ss.
   Qed.
 
   (* Lemma program_step_promises_bot *)

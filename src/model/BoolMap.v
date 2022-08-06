@@ -28,6 +28,8 @@ Module BoolMap.
   Next Obligation.
     ii. auto.
   Qed.
+  #[global] Hint Resolve le_PreOrder_obligation_1: core.
+  #[global] Hint Resolve le_PreOrder_obligation_2: core.
 
   Lemma antisym l r
         (LR: le l r)
@@ -124,6 +126,19 @@ Module BoolMap.
     ii. erewrite add_o; eauto. condtac; ss.
   Qed.
 
+  Lemma le_add
+        loc x1 x2 y1 y2
+        (LE1: le x1 y1)
+        (ADDX: add x1 loc x2)
+        (ADDY: add y1 loc y2):
+    le x2 y2.
+  Proof.
+    ii. revert LHS.
+    inv ADDX. inv ADDY.
+    unfold LocFun.add.
+    condtac; ss; eauto.
+  Qed.
+
   Lemma add_finite
         bm1 loc bm2
         (ADD: add bm1 loc bm2)
@@ -133,6 +148,14 @@ Module BoolMap.
     inv ADD. inv FINITE.
     exists (loc :: x). unfold LocFun.add. intro.
     condtac; ss; eauto.
+  Qed.
+
+  Lemma add_exists
+        bm1 loc
+        (GET: bm1 loc = false):
+    <<ADD: exists bm2, add bm1 loc bm2>>.
+  Proof.
+    eauto.
   Qed.
 
   Lemma remove_o
@@ -172,6 +195,19 @@ Module BoolMap.
     erewrite remove_o; eauto. condtac; ss.
   Qed.
 
+  Lemma le_remove
+        loc x1 x2 y1 y2
+        (LE1: le x1 y1)
+        (REMOVEX: remove x1 loc x2)
+        (REMOVEY: remove y1 loc y2):
+    le x2 y2.
+  Proof.
+    ii. revert LHS.
+    inv REMOVEX. inv REMOVEY.
+    unfold LocFun.add.
+    condtac; ss; eauto.
+  Qed.
+
   Lemma remove_finite
         bm1 loc bm2
         (REMOVE: remove bm1 loc bm2)
@@ -181,6 +217,14 @@ Module BoolMap.
     inv REMOVE. inv FINITE.
     exists x. unfold LocFun.add. intro.
     condtac; ss; eauto.
+  Qed.
+
+  Lemma remove_exists
+        bm1 loc
+        (GET: bm1 loc = true):
+    <<REMOVE: exists bm2, remove bm1 loc bm2>>.
+  Proof.
+    eauto.
   Qed.
 
 

@@ -458,6 +458,17 @@ Module Thread.
   Definition fully_reserved {lang: language} (th: t lang): t lang :=
     mk lang (state th) (local th) (Global.fully_reserved (global th)).
 
+  Lemma fully_reserved_wf
+        lang (th: t lang)
+        (LC_WF: Local.wf (local th) (global th))
+        (GL_WF: Global.wf (global th)):
+    (<<LC_WF: Local.wf (local (fully_reserved th)) (global (fully_reserved th))>>) /\
+    (<<GL_WF: Global.wf (global (fully_reserved th))>>).
+  Proof.
+    exploit Local.fully_reserved_wf; eauto. i.
+    exploit Global.fully_reserved_wf; eauto.
+  Qed.
+
   Variant consistent {lang: language} (th: t lang): Prop :=
     | consistent_failure
         (FAILURE: @steps_failure lang (Memory.max_timemap (Global.memory (global th)))

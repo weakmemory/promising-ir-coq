@@ -53,6 +53,22 @@ Module Memory.
     apply Cell.get_ts in GET. auto.
   Qed.
 
+  Lemma lt_get
+        loc mem
+        to1 from1 msg1
+        to2 from2 msg2
+        (LT: Time.lt to1 to2)
+        (GET1: Memory.get loc to1 mem = Some (from1, msg1))
+        (GET2: Memory.get loc to2 mem = Some (from2, msg2)):
+    Time.le to1 from2.
+  Proof.
+    exploit Memory.get_ts; try exact GET1. i. des; timetac.
+    destruct (TimeFacts.le_lt_dec to1 from2); ss.
+    exploit Memory.get_disjoint; [exact GET1|exact GET2|]. i. des; timetac.
+    exfalso. apply (x1 to1); econs; ss; try refl.
+    econs. ss.
+  Qed.
+
   Definition le (lhs rhs:t): Prop :=
     forall loc to from msg
       (LHS: get loc to lhs = Some (from, msg)),

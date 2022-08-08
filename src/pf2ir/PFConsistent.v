@@ -41,13 +41,15 @@ Module PFConsistent.
     Variant pf_consistent (th: Thread.t lang): Prop :=
       | pf_consistent_failure
           pf e th1 th2
-          (STEPS: rtc (tau (Thread.step (Memory.max_timemap (Global.memory (Thread.global th))) true))
+          (STEPS: rtc (pstep (Thread.step (Memory.max_timemap (Global.memory (Thread.global th))) true)
+                             non_sc)
                       (Thread.fully_reserved th) th1)
           (STEP_FAILURE: Thread.step (Memory.max_timemap (Global.memory (Thread.global th))) pf e th1 th2)
           (EVENT_FAILURE: ThreadEvent.get_machine_event e = MachineEvent.failure)
       | pf_consistent_fulfill
           th2
-          (STEPS: rtc (tau (Thread.step (Memory.max_timemap (Global.memory (Thread.global th))) true))
+          (STEPS: rtc (pstep (Thread.step (Memory.max_timemap (Global.memory (Thread.global th))) true)
+                             non_sc)
                       (Thread.fully_reserved th) th2)
           (PROMISES: Local.promises (Thread.local th2) = BoolMap.bot)
     .
@@ -56,7 +58,7 @@ Module PFConsistent.
       | spf_consistent_failure
           pf e th1 th2
           (STEPS: rtc (pstep (Thread.step (Memory.max_timemap (Global.memory (Thread.global th))) true)
-                             (strict_pf /1\ ThreadEvent.is_silent))
+                             (strict_pf /1\ non_sc))
                       (Thread.fully_reserved th) th1)
           (STEP_FAILURE: Thread.step (Memory.max_timemap (Global.memory (Thread.global th))) pf e th1 th2)
           (EVENT_FAILURE: ThreadEvent.get_machine_event e = MachineEvent.failure)
@@ -64,7 +66,7 @@ Module PFConsistent.
       | spf_consistent_fulfill
           th2
           (STEPS: rtc (pstep (Thread.step (Memory.max_timemap (Global.memory (Thread.global th))) true)
-                             (strict_pf /1\ ThreadEvent.is_silent))
+                             (strict_pf /1\ non_sc))
                       (Thread.fully_reserved th) th2)
           (PROMISES: Local.promises (Thread.local th2) = BoolMap.bot)
     .
@@ -72,8 +74,7 @@ Module PFConsistent.
     Variant spf_race (reserved: TimeMap.t) (th: Thread.t lang): Prop :=
       | spf_race_intro
           pf e th1 th2
-          (STEPS: rtc (pstep (Thread.step reserved true) (strict_pf /1\ ThreadEvent.is_silent))
-                      th th1)
+          (STEPS: rtc (pstep (Thread.step reserved true) (strict_pf /1\ non_sc)) th th1)
           (STEP_RACE: Thread.step reserved pf e th1 th2)
           (EVENT_RACE: ThreadEvent.is_racy_promise e)
     .
@@ -81,12 +82,12 @@ Module PFConsistent.
     Variant pf_consistent_aux (reserved: TimeMap.t) (th: Thread.t lang): Prop :=
       | pf_consistent_aux_failure
           pf e th1 th2
-          (STEPS: rtc (tau (Thread.step reserved true)) th th1)
+          (STEPS: rtc (pstep (Thread.step reserved true) non_sc) th th1)
           (STEP_FAILURE: Thread.step reserved pf e th1 th2)
           (EVENT_FAILURE: ThreadEvent.get_machine_event e = MachineEvent.failure)
       | pf_consistent_aux_fulfill
           th2
-          (STEPS: rtc (tau (Thread.step reserved true)) th th2)
+          (STEPS: rtc (pstep (Thread.step reserved true) non_sc) th th2)
           (PROMISES: Local.promises (Thread.local th2) = BoolMap.bot)
     .
 
@@ -362,7 +363,7 @@ Module PFConsistent.
           (SIM1: sim_thread th1_src th1_tgt)
           (STEPS_TGT: rtc (pstep (Thread.step_allpf reserved) non_sc) th1_tgt th2_tgt):
       exists th2_src,
-        (<<STEPS_SRC: rtc (tau (Thread.step reserved true)) th1_src th2_src>>) /\
+        (<<STEPS_SRC: rtc (pstep (Thread.step reserved true) non_sc) th1_src th2_src>>) /\
         (<<SIM2: sim_thread th2_src th2_tgt>>).
     Proof.
       revert th1_src SIM1.
@@ -374,8 +375,6 @@ Module PFConsistent.
       i. des.
       exploit IHSTEPS_TGT; eauto. i. des.
       esplits; [econs 2|]; eauto.
-      econs; eauto.
-      unfold non_sc in *. des. destruct e; ss.
     Qed.
 
     Lemma non_sc_consistent_pf_consistent_aux
@@ -425,9 +424,8 @@ Module PFConsistent.
 
     Lemma rtc_pf_steps_rtc_spf_steps
           reserved th1 th2
-          (STEPS: rtc (tau (Thread.step reserved true)) th1 th2):
-      (<<SPF_STEPS: rtc (pstep (Thread.step reserved true) (strict_pf /1\ ThreadEvent.is_silent))
-                        th1 th2>>) \/
+          (STEPS: rtc (pstep (Thread.step reserved true) non_sc) th1 th2):
+      (<<SPF_STEPS: rtc (pstep (Thread.step reserved true) (strict_pf /1\ non_sc)) th1 th2>>) \/
       (<<SPF_RACE: spf_race reserved th1>>).
     Proof.
       induction STEPS; eauto.

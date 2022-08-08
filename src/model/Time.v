@@ -30,6 +30,12 @@ Ltac timetac :=
            exploit (@TimeFacts.lt_le_lt a b a); eauto;
            let H := fresh "H" in
            intro H; apply Time.lt_strorder in H; by inv H
+         | [H1: Time.le ?a ?b, H2: Time.lt ?b ?c |- Time.lt ?a ?c] =>
+             eapply TimeFacts.le_lt_lt; try exact H1; try exact H2
+         | [H1: Time.lt ?a ?b, H2: Time.le ?b ?c |- Time.lt ?a ?c] =>
+             eapply TimeFacts.lt_le_lt; try exact H1; try exact H2
+         | [H: Time.lt ?a ?b |- Time.le ?a ?b] =>
+             left; apply H
 
          | [H: Some _ = Some _ |- _] => inv H
 

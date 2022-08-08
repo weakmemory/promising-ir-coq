@@ -198,7 +198,6 @@ Module FutureCertify.
 
     Variant global_map (max: TimeMap.t) (rsv: BoolMap.t) (gl fgl: Global.t): Prop :=
       | global_map_intro
-          (SC: timemap_map (Global.sc gl) (Global.sc fgl))
           (MEMORY: memory_map max rsv (Global.memory gl) (Global.memory fgl))
     .
 
@@ -354,7 +353,7 @@ Module FutureCertify.
   Definition map_add (loc: Loc.t) (ts fts: Time.t) (f: map_t): map_t :=
     fun loc' ts' fts' =>
       (loc' = loc /\ ts' = ts /\ fts' = fts) \/ f loc' ts' fts'.
-  #[local] Hint Unfold map_add.
+  #[local] Hint Unfold map_add: core.
 
   Lemma map_add_incr loc ts fts f:
     f <3= map_add loc ts fts f.
@@ -1974,32 +1973,19 @@ Module FutureCertify.
       eapply tview_map_incr; try apply TVIEW.
       i. repeat apply map_add_incr. ss.
     - econs; ss.
-      eapply timemap_map_incr; try apply SC.
-      i. repeat apply map_add_incr. ss.
-  Qed.
-
-  Lemma write_fence_sc_map
-        f tview ftview sc fsc ord
-        (MAP_WF: map_wf f)
-        (TVIEW: tview_map f tview ftview)
-        (SC: timemap_map f sc fsc):
-    timemap_map f (TView.write_fence_sc tview sc ord) (TView.write_fence_sc ftview fsc ord).
-  Proof.
-    unfold TView.write_fence_sc. condtac; ss.
-    apply timemap_join_map; ss. apply TVIEW.
   Qed.
 
   Lemma write_fence_tview_map
         f tview ftview sc fsc ord
         (MAP_WF: map_wf f)
         (TVIEW: tview_map f tview ftview)
-        (SC: timemap_map f sc fsc):
+        (ORD: Ordering.le ord Ordering.acqrel):
     tview_map f (TView.write_fence_tview tview sc ord) (TView.write_fence_tview ftview fsc ord).
   Proof.
     econs; ss; i; repeat condtac;
       try apply view_join_map; ss; try apply TVIEW;
       try apply bot_view_map; ss;
-      econs; try apply write_fence_sc_map; ss.
+      destruct ord; ss.
   Qed.
 
   Lemma read_fence_tview_map
@@ -2022,6 +2008,7 @@ Module FutureCertify.
         (LC_MAP1: local_map f1 lc1 flc1)
         (GL_MAP1: global_map f1 reserved rsv gl1 fgl1)
         (FPROMISES: Local.promises flc1 = BoolMap.bot)
+        (ORD: Ordering.le ordw Ordering.acqrel)
         (STEP: Local.fence_step lc1 gl1 ordr ordw lc2 gl2):
     exists flc2 fgl2,
       (<<FSTEP: Local.fence_step flc1 fgl1 ordr ordw flc2 fgl2>>) /\
@@ -2036,9 +2023,7 @@ Module FutureCertify.
     - econs; try apply LC_MAP1. s.
       apply write_fence_tview_map; ss; try apply GL_MAP1.
       apply read_fence_tview_map; ss. apply LC_MAP1.
-    - econs; try apply GL_MAP1. s.
-      eapply write_fence_sc_map; ss; try apply GL_MAP1.
-      eapply read_fence_tview_map; ss. apply LC_MAP1.
+    - econs; try apply GL_MAP1.
   Qed.
 
   Lemma map_racy_view
@@ -2148,7 +2133,8 @@ Module FutureCertify.
         (GRESERVES: Global.reserves gl1 = BoolMap.top)
         (FGRESERVES: Global.reserves fgl1 = BoolMap.bot)
         (STEP: Local.program_step reserved e lc1 gl1 lc2 gl2)
-        (EVENT: ~ ThreadEvent.is_racy_promise e):
+        (EVENT1: ~ ThreadEvent.is_racy_promise e)
+        (EVENT2: ~ ThreadEvent.is_sc e):
     exists f2 fe flc2 fgl2,
       (<<FSTEP: Local.program_step freserved fe flc1 fgl1 flc2 fgl2>>) /\
       (<<EVENT: event_map f2 e fe>>) /\
@@ -2179,10 +2165,11 @@ Module FutureCertify.
         eapply opt_view_map_incr; try exact RELEASED_MAP.
         i. subst. repeat apply map_add_incr; ss.
       + i. subst. repeat apply map_add_incr; ss.
-    - exploit map_fence_step; eauto. i. des.
+    - exploit map_fence_step; eauto.
+      { destruct ordw; ss. }
+      i. des.
       esplits; [econs 5|..]; eauto. econs; ss.
-    - exploit map_fence_step; eauto. i. des.
-      esplits; [econs 6|..]; eauto. econs; ss.
+    - exploit map_fence_step; eauto; ss.
     - esplits; [econs 7|..]; eauto. econs.
     - destruct to; ss.
       exploit map_racy_read_step; eauto. i. des.
@@ -2192,7 +2179,7 @@ Module FutureCertify.
       esplits; [econs 9|..]; eauto. econs; ss.
     - exploit map_racy_update_step; eauto.
       { i. subst. ss.
-        apply not_and_or in EVENT. des.
+        apply not_and_or in EVENT1. des.
         - left. destruct ordr; ss.
         - right. destruct ordw; ss.
       }
@@ -2207,16 +2194,14 @@ Module FutureCertify.
     Variant certify (reserved: TimeMap.t) (loc: Loc.t) (ts: Time.t) (th: Thread.t lang): Prop :=
       | certify_failure
           pf e th1 th2
-          (STEPS: rtc (pstep (Thread.step reserved true) (strict_pf /1\ ThreadEvent.is_silent))
-                      th th1)
+          (STEPS: rtc (pstep (Thread.step reserved true) (strict_pf /1\ non_sc)) th th1)
           (STEP_FAILURE: Thread.step reserved pf e th1 th2)
           (EVENT_FAILURE: ThreadEvent.get_machine_event e = MachineEvent.failure)
           (EVENT_PF: strict_pf e)
       | certify_fulfill
           pf e th1 th2
           from to val released ord
-          (STEPS: rtc (pstep (Thread.step reserved true) (strict_pf /1\ ThreadEvent.is_silent))
-                      th th1)
+          (STEPS: rtc (pstep (Thread.step reserved true) (strict_pf /1\ non_sc)) th th1)
           (STEP_FULFILL: Thread.step reserved pf e th1 th2)
           (EVENT_FULFILL: ThreadEvent.is_writing e = Some (loc, from, to, val, released, ord))
           (TO: Time.lt ts to)
@@ -2338,10 +2323,10 @@ Module FutureCertify.
       - destruct to, fto; ss.
     Qed.
 
-    Lemma event_map_is_silent
+    Lemma event_map_non_sc
           f e fe
           (MAP: event_map f e fe):
-      ThreadEvent.is_silent e <-> ThreadEvent.is_silent fe.
+      non_sc e <-> non_sc fe.
     Proof.
       inv MAP; ss.
     Qed.
@@ -2362,7 +2347,8 @@ Module FutureCertify.
           (FGL_WF1: Global.wf (Thread.global fth1))
           (RESERVED: Memory.closed_timemap reserved (Global.memory (Thread.global th1)))
           (STEP: Thread.step reserved true e th1 th2)
-          (EVENT: ~ ThreadEvent.is_racy_promise e):
+          (EVENT1: ~ ThreadEvent.is_racy_promise e)
+          (EVENT2: ~ ThreadEvent.is_sc e):
       exists f2 fe fth2,
         (<<FSTEP: Thread.step freserved true fe fth1 fth2>>) /\
         (<<EVENT: event_map f2 e fe>>) /\
@@ -2403,9 +2389,9 @@ Module FutureCertify.
           (FLC_WF1: Local.wf (Thread.local fth1) (Thread.global fth1))
           (FGL_WF1: Global.wf (Thread.global fth1))
           (RESERVED: Memory.closed_timemap reserved (Global.memory (Thread.global th1)))
-          (STEPS: rtc (pstep (Thread.step reserved true) (strict_pf /1\ ThreadEvent.is_silent)) th1 th2):
+          (STEPS: rtc (pstep (Thread.step reserved true) (strict_pf /1\ non_sc)) th1 th2):
       exists f2 fth2,
-        (<<FSTEPS: rtc (pstep (Thread.step freserved true) (strict_pf /1\ ThreadEvent.is_silent)) fth1 fth2>>) /\
+        (<<FSTEPS: rtc (pstep (Thread.step freserved true) (strict_pf /1\ non_sc)) fth1 fth2>>) /\
         (<<MAP_INCR: f1 <3= f2>>) /\
         (<<MAP_WF2: map_wf f2>>) /\
         (<<MAP_COMPLETE2: map_complete
@@ -2418,7 +2404,7 @@ Module FutureCertify.
       induction STEPS; i.
       { esplits; eauto. }
       inv H. des.
-      exploit map_step; eauto. i. des.
+      exploit map_step; eauto; try apply EVENT0. i. des.
       exploit Thread.step_future; try exact STEP; eauto. i. des.
       exploit Thread.step_future; try exact FSTEP; eauto. i. des.
       hexploit Memory.future_closed_timemap; try apply GL_FUTURE; eauto. i.
@@ -2427,7 +2413,7 @@ Module FutureCertify.
       econs 2; try exact FSTEPS.
       econs; eauto.
       erewrite <- event_map_strict_pf; eauto.
-      erewrite <- event_map_is_silent; eauto.
+      erewrite <- event_map_non_sc; eauto.
     Qed.
 
     Lemma event_map_is_writing
@@ -2473,7 +2459,9 @@ Module FutureCertify.
         i. des.
         hexploit Memory.future_closed_timemap; try apply GL_FUTURE; eauto. i.
         destruct pf; try by (inv STEP_FAILURE; inv STEP; ss).
-        exploit map_step; try exact STEP_FAILURE; try exact MAP2; eauto. i. des.
+        exploit map_step; try exact STEP_FAILURE; try exact MAP2; eauto.
+        { destruct e; ss. }
+        i. des.
         econs 1; try exact FSTEP; eauto.
         - erewrite <- event_map_machine_event; eauto.
         - erewrite <- event_map_strict_pf; eauto.
@@ -2489,6 +2477,7 @@ Module FutureCertify.
         hexploit Memory.future_closed_timemap; try apply GL_FUTURE; eauto. i.
         destruct pf; try by (inv STEP_FULFILL; inv STEP; ss).
         exploit map_step; try exact STEP_FULFILL; try exact MAP2; eauto.
+        { destruct e; ss. }
         { destruct e; ss. }
         instantiate (1:=freserved). i. des.
         exploit event_map_is_writing; try exact EVENT; eauto. i. des.
@@ -2536,18 +2525,82 @@ Module FutureCertify.
         - exploit Memory.lt_get; try exact H; eauto. i.
           eapply TimeFacts.lt_le_lt; try exact x6.
           eapply TimeFacts.lt_le_lt; [apply Time.middle_spec; ss|].
-          exploit Memory.get_ts; try exact x1. i. des; timetac. econs. ss.
+          exploit Memory.get_ts; try exact x1. i. des; timetac.
         - inv H. rewrite x1 in *. inv FGET.
           apply Time.middle_spec; ss.
       }
       exploit (x3 fto); try congr.
       eapply TimeFacts.lt_le_lt; try exact x5.
-      exploit Memory.get_ts; try exact FGET. i. des; timetac. econs. ss.
+      exploit Memory.get_ts; try exact FGET. i. des; timetac.
+    Qed.
+
+    Lemma future_closed_timemap_map
+          (f: map_t) mem fmem tm
+          (FUTURE: Memory.future mem fmem)
+          (MAP: forall loc from to msg
+                  (GET: Memory.get loc to mem = Some (from, msg)),
+              f loc to to)
+          (CLOSED: Memory.closed_timemap tm mem):
+      timemap_map f tm tm.
+    Proof.
+      ii. specialize (CLOSED loc). des. eauto.
+    Qed.
+
+    Lemma future_closed_view_map
+          (f: map_t) mem fmem view
+          (FUTURE: Memory.future mem fmem)
+          (MAP: forall loc from to msg
+                  (GET: Memory.get loc to mem = Some (from, msg)),
+              f loc to to)
+          (CLOSED: Memory.closed_view view mem):
+      view_map f view view.
+    Proof.
+      inv CLOSED.
+      econs; eauto using future_closed_timemap_map.
+    Qed.
+
+    Lemma future_closed_opt_view_map
+          (f: map_t) mem fmem view
+          (FUTURE: Memory.future mem fmem)
+          (MAP: forall loc from to msg
+                  (GET: Memory.get loc to mem = Some (from, msg)),
+              f loc to to)
+          (CLOSED: Memory.closed_opt_view view mem):
+      opt_view_map f view view.
+    Proof.
+      inv CLOSED; econs.
+      eauto using future_closed_view_map.
+    Qed.
+
+    Lemma future_closed_message_map
+          (f: map_t) mem fmem msg
+          (FUTURE: Memory.future mem fmem)
+          (MAP: forall loc from to msg
+                  (GET: Memory.get loc to mem = Some (from, msg)),
+              f loc to to)
+          (CLOSED: Memory.closed_message msg mem):
+      message_map f msg msg.
+    Proof.
+      inv CLOSED. econs.
+      eauto using future_closed_opt_view_map.
+    Qed.
+
+    Lemma future_closed_tview_map
+          (f: map_t) mem fmem tview
+          (FUTURE: Memory.future mem fmem)
+          (MAP: forall loc from to msg
+                  (GET: Memory.get loc to mem = Some (from, msg)),
+              f loc to to)
+          (CLOSED: TView.closed tview mem):
+      tview_map f tview tview.
+    Proof.
+      inv CLOSED.
+      econs; eauto using future_closed_view_map.
     Qed.
 
     Lemma future_map
           rsv mem fmem
-          (INHABITED: Memory.inhabited mem)
+          (CLOSED: Memory.closed mem)
           (FUTURE: Memory.future mem fmem)
           (RESERVED: forall loc ffrom fto fmsg
                        (RESERVED: rsv loc = true)
@@ -2555,6 +2608,10 @@ Module FutureCertify.
                        (FGET: Memory.get loc fto fmem = Some (ffrom, fmsg)),
               Time.lt (Memory.max_ts loc mem) ffrom):
       exists f,
+        (<<F: f = fun loc ts fts =>
+                    ts = fts /\
+                    exists from to msg,
+                      Memory.get loc to mem = Some (from, msg) /\ (ts = from \/ ts = to)>>) /\
         (<<MAP_WF: map_wf f>>) /\
         (<<MAP_COMPLETE: map_complete f mem fmem>>) /\
         (<<MAP: memory_map f (Memory.max_timemap mem) rsv mem fmem>>).
@@ -2563,9 +2620,9 @@ Module FutureCertify.
            ts = fts /\
            exists from to msg,
              Memory.get loc to mem = Some (from, msg) /\ (ts = from \/ ts = to)).
-      splits.
+      splits; ss.
       { econs; ii; try by (des; subst; ss).
-        splits; ss. esplits; eauto.
+        splits; ss. esplits; eauto. apply CLOSED.
       }
       { ii. des; subst.
         - exploit Memory.future_get1; try exact FUTURE; eauto. i. des.
@@ -2575,15 +2632,71 @@ Module FutureCertify.
       }
 
       ii. destruct (rsv loc) eqn:RSV.
-      { exploit (future_reserved_spaced loc); eauto. i. des.
+      { (* reserved *)
+        exploit (future_reserved_spaced loc); try apply CLOSED; eauto. i. des.
         econs; i.
         - instantiate (1:=max).
           exploit Memory.future_get1; try exact FUTURE; eauto. i. des.
-          admit.
-        - admit.
+          esplits; try exact x2; eauto.
+          + inv CLOSED. exploit CLOSED0; eauto. i. des.
+            eapply future_closed_message_map; eauto. i.
+            split; ss. esplits; eauto.
+          + exploit Memory.max_ts_spec; try exact GET. i. des. timetac.
+        - destruct (Memory.get loc fto mem) as [[]|] eqn:GET; eauto.
+          right.
+          exploit Memory.future_get1; try exact GET; eauto. i. des.
+          rewrite x2 in *. inv FGET.
+          esplits; try exact GET; eauto.
+          + exploit Memory.max_ts_spec; try exact GET. i. des. timetac.
+          + inv CLOSED. exploit CLOSED0; eauto. i. des.
+            eapply future_closed_message_map; eauto. i.
+            split; ss. esplits; eauto.
       }
-      { admit.
+      { (* non-reserved *)
+        clear RESERVED. econs; i.
+        - instantiate (1:=Memory.max_ts loc fmem).
+          exploit Memory.future_get1; try exact GET; eauto. i. des.
+          esplits; try exact x0; eauto.
+          + inv CLOSED. exploit CLOSED0; eauto. i. des.
+            eapply future_closed_message_map; eauto. i.
+            split; ss. esplits; eauto.
+          + i. exploit Memory.max_ts_spec; try exact GET. i. des. timetac.
+        - exploit Memory.max_ts_spec; try exact FGET. i. des. timetac.
       }
-    Admitted.
+    Qed.
+
+    Lemma future_certify
+          freserved
+          th fth
+          loc
+          (STATE: Thread.state th = Thread.state fth)
+          (TVIEW: Local.tview (Thread.local th) = Local.tview (Thread.local fth))
+          (FPROMISES: Local.promises (Thread.local fth) = BoolMap.bot)
+          (GRESERVES: Global.reserves (Thread.global th) = BoolMap.top)
+          (FGRESERVES: Global.reserves (Thread.global fth) = BoolMap.bot)
+          (MEMORY: Memory.future (Global.memory (Thread.global th)) (Global.memory (Thread.global fth)))
+          (MEM_RESERVED: forall loc ffrom fto fmsg
+                           (RESERVED: Local.reserves (Thread.local th) loc = true)
+                           (GET: Memory.get loc fto (Global.memory (Thread.global th)) = None)
+                           (FGET: Memory.get loc fto (Global.memory (Thread.global fth)) = Some (ffrom, fmsg)),
+              Time.lt (Memory.max_ts loc (Global.memory (Thread.global th))) ffrom)
+          (LC_WF: Local.wf (Thread.local th) (Thread.global th))
+          (GL_WF: Global.wf (Thread.global th))
+          (FLC_WF: Local.wf (Thread.local fth) (Thread.global fth))
+          (FGL_WF: Global.wf (Thread.global fth))
+          (CERTIFY: certify (Memory.max_timemap (Global.memory (Thread.global th))) loc
+                            (Memory.max_ts loc (Global.memory (Thread.global th))) th):
+      certify freserved loc (Memory.max_ts loc (Global.memory (Thread.global th))) fth.
+    Proof.
+      exploit future_map; try exact MEMORY; try apply GL_WF; eauto. i. des.
+      eapply map_certify; eauto.
+      - econs; ss.
+        econs. rewrite <- TVIEW.
+        eapply future_closed_tview_map; try apply LC_WF; eauto.
+        i. subst. esplits; eauto.
+      - apply Memory.max_timemap_closed. apply GL_WF.
+      - exploit (Memory.max_ts_spec loc); try apply GL_WF. i. des.
+        subst. esplits; eauto.
+    Qed.
   End FutureCertify.
 End FutureCertify.

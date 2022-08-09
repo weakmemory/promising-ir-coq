@@ -28,14 +28,14 @@ Set Implicit Arguments.
 Module PFConfiguration.
   Variant estep: forall (e: ThreadEvent.t) (tid: Ident.t) (c1 c2: Configuration.t), Prop :=
     | estep_intro
-        e tid c1 lang st1 lc1 st3 lc3 gl3
+        e tid c1 lang st1 lc1 st2 lc2 gl2
         (TID: IdentMap.find tid (Configuration.threads c1) = Some (existT _ lang st1, lc1))
         (STEP: Thread.step TimeMap.bot true e
                            (Thread.mk _ st1 lc1 (Configuration.global c1))
-                           (Thread.mk _ st3 lc3 gl3)):
+                           (Thread.mk _ st2 lc2 gl2)):
       estep e tid
             c1
-            (Configuration.mk (IdentMap.add tid (existT _ _ st3, lc3) (Configuration.threads c1)) gl3)
+            (Configuration.mk (IdentMap.add tid (existT _ _ st2, lc2) (Configuration.threads c1)) gl2)
   .
   #[global] Hint Constructors estep: core.
 
@@ -70,6 +70,28 @@ Module PFConfiguration.
       exploit THREADS; try apply TH; eauto. i.
       exploit Thread.step_disjoint; eauto. s. i. des.
       auto.
+    - i. destruct (Local.promises lc2 loc) eqn:LGET.
+      + exists tid, lang, st2, lc2. splits; ss.
+        rewrite IdentMap.Facts.add_o. condtac; ss.
+      + exploit Thread.step_promises_minus; try exact STEP0. s. i.
+        eapply equal_f in x1.
+        revert x1. unfold BoolMap.minus. rewrite GET, LGET. s. i.
+        destruct (Global.promises (Configuration.global c1) loc) eqn:GET1; ss.
+        destruct (Local.promises lc1 loc) eqn:LGET1; ss.
+        exploit PROMISES; eauto. i. des.
+        exists tid0, lang0, st, lc. splits; ss.
+        rewrite IdentMap.Facts.add_o. condtac; ss. subst. congr.
+    - i. destruct (Local.reserves lc2 loc) eqn:LGET.
+      + exists tid, lang, st2, lc2. splits; ss.
+        rewrite IdentMap.Facts.add_o. condtac; ss.
+      + exploit Thread.step_reserves_minus; try exact STEP0. s. i.
+        eapply equal_f in x1.
+        revert x1. unfold BoolMap.minus. rewrite GET, LGET. s. i.
+        destruct (Global.reserves (Configuration.global c1) loc) eqn:GET1; ss.
+        destruct (Local.reserves lc1 loc) eqn:LGET1; ss.
+        exploit RESERVES; eauto. i. des.
+        exists tid0, lang0, st, lc. splits; ss.
+        rewrite IdentMap.Facts.add_o. condtac; ss. subst. congr.
   Qed.
 
   Lemma all_step_future

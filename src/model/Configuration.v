@@ -73,11 +73,7 @@ Module Threads.
     - i. unfold init in *. rewrite IdentMap.Facts.map_o in *.
       destruct (@UsualFMapPositive.UsualPositiveMap'.find
                   (@sigT _ (@Language.syntax ProgramEvent.t)) tid syn); inv TH.
-      econs; ss.
-      + apply TView.bot_wf.
-      + apply TView.bot_closed.
-      + apply BoolMap.bot_finite.
-      + apply BoolMap.bot_finite.
+      apply Local.init_wf.
   Qed.
 
 

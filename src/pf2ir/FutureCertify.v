@@ -30,6 +30,7 @@ Require Import PFConsistent.
 Set Implicit Arguments.
 
 
+Module FutureCertify.
 Section FutureCertify.
   Variable lang: language.
   
@@ -540,4 +541,5 @@ Section FutureCertify.
     - exploit (Memory.max_ts_spec loc); try apply GL_WF. i. des.
       subst. esplits; eauto.
   Qed.
+End FutureCertify.
 End FutureCertify.

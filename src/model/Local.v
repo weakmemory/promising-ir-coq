@@ -186,6 +186,15 @@ Module Local.
   .
   #[global] Hint Constructors wf: core.
 
+  Lemma init_wf: wf init Global.init.
+  Proof.
+    econs; ss.
+    - apply TView.bot_wf.
+    - apply TView.bot_closed.
+    - apply BoolMap.bot_finite.
+    - apply BoolMap.bot_finite.
+  Qed.
+
   Lemma fully_reserved_wf
         lc gl
         (WF: wf lc gl):

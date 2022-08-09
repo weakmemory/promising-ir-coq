@@ -51,11 +51,19 @@ Module Threads.
       (THREADS: forall tid lang st lc
                   (TH: IdentMap.find tid ths = Some (existT _ lang st, lc)),
           Local.wf lc gl)
+      (PROMISES: forall loc (GET: Global.promises gl loc = true),
+        exists tid lang st lc,
+          (<<TH: IdentMap.find tid ths = Some (existT _ lang st, lc)>>) /\
+          (<<GET: Local.promises lc loc = true>>))
+      (RESERVES: forall loc (GET: Global.reserves gl loc = true),
+        exists tid lang st lc,
+          (<<TH: IdentMap.find tid ths = Some (existT _ lang st, lc)>>) /\
+          (<<GET: Local.reserves lc loc = true>>))
   .
 
   Lemma init_wf syn: wf (init syn) Global.init.
   Proof.
-    econs.
+    econs; ss.
     - i. unfold init in *. rewrite IdentMap.Facts.map_o in *.
       destruct (@UsualFMapPositive.UsualPositiveMap'.find
                   (@sigT _ (@Language.syntax ProgramEvent.t)) tid1 syn); inv TH1.
@@ -270,8 +278,8 @@ Module Configuration.
     exploit Thread.rtc_tau_step_future; eauto. s. i. des.
     exploit Thread.step_future; eauto. s. i. des.
     splits; try by etrans; eauto.
-    econs; ss. econs.
-    - i. simplify.
+    econs; ss. econs; i.
+    - simplify.
       + exploit THREADS; try apply TH1; eauto. i. des.
         exploit Thread.rtc_tau_step_disjoint; eauto. i. des.
         exploit Thread.step_disjoint; eauto. s. i. des.
@@ -281,11 +289,35 @@ Module Configuration.
         exploit Thread.step_disjoint; eauto. i. des.
         auto.
       + eapply DISJOINT; [|eauto|eauto]. auto.
-    - i. simplify.
+    - simplify.
       exploit THREADS; try apply TH; eauto. i.
       exploit Thread.rtc_tau_step_disjoint; eauto. i. des.
       exploit Thread.step_disjoint; eauto. s. i. des.
       auto.
+    - i. destruct (Local.promises lc3 loc) eqn:LGET.
+      + exists tid, lang, st3, lc3. splits; ss.
+        rewrite IdentMap.Facts.add_o. condtac; ss.
+      + exploit Thread.rtc_tau_step_promises_minus; try exact STEPS. s. i.
+        exploit Thread.step_promises_minus; try exact STEP0. s. i.
+        rewrite x2 in *. eapply equal_f in x1.
+        revert x1. unfold BoolMap.minus. rewrite GET, LGET. s. i.
+        destruct (Global.promises (global c1) loc) eqn:GET1; ss.
+        destruct (Local.promises lc1 loc) eqn:LGET1; ss.
+        exploit PROMISES; eauto. i. des.
+        exists tid0, lang0, st, lc. splits; ss.
+        rewrite IdentMap.Facts.add_o. condtac; ss. subst. congr.
+    - i. destruct (Local.reserves lc3 loc) eqn:LGET.
+      + exists tid, lang, st3, lc3. splits; ss.
+        rewrite IdentMap.Facts.add_o. condtac; ss.
+      + exploit Thread.rtc_tau_step_reserves_minus; try exact STEPS. s. i.
+        exploit Thread.step_reserves_minus; try exact STEP0. s. i.
+        rewrite x2 in *. eapply equal_f in x1.
+        revert x1. unfold BoolMap.minus. rewrite GET, LGET. s. i.
+        destruct (Global.reserves (global c1) loc) eqn:GET1; ss.
+        destruct (Local.reserves lc1 loc) eqn:LGET1; ss.
+        exploit RESERVES; eauto. i. des.
+        exists tid0, lang0, st, lc. splits; ss.
+        rewrite IdentMap.Facts.add_o. condtac; ss. subst. congr.
   Qed.
 
   Lemma opt_step_future

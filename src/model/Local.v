@@ -743,48 +743,47 @@ Module Local.
     inv LOCAL1. inv LOCAL2. ss.
   Qed.
 
-  (* Lemma program_step_promises_bot *)
-  (*       e lc1 gl1 lc2 gl2 *)
-  (*       (STEP: program_step e lc1 gl1 lc2 gl2) *)
-  (*       (PROMISES: (promises lc1) = Promises.bot): *)
-  (*   (promises lc2) = Promises.bot. *)
-  (* Proof. *)
-  (*   inv STEP; try inv LOCAL; ss. *)
-  (*   - inv FULFILL; ss. *)
-  (*   - inv LOCAL1. inv LOCAL2. *)
-  (*     eapply Memory.write_promises_bot; eauto. *)
-  (*   - eapply Memory.write_na_promises_bot; eauto. *)
-  (* Qed. *)
+  Lemma internal_step_promises_minus
+        e lc1 gl1 lc2 gl2
+        (STEP: internal_step e lc1 gl1 lc2 gl2):
+    BoolMap.minus (Global.promises gl1) (promises lc1) =
+    BoolMap.minus (Global.promises gl2) (promises lc2).
+  Proof.
+    inv STEP; inv LOCAL; ss.
+    eapply Promises.promise_minus; eauto.
+  Qed.
 
-  (* Lemma program_step_get_diff_promises *)
-  (*       l *)
-  (*       e lc1 sc1 mem1 lc2 sc2 mem2 *)
-  (*       (STEP: program_step e lc1 sc1 mem1 lc2 sc2 mem2) *)
-  (*       (LOC: ~ ThreadEvent.is_accessing_loc l e): *)
-  (*   forall to, Memory.get l to lc1.(promises) = Memory.get l to lc2.(promises). *)
-  (* Proof. *)
-  (*   inv STEP; ss; try by inv LOCAL. *)
-  (*   - i. inv LOCAL. s. *)
-  (*     erewrite <- Memory.write_get_diff_promise; eauto. *)
-  (*   - i. inv LOCAL1. inv LOCAL2. s. *)
-  (*     erewrite <- Memory.write_get_diff_promise; eauto. *)
-  (*   - i. inv LOCAL. *)
-  (*     erewrite <- Memory.write_na_get_diff_promise; eauto. *)
-  (* Qed. *)
+  Lemma program_step_promises_minus
+        reserved e lc1 gl1 lc2 gl2
+        (STEP: program_step reserved e lc1 gl1 lc2 gl2):
+    BoolMap.minus (Global.promises gl1) (promises lc1) =
+    BoolMap.minus (Global.promises gl2) (promises lc2).
+  Proof.
+    inv STEP; ss; try by (inv LOCAL; ss).
+    - inv LOCAL. ss.
+      eapply Promises.fulfill_minus; eauto.
+    - inv LOCAL1. inv LOCAL2. ss.
+      eapply Promises.fulfill_minus; eauto.
+  Qed.
 
-  (* Lemma program_step_get_diff *)
-  (*       l *)
-  (*       e lc1 sc1 mem1 lc2 sc2 mem2 *)
-  (*       (STEP: program_step e lc1 sc1 mem1 lc2 sc2 mem2) *)
-  (*       (LOC: ~ ThreadEvent.is_accessing_loc l e): *)
-  (*   forall to, Memory.get l to mem1 = Memory.get l to mem2. *)
-  (* Proof. *)
-  (*   inv STEP; ss; try by inv LOCAL. *)
-  (*   - i. inv LOCAL. s. *)
-  (*     erewrite <- Memory.write_get_diff; eauto. *)
-  (*   - i. inv LOCAL1. inv LOCAL2. s. *)
-  (*     erewrite <- Memory.write_get_diff; eauto. *)
-  (*   - i. inv LOCAL. *)
-  (*     erewrite <- Memory.write_na_get_diff; try exact WRITE; eauto. *)
-  (* Qed. *)
+  Lemma internal_step_reserves_minus
+        e lc1 gl1 lc2 gl2
+        (STEP: internal_step e lc1 gl1 lc2 gl2):
+    BoolMap.minus (Global.reserves gl1) (reserves lc1) =
+    BoolMap.minus (Global.reserves gl2) (reserves lc2).
+  Proof.
+    inv STEP; inv LOCAL; ss.
+    - eapply Reserves.reserve_minus; eauto.
+    - eapply Reserves.cancel_minus; eauto.
+  Qed.
+
+  Lemma program_step_reserves_minus
+        reserved e lc1 gl1 lc2 gl2
+        (STEP: program_step reserved e lc1 gl1 lc2 gl2):
+    BoolMap.minus (Global.reserves gl1) (reserves lc1) =
+    BoolMap.minus (Global.reserves gl2) (reserves lc2).
+  Proof.
+    inv STEP; ss; try by (inv LOCAL; ss).
+    inv LOCAL1. inv LOCAL2. ss.
+  Qed.
 End Local.

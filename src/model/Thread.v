@@ -362,94 +362,71 @@ Module Thread.
       eapply Local.program_step_reserves; eauto.
     Qed.
 
-    (* Lemma program_step_promises_bot *)
-    (*       e th1 th2 *)
-    (*       (STEP: program_step e th1 th2) *)
-    (*       (PROMISES: (Local.promises (local th1)) = Memory.bot): *)
-    (*   (Local.promises (local th2)) = Memory.bot. *)
-    (* Proof. *)
-    (*   inv STEP. eapply Local.program_step_promises_bot; eauto. *)
-    (* Qed. *)
+    Lemma step_promises_minus
+          pf e th1 th2
+          (STEP: step pf e th1 th2):
+      BoolMap.minus (Global.promises (Thread.global th1)) (Local.promises (Thread.local th1)) =
+      BoolMap.minus (Global.promises (Thread.global th2)) (Local.promises (Thread.local th2)).
+    Proof.
+      inv STEP; s.
+      - eapply Local.internal_step_promises_minus; eauto.
+      - eapply Local.program_step_promises_minus; eauto.
+    Qed.
 
+    Lemma rtc_all_step_promises_minus
+          th1 th2
+          (STEPS: rtc all_step th1 th2):
+      BoolMap.minus (Global.promises (Thread.global th1)) (Local.promises (Thread.local th1)) =
+      BoolMap.minus (Global.promises (Thread.global th2)) (Local.promises (Thread.local th2)).
+    Proof.
+      induction STEPS; ss.
+      inv H. inv USTEP.
+      exploit step_promises_minus; eauto. i. congr.
+    Qed.
 
-    (* reserve & cancel steps *)
+    Lemma rtc_tau_step_promises_minus
+          th1 th2
+          (STEPS: rtc tau_step th1 th2):
+      BoolMap.minus (Global.promises (Thread.global th1)) (Local.promises (Thread.local th1)) =
+      BoolMap.minus (Global.promises (Thread.global th2)) (Local.promises (Thread.local th2)).
+    Proof.
+      apply rtc_all_step_promises_minus.
+      eapply rtc_implies; try exact STEPS.
+      apply tau_union.
+    Qed.
 
-    (* Variant reserve_step (th1 th2:t): Prop := *)
-    (* | reserve_step_intro *)
-    (*     pf loc from to *)
-    (*     (STEP: step pf (ThreadEvent.promise loc from to Message.reserve Memory.op_kind_add) th1 th2) *)
-    (* . *)
-    (* Hint Constructors reserve_step: core. *)
+    Lemma step_reserves_minus
+          pf e th1 th2
+          (STEP: step pf e th1 th2):
+      BoolMap.minus (Global.reserves (Thread.global th1)) (Local.reserves (Thread.local th1)) =
+      BoolMap.minus (Global.reserves (Thread.global th2)) (Local.reserves (Thread.local th2)).
+    Proof.
+      inv STEP; s.
+      - eapply Local.internal_step_reserves_minus; eauto.
+      - eapply Local.program_step_reserves_minus; eauto.
+    Qed.
 
-    (* Variant cancel_step (th1 th2:t): Prop := *)
-    (* | cancel_step_intro *)
-    (*     pf loc from to *)
-    (*     (STEP: step pf (ThreadEvent.promise loc from to Message.reserve Memory.op_kind_cancel) th1 th2) *)
-    (* . *)
-    (* Hint Constructors cancel_step: core. *)
+    Lemma rtc_all_step_reserves_minus
+          th1 th2
+          (STEPS: rtc all_step th1 th2):
+      BoolMap.minus (Global.reserves (Thread.global th1)) (Local.reserves (Thread.local th1)) =
+      BoolMap.minus (Global.reserves (Thread.global th2)) (Local.reserves (Thread.local th2)).
+    Proof.
+      induction STEPS; ss.
+      inv H. inv USTEP.
+      exploit step_reserves_minus; eauto. i. congr.
+    Qed.
 
-    (* Lemma reserve_step_tau_step th1 th2 *)
-    (*       (RESERVE: reserve_step th1 th2) *)
-    (*   : *)
-    (*     tau_step th1 th2. *)
-    (* Proof. *)
-    (*   inv RESERVE. econs; eauto. *)
-    (* Qed. *)
-
-    (* Lemma cancel_step_tau_step th1 th2 *)
-    (*       (CANCEL: cancel_step th1 th2) *)
-    (*   : *)
-    (*     tau_step th1 th2. *)
-    (* Proof. *)
-    (*   inv CANCEL. econs; eauto. *)
-    (* Qed. *)
-
-    (* Lemma reservation_event_reserve_or_cancel_step *)
-    (*       (th1 th2: t) pf e *)
-    (*       (RESERVATION: ThreadEvent.is_reservation_event e) *)
-    (*       (STEP: step pf e th1 th2): *)
-    (*     reserve_step th1 th2 \/ cancel_step th1 th2. *)
-    (* Proof. *)
-    (*   dup STEP. inv STEP. *)
-    (*   - inv STEP1. inv LOCAL. ss. des_ifs. inv PROMISE; ss; eauto. *)
-    (*   - inv STEP1. inv LOCAL; ss. *)
-    (* Qed. *)
-
-    (* Lemma rtc_reserve_step_future *)
-    (*       th1 th2 *)
-    (*       (STEP: rtc reserve_step th1 th2) *)
-    (*       (WF1: Local.wf (local th1) (memory th1)) *)
-    (*       (SC1: Memory.closed_timemap (sc th1) (memory th1)) *)
-    (*       (CLOSED1: Memory.closed (memory th1)): *)
-    (*   <<WF2: Local.wf (local th2) (memory th2)>> /\ *)
-    (*   <<SC2: Memory.closed_timemap (sc th2) (memory th2)>> /\ *)
-    (*   <<CLOSED2: Memory.closed (memory th2)>> /\ *)
-    (*   <<TVIEW_FUTURE: TView.le (Local.tview (local th1)) (Local.tview (local th2))>> /\ *)
-    (*   <<SC_FUTURE: TimeMap.le (sc th1) (sc th2)>> /\ *)
-    (*   <<MEM_FUTURE: Memory.future (memory th1) (memory th2)>>. *)
-    (* Proof. *)
-    (*   apply rtc_all_step_future; auto. *)
-    (*   eapply rtc_implies; [|eauto]. *)
-    (*   i. inv H. eauto. *)
-    (* Qed. *)
-
-    (* Lemma rtc_cancel_step_future *)
-    (*       th1 th2 *)
-    (*       (STEP: rtc cancel_step th1 th2) *)
-    (*       (WF1: Local.wf (local th1) (memory th1)) *)
-    (*       (SC1: Memory.closed_timemap (sc th1) (memory th1)) *)
-    (*       (CLOSED1: Memory.closed (memory th1)): *)
-    (*   <<WF2: Local.wf (local th2) (memory th2)>> /\ *)
-    (*   <<SC2: Memory.closed_timemap (sc th2) (memory th2)>> /\ *)
-    (*   <<CLOSED2: Memory.closed (memory th2)>> /\ *)
-    (*   <<TVIEW_FUTURE: TView.le (Local.tview (local th1)) (Local.tview (local th2))>> /\ *)
-    (*   <<SC_FUTURE: TimeMap.le (sc th1) (sc th2)>> /\ *)
-    (*   <<MEM_FUTURE: Memory.future (memory th1) (memory th2)>>. *)
-    (* Proof. *)
-    (*   apply rtc_all_step_future; auto. *)
-    (*   eapply rtc_implies; [|eauto]. *)
-    (*   i. inv H. eauto. *)
-    (* Qed. *)
+    Lemma rtc_tau_step_reserves_minus
+          th1 th2
+          (STEPS: rtc tau_step th1 th2):
+      BoolMap.minus (Global.reserves (Thread.global th1)) (Local.reserves (Thread.local th1)) =
+      BoolMap.minus (Global.reserves (Thread.global th2)) (Local.reserves (Thread.local th2)).
+    Proof.
+      apply rtc_all_step_reserves_minus.
+      eapply rtc_implies; try exact STEPS.
+      apply tau_union.
+    Qed.
   End Thread.
 
 

@@ -29,6 +29,7 @@ Require Import Behavior.
 
 Require Import PFConsistent.
 Require Import FutureCertify.
+Require Import PFtoIRThread.
 
 Set Implicit Arguments.
 Set Nested Proofs Allowed.
@@ -51,7 +52,7 @@ Module PFtoIR.
         (RESERVED23: future_reserved rsv reserved mem2 mem3):
     future_reserved rsv reserved mem1 mem3.
   Proof.
-    ii. destruct (Memory.get loc to mem2) as [[]|] eqn:GET; eauto.
+    ii. destruct (Memory.get loc to mem2) as [[]|] eqn:GET; eauto 2.
     exploit Memory.future_get1; try exact FUTURE23; try exact GET. i. des.
     rewrite x0 in *. clarify. eauto.
   Qed.
@@ -136,14 +137,15 @@ Module PFtoIR.
         lang
         st_pf lc_pf
         st_ir lc_ir
-        (STATE: st_pf = st_ir)
-        (TVIEW: Local.tview lc_pf = Local.tview lc_ir)
-        (PROMISES: Local.promises lc_pf = BoolMap.bot)
-        (RESERVES: Local.reserves lc_pf = BoolMap.bot)
-        (SC: Global.sc gl_pf = Global.sc gl_ir)
-        (GPROMISES: Global.promises gl_pf = BoolMap.bot)
-        (GRESERVES: Global.reserves gl_pf = BoolMap.bot)
-        (MEMORY: Global.memory gl_pf = Global.memory gl_ir)
+        (* (STATE: st_pf = st_ir) *)
+        (* (TVIEW: Local.tview lc_pf = Local.tview lc_ir) *)
+        (* (PROMISES: Local.promises lc_pf = BoolMap.bot) *)
+        (* (RESERVES: Local.reserves lc_pf = BoolMap.bot) *)
+        (* (SC: Global.sc gl_pf = Global.sc gl_ir) *)
+        (* (GPROMISES: Global.promises gl_pf = BoolMap.bot) *)
+        (* (GRESERVES: Global.reserves gl_pf = BoolMap.bot) *)
+        (* (MEMORY: Global.memory gl_pf = Global.memory gl_ir) *)
+        (THREAD: PFtoIRThread.sim_thread (Thread.mk _ st_pf lc_pf gl_pf) (Thread.mk _ st_ir lc_ir gl_ir))
         (CONS: exists gl_past,
             (<<FUTURE: Global.future gl_past gl_ir>>) /\
             (<<RESERVED: future_reserved
@@ -192,7 +194,8 @@ Module PFtoIR.
     inv SIM. ii. ss.
     specialize (THS tid). rewrite FIND in THS.
     destruct (IdentMap.find tid ths_ir) as [[[lang_ir st_ir] lc_ir]|] eqn:FIND_IR; ss.
-    inv THS. Configuration.simplify. splits; ss.
+    inv THS. Configuration.simplify.
+    inv THREAD. ss. subst. splits; ss.
     exploit TERMINAL; eauto. i. des. ss.
   Qed.
 
@@ -215,6 +218,17 @@ Module PFtoIR.
                                              e tid c_pf c2_pf>>) /\
         (<<SIM2: sim_conf c2_pf c2_ir>>)).
   Proof.
+    destruct c1_pf as [ths1_pf gl1_pf], c1_ir as [ths1_ir gl1_ir].
+    inv STEP. dup SIM. inv SIM0. ss.
+    rename st1 into st1_ir, lc1 into lc1_ir.
+    specialize (THS tid). rewrite TID in *.
+    destruct (IdentMap.find tid ths1_pf) as [[[lang_pf st1_pf] lc1_pf]|] eqn:FIND_PF; ss.
+    inv THS. Configuration.simplify. clear CONS.
+    exploit PFtoIRThread.rtc_tau_step_cases; try exact STEPS. i. des; cycle 1.
+    { (* race with a promise *)
+      exploit PFtoIRThread.sim_thread_rtc_step; try exact STEPS0; eauto. i. des.
+      admit.
+    }
   Admitted.
 
   Theorem pf_to_ir prog:

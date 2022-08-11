@@ -128,21 +128,21 @@ Module Thread.
     Definition all_step := union step_allpf.
     Hint Unfold all_step: core.
 
-    Variant opt_step: forall (e:ThreadEvent.t) (th1 th2:t), Prop :=
+    Variant opt_step: forall (pf: bool) (e:ThreadEvent.t) (th1 th2:t), Prop :=
       | step_none
-          e:
-        opt_step ThreadEvent.silent e e
+          th:
+        opt_step true ThreadEvent.silent th th
       | step_some
           pf e th1 th2
           (STEP: step pf e th1 th2):
-        opt_step e th1 th2
+        opt_step pf e th1 th2
     .
     #[local] Hint Constructors opt_step: core.
 
     Lemma tau_opt_tau
-          th1 th2 th3 e
+          th1 th2 th3 pf e
           (STEPS: rtc tau_step th1 th2)
-          (STEP: opt_step e th2 th3)
+          (STEP: opt_step pf e th2 th3)
           (EVENT: ThreadEvent.get_machine_event e = MachineEvent.silent):
       rtc tau_step th1 th3.
     Proof.
@@ -152,9 +152,9 @@ Module Thread.
     Qed.
 
     Lemma tau_opt_all
-          th1 th2 th3 e
+          th1 th2 th3 pf e
           (STEPS: rtc tau_step th1 th2)
-          (STEP: opt_step e th2 th3):
+          (STEP: opt_step pf e th2 th3):
       rtc all_step th1 th3.
     Proof.
       induction STEPS.
@@ -192,8 +192,8 @@ Module Thread.
     Qed.
 
     Lemma opt_step_future
-          e th1 th2
-          (STEP: opt_step e th1 th2)
+          pf e th1 th2
+          (STEP: opt_step pf e th1 th2)
           (LC_WF1: Local.wf (local th1) (global th1))
           (GL_WF1: Global.wf (global th1)):
       <<LC_WF2: Local.wf (local th2) (global th2)>> /\
@@ -303,8 +303,8 @@ Module Thread.
     Qed.
 
     Lemma opt_step_disjoint
-          e th1 th2 lc
-          (STEP: opt_step e th1 th2)
+          pf e th1 th2 lc
+          (STEP: opt_step pf e th1 th2)
           (DISJOINTH1: Local.disjoint (local th1) lc)
           (LC_WF: Local.wf lc (global th1)):
       <<DISJOINTH2: Local.disjoint (local th2) lc>> /\

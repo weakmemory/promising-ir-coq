@@ -233,6 +233,25 @@ Module PFConfiguration.
     Qed.
   End PFConfiguration.
 
+  Lemma opt_program_step_opt_step
+        c1 tid lang st1 lc1
+        e th2
+        (FIND: IdentMap.find tid (Configuration.threads c1) = Some (existT _ lang st1, lc1))
+        (STEP: Thread.opt_step TimeMap.bot true e
+                               (Thread.mk _ st1 lc1 (Configuration.global c1)) th2):
+    opt_step ThreadEvent.get_machine_event_pf
+             (ThreadEvent.get_machine_event_pf e) tid
+             c1
+             (Configuration.mk
+                (IdentMap.add tid (existT _ _ (Thread.state th2), Thread.local th2) (Configuration.threads c1))
+                (Thread.global th2)).
+  Proof.
+    destruct th2. ss. inv STEP.
+    - destruct c1; ss.
+      rewrite IdentMap.gsident; ss. econs.
+    - econs 2. econs; eauto.
+  Qed.
+
   Lemma rtc_program_step_rtc_step
         c1 tid lang st1 lc1
         th2

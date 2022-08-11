@@ -52,12 +52,12 @@ Section SimulationThread.
                              (Thread.mk _ st1_tgt lc1_tgt gl1_tgt)
                              (Thread.mk _ st3_tgt lc3_tgt gl3_tgt)),
       (<<FAILURE: Thread.steps_failure reserved_src (Thread.mk _ st1_src lc1_src gl1_src)>>) \/
-      exists e_src st2_src lc2_src gl2_src st3_src lc3_src gl3_src,
+      exists pf_src e_src st2_src lc2_src gl2_src st3_src lc3_src gl3_src,
         (<<FAILURE: ThreadEvent.get_machine_event e_tgt <> MachineEvent.failure>>) /\
         (<<STEPS: rtc (@Thread.tau_step _ reserved_src)
                       (Thread.mk _ st1_src lc1_src gl1_src)
                       (Thread.mk _ st2_src lc2_src gl2_src)>>) /\
-        (<<STEP_SRC: Thread.opt_step reserved_src e_src
+        (<<STEP_SRC: Thread.opt_step reserved_src pf_src e_src
                                      (Thread.mk _ st2_src lc2_src gl2_src)
                                      (Thread.mk _ st3_src lc3_src gl3_src)>>) /\
         (<<EVENT: ThreadEvent.get_machine_event e_src = ThreadEvent.get_machine_event e_tgt>>) /\
@@ -152,12 +152,12 @@ Lemma sim_thread_step
       (GL_WF_TGT: Global.wf gl1_tgt)
       (SIM: sim_thread sim_terminal st1_src lc1_src gl1_src st1_tgt lc1_tgt gl1_tgt):
   (<<FAILURE: Thread.steps_failure reserved_src (Thread.mk lang_src st1_src lc1_src gl1_src)>>) \/
-  exists e_src st2_src lc2_src gl2_src st3_src lc3_src gl3_src,
+  exists pf_src e_src st2_src lc2_src gl2_src st3_src lc3_src gl3_src,
     (<<FAILURE: ThreadEvent.get_machine_event e_tgt <> MachineEvent.failure>>) /\
     (<<STEPS: rtc (@Thread.tau_step lang_src reserved_src)
                   (Thread.mk _ st1_src lc1_src gl1_src)
                   (Thread.mk _ st2_src lc2_src gl2_src)>>) /\
-    (<<STEP: Thread.opt_step reserved_src e_src
+    (<<STEP: Thread.opt_step reserved_src pf_src e_src
                              (Thread.mk _ st2_src lc2_src gl2_src)
                              (Thread.mk _ st3_src lc3_src gl3_src)>>) /\
     (<<EVENT: ThreadEvent.get_machine_event e_src = ThreadEvent.get_machine_event e_tgt>>) /\
@@ -181,11 +181,11 @@ Lemma sim_thread_opt_step
       lang_src lang_tgt
       reserved_src reserved_tgt
       sim_terminal
-      e_tgt
+      pf_tgt e_tgt
       st1_src lc1_src gl1_src
       st1_tgt lc1_tgt gl1_tgt
       st3_tgt lc3_tgt gl3_tgt
-      (STEP: @Thread.opt_step lang_tgt reserved_tgt e_tgt
+      (STEP: @Thread.opt_step lang_tgt reserved_tgt pf_tgt e_tgt
                               (Thread.mk _ st1_tgt lc1_tgt gl1_tgt)
                               (Thread.mk _ st3_tgt lc3_tgt gl3_tgt))
       (RESERVED: TimeMap.le reserved_src reserved_tgt)
@@ -196,12 +196,12 @@ Lemma sim_thread_opt_step
       (GL_WF_TGT: Global.wf gl1_tgt)
       (SIM: sim_thread sim_terminal st1_src lc1_src gl1_src st1_tgt lc1_tgt gl1_tgt):
   (<<FAILURE: Thread.steps_failure reserved_src (Thread.mk lang_src st1_src lc1_src gl1_src)>>) \/
-  exists e_src st2_src lc2_src gl2_src st3_src lc3_src gl3_src,
+  exists pf_src e_src st2_src lc2_src gl2_src st3_src lc3_src gl3_src,
     (<<FAILURE: ThreadEvent.get_machine_event e_tgt <> MachineEvent.failure>>) /\
     (<<STEPS: rtc (@Thread.tau_step lang_src reserved_src)
                   (Thread.mk _ st1_src lc1_src gl1_src)
                   (Thread.mk _ st2_src lc2_src gl2_src)>>) /\
-    (<<STEP: Thread.opt_step reserved_src e_src
+    (<<STEP: Thread.opt_step reserved_src pf_src e_src
                              (Thread.mk _ st2_src lc2_src gl2_src)
                              (Thread.mk _ st3_src lc3_src gl3_src)>>) /\
     (<<EVENT: ThreadEvent.get_machine_event e_src = ThreadEvent.get_machine_event e_tgt>>) /\
@@ -288,11 +288,11 @@ Lemma sim_thread_plus_step
                        st1_src lc1_src gl1_src
                        (Thread.state th1_tgt) (Thread.local th1_tgt) (Thread.global th1_tgt)):
   (<<FAILURE: Thread.steps_failure reserved_src (Thread.mk lang_src st1_src lc1_src gl1_src)>>) \/
-  exists e_src st2_src lc2_src gl2_src st3_src lc3_src gl3_src,
+  exists pf_src e_src st2_src lc2_src gl2_src st3_src lc3_src gl3_src,
     (<<STEPS: rtc (@Thread.tau_step lang_src reserved_src)
                   (Thread.mk _ st1_src lc1_src gl1_src)
                   (Thread.mk _ st2_src lc2_src gl2_src)>>) /\
-    (<<STEP: Thread.opt_step reserved_src e_src
+    (<<STEP: Thread.opt_step reserved_src pf_src e_src
                              (Thread.mk _ st2_src lc2_src gl2_src)
                              (Thread.mk _ st3_src lc3_src gl3_src)>>) /\
     (<<EVENT: ThreadEvent.get_machine_event e_src = ThreadEvent.get_machine_event e_tgt>>) /\

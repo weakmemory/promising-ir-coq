@@ -102,6 +102,29 @@ Module PFtoIRThread.
           * econs 2. destruct ordw; ss.
     Qed.
 
+    Lemma sim_thread_step
+          th1_pf th1_ir
+          reserved pf e_ir th2_ir
+          (SIM1: sim_thread th1_pf th1_ir)
+          (STEP: Thread.step reserved pf e_ir th1_ir th2_ir)
+          (PF: ~ ThreadEvent.is_racy_promise e_ir):
+      exists e_pf th2_pf,
+        (<<STEP_PF: Thread.opt_step TimeMap.bot true e_pf th1_pf th2_pf>>) /\
+        (<<EVENT: __guard__ (
+                      ThreadEvent.get_machine_event_pf e_pf <> MachineEvent.failure /\
+                      ThreadEvent.get_machine_event_pf e_pf = ThreadEvent.get_machine_event e_ir \/
+                      ThreadEvent.get_machine_event_pf e_pf = MachineEvent.failure)>>) /\
+        (<<SIM2: sim_thread th2_pf th2_ir>>).
+    Proof.
+      destruct pf.
+      - exploit sim_thread_program_step; eauto. i. des.
+        esplits; [econs 2|..]; eauto. unguard.
+        destruct e_ir; ss; auto; left; split; ss.
+      - exploit sim_thread_internal_step; eauto. i. des.
+        esplits; [econs 1|..]; eauto. unguard.
+        inv STEP. inv STEP0; ss; left; split; ss.
+    Qed.
+
     Lemma rtc_tau_step_cases
           reserved th1 th2
           (STEPS: rtc (@Thread.tau_step lang reserved) th1 th2):
@@ -127,7 +150,7 @@ Module PFtoIRThread.
           (SIM1: sim_thread th1_pf th1_ir)
           (STEPS: rtc (pstep (Thread.step_allpf reserved) (strict_pf /1\ ThreadEvent.is_silent)) th1_ir th2_ir):
       exists th2_pf,
-        (<<STEP_PF: rtc (tau (Thread.step TimeMap.bot true)) th1_pf th2_pf>>) /\
+        (<<STEPS_PF: rtc (tau (Thread.step TimeMap.bot true)) th1_pf th2_pf>>) /\
         (<<SIM2: sim_thread th2_pf th2_ir>>).
     Proof.
       revert th1_pf SIM1.

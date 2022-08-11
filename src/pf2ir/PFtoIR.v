@@ -199,6 +199,24 @@ Module PFtoIR.
     exploit TERMINAL; eauto. i. des. ss.
   Qed.
 
+  Lemma is_racy_promise_is_racy
+        lang released pf e (th1 th2: Thread.t lang)
+        (STEP: Thread.step released pf e th1 th2)
+        (EVENT: ThreadEvent.is_racy_promise e):
+    exists loc,
+      (<<LOC: ThreadEvent.is_accessing_loc loc e>>) /\
+      (<<GET: Global.promises (Thread.global th1) loc = true>>) /\
+      (<<GETP: Local.promises (Thread.local th1) loc = false>>).
+  Proof.
+    inv STEP; inv STEP0; ss.
+    - inv LOCAL. inv RACE; ss. eauto.
+    - inv LOCAL. inv RACE; ss. eauto.
+    - inv LOCAL; des.
+      + destruct ordr; ss.
+      + destruct ordw; ss.
+      + inv RACE; ss. eauto.
+  Qed.
+
   Lemma sim_conf_step
         c1_pf c1_ir
         e tid c2_ir
@@ -224,16 +242,123 @@ Module PFtoIR.
     specialize (THS tid). rewrite TID in *.
     destruct (IdentMap.find tid ths1_pf) as [[[lang_pf st1_pf] lc1_pf]|] eqn:FIND_PF; ss.
     inv THS. Configuration.simplify. clear CONS.
+
     exploit PFtoIRThread.rtc_tau_step_cases; try exact STEPS. i. des; cycle 1.
     { (* race with a promise *)
+      left.
       exploit PFtoIRThread.sim_thread_rtc_step; try exact STEPS0; eauto. i. des.
+      exploit is_racy_promise_is_racy; try exact STEP_RACE; ss. i. des.
+      exploit Thread.rtc_tau_step_promises_minus;
+        try eapply rtc_implies; try exact STEPS0; s.
+      { i. inv H. des. econs; eauto. }
+      unfold BoolMap.minus. i.
+      eapply equal_f in x0.
+      rewrite GET, GETP in x0. ss.
+      destruct (Global.promises gl1_ir loc) eqn:GPROMISED; ss.
+      destruct (Local.promises lc1_ir loc) eqn:PROMISED; ss.
+      dup WF1_IR. inv WF1_IR0. inv WF. ss.
+      exploit (PROMISES loc); ss.
+      clear GL_WF DISJOINT THREADS PROMISES RESERVES. i. des.
+      destruct (classic (tid = tid0)).
+      { subst. rewrite TID in *. Configuration.simplify. congr. }
       admit.
     }
+
+    destruct (classic (ThreadEvent.is_racy_promise e0)).
+    { (* race with a promise *)
+      exploit PFtoIRThread.sim_thread_rtc_step; try exact STEPS0; eauto. i. des.
+      exploit is_racy_promise_is_racy; try exact STEP0; ss. i. des.
+      exploit Thread.rtc_tau_step_promises_minus; try exact STEPS.
+      unfold BoolMap.minus. s. i.
+      eapply equal_f in x0.
+      rewrite GET, GETP in x0. ss.
+      destruct (Global.promises gl1_ir loc) eqn:GPROMISED; ss.
+      destruct (Local.promises lc1_ir loc) eqn:PROMISED; ss.
+      dup WF1_IR. inv WF1_IR0. inv WF. ss.
+      exploit (PROMISES loc); ss.
+      clear GL_WF DISJOINT THREADS PROMISES RESERVES. i. des.
+      destruct (classic (tid = tid0)).
+      { subst. rewrite TID in *. Configuration.simplify. congr. }
+      admit.
+    }
+
+    exploit PFtoIRThread.sim_thread_rtc_step; try exact STEPS0; eauto. i. des.
+    exploit PFtoIRThread.sim_thread_step; try exact STEP0; eauto. i. des.
+    exploit (@PFConfiguration.rtc_program_step_rtc_step (Configuration.mk ths1_pf gl1_pf));
+      try exact STEPS_PF; eauto. s. i. des; eauto.
+    unguard. des; cycle 1.
+    { (* failure *)
+      left.
+      inv STEP_PF; ss. destruct th2_pf.
+      esplits; eauto.
+      rewrite <- EVENT.
+      eapply PFConfiguration.program_step_step; s; eauto.
+      rewrite IdentMap.gss. refl.
+    }
+
+    exploit CONSISTENT; try by destruct e0. i.
+    exploit PFConsistent.consistent_pf_consistent; try exact x0. i.
+    exploit PFConsistent.pf_consistent_spf_consistent; try exact x1. i. des.
+    { (* normal step *)
+      clear x0 x1.
+      right. destruct th2_pf, th2_pf0. ss.
+      esplits; try exact STEPS1.
+      - rewrite <- EVENT0.
+        eapply PFConfiguration.opt_program_step_opt_step; s; eauto.
+        apply IdentMap.gss.
+      - ss. econs. i.
+        destruct (classic (tid = tid0)).
+        + subst. repeat rewrite IdentMap.gss. s. econs; ss.
+          esplits; try exact SPF_CONS.
+          * refl.
+          * ii. congr.
+          * admit.
+          * admit.
+        + repeat (rewrite IdentMap.gso; auto).
+          admit.
+    }
+
+    (* race with a promise during certification *)
+    inv SPF_RACE. ss.
   Admitted.
 
   Theorem pf_to_ir prog:
     behaviors Configuration.step (Configuration.init prog) <2=
     behaviors (PFConfiguration.step ThreadEvent.get_machine_event_pf) (Configuration.init prog).
   Proof.
-  Admitted.
+    i. remember (Configuration.init prog) as c_ir in PR.
+    specialize (init_sim_conf prog). intro SIM.
+    specialize (Configuration.init_wf prog). intro WF_IR.
+    rewrite <- Heqc_ir in WF_IR.
+    rewrite <- Heqc_ir in SIM at 2.
+    clear Heqc_ir.
+    specialize (Configuration.init_wf prog). intro WF_PF.
+    remember (Configuration.init prog) as c_pf.
+    clear Heqc_pf.
+    revert c_pf WF_PF SIM.
+    induction PR; i.
+    - econs. eauto using sim_conf_terminal.
+    - exploit sim_conf_step; try exact SIM; eauto. i. des.
+      + eapply rtc_tau_step_behavior; try exact STEPS_PF.
+        econs 3; eauto.
+      + exploit Configuration.step_future; try exact STEP; ss. i. des.
+        exploit PFConfiguration.rtc_tau_step_future; try exact STEPS_PF; ss. i. des.
+        exploit PFConfiguration.opt_step_future; try exact STEP_PF; ss. i. des.
+        eapply rtc_tau_step_behavior; try exact STEPS_PF.
+        inv STEP_PF. econs 2; eauto.
+    - exploit sim_conf_step; try exact SIM; eauto. i. des.
+      + eapply rtc_tau_step_behavior; try exact STEPS_PF.
+        econs 3; eauto.
+      + eapply rtc_tau_step_behavior; try exact STEPS_PF.
+        inv STEP_PF. econs 3; eauto.
+    - exploit sim_conf_step; try exact SIM; eauto. i. des.
+      + eapply rtc_tau_step_behavior; try exact STEPS_PF.
+        econs 3; eauto.
+      + exploit Configuration.step_future; try exact STEP; ss. i. des.
+        exploit PFConfiguration.rtc_tau_step_future; try exact STEPS_PF; ss. i. des.
+        exploit PFConfiguration.opt_step_future; try exact STEP_PF; ss. i. des.
+        eapply rtc_tau_step_behavior; try exact STEPS_PF.
+        inv STEP_PF; auto. econs 4; eauto.
+    - econs 5.
+  Qed.
 End PFtoIR.

@@ -348,7 +348,7 @@ Module Configuration.
     inv STEP. eauto using step_future.
   Qed.
 
-  Lemma rtc_step_future
+  Lemma rtc_tau_step_future
         c1 c2
         (STEPS: rtc tau_step c1 c2)
         (WF1: wf c1):

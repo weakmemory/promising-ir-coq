@@ -162,7 +162,7 @@ Proof.
         inv THREAD. eapply sim_local_promises_bot; eauto.
       }
       s. i.
-      exploit Configuration.rtc_step_future; try eapply x4; eauto. s. i. des.
+      exploit Configuration.rtc_tau_step_future; try eapply x4; eauto. s. i. des.
       exploit IHl; try exact GLOBAL0; try exact WF2; try exact WF_TGT; eauto.
       { rewrite Threads.tids_add. rewrite IdentSet.add_mem; eauto. }
       { i. rewrite IdentMap.gsspec in FIND. revert FIND. condtac; ss; i.

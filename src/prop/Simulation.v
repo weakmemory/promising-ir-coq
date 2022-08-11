@@ -79,7 +79,7 @@ Proof.
     + inv FAILURE.
       eapply rtc_tau_step_behavior; eauto. econs 3; eauto.
     + exploit Configuration.step_future; try exact STEP; eauto. i. des.
-      exploit Configuration.rtc_step_future; try exact STEPS_SRC; eauto. i. des.
+      exploit Configuration.rtc_tau_step_future; try exact STEPS_SRC; eauto. i. des.
       exploit Configuration.opt_step_future; try exact STEP_SRC; eauto. i. des.
       eapply rtc_tau_step_behavior; eauto.
       inv SIM1; [|done]. inv STEP_SRC. econs 2; eauto.
@@ -94,7 +94,7 @@ Proof.
     + inv FAILURE.
       eapply rtc_tau_step_behavior; eauto. econs 3; eauto.
     + exploit Configuration.step_future; try exact STEP; eauto. i. des.
-      exploit Configuration.rtc_step_future; try exact STEPS_SRC; eauto. i. des.
+      exploit Configuration.rtc_tau_step_future; try exact STEPS_SRC; eauto. i. des.
       exploit Configuration.opt_step_future; try exact STEP_SRC; eauto. i. des.
       eapply rtc_tau_step_behavior; eauto.
       inv SIM1; [|done]. inv STEP_SRC; eauto. econs 4; eauto.

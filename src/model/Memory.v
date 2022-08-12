@@ -680,6 +680,18 @@ Module Memory.
     eapply max_ts_spec. eauto.
   Qed.
 
+  Lemma future_max_ts
+        loc mem1 mem2
+        from to msg
+        (INHABITED: get loc to mem1 = Some (from, msg))
+        (FUTURE: future mem1 mem2):
+    Time.le (max_ts loc mem1) (max_ts loc mem2).
+  Proof.
+    exploit max_ts_spec; try apply INHABITED. i. des.
+    exploit future_get1; try exact GET; eauto. i. des.
+    eapply max_ts_spec; eauto.
+  Qed.
+
   Definition max_timemap (mem:t): TimeMap.t :=
     fun loc => max_ts loc mem.
 
@@ -702,6 +714,15 @@ Module Memory.
     ii. specialize (INHABITED loc).
     exploit max_ts_spec; try exact INHABITED. i. des.
     destruct msg. esplits; eauto.
+  Qed.
+
+  Lemma future_max_timemap
+        mem1 mem2
+        (INHABITED: inhabited mem1)
+        (FUTURE: Memory.future mem1 mem2):
+    TimeMap.le (max_timemap mem1) (max_timemap mem2).
+  Proof.
+    ii. eapply future_max_ts; eauto.
   Qed.
 
   Definition max_opt_timemap (rsv: BoolMap.t) (mem: t): OptTimeMap.t :=

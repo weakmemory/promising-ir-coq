@@ -137,14 +137,6 @@ Module PFtoIR.
         lang
         st_pf lc_pf
         st_ir lc_ir
-        (* (STATE: st_pf = st_ir) *)
-        (* (TVIEW: Local.tview lc_pf = Local.tview lc_ir) *)
-        (* (PROMISES: Local.promises lc_pf = BoolMap.bot) *)
-        (* (RESERVES: Local.reserves lc_pf = BoolMap.bot) *)
-        (* (SC: Global.sc gl_pf = Global.sc gl_ir) *)
-        (* (GPROMISES: Global.promises gl_pf = BoolMap.bot) *)
-        (* (GRESERVES: Global.reserves gl_pf = BoolMap.bot) *)
-        (* (MEMORY: Global.memory gl_pf = Global.memory gl_ir) *)
         (THREAD: PFtoIRThread.sim_thread (Thread.mk _ st_pf lc_pf gl_pf) (Thread.mk _ st_ir lc_ir gl_ir))
         (CONS: exists gl_past,
             (<<FUTURE: Global.future gl_past gl_ir>>) /\
@@ -157,6 +149,35 @@ Module PFtoIR.
       :
       sim_thread_sl gl_pf gl_ir (existT _ lang st_pf, lc_pf) (existT _ lang st_ir, lc_ir)
   .
+
+  Lemma sim_thread_sl_future
+        gl_pf gl_ir lang_pf st_pf lc_pf lang_ir st_ir lc_ir
+        gl_future_pf gl_future_ir
+        (GL_FUTURE_IR: Global.future gl_ir gl_future_ir)
+        (RESERVED: future_reserved (Local.reserves lc_ir)
+                                   (Memory.max_timemap (Global.memory gl_ir))
+                                   (Global.memory gl_ir) (Global.memory gl_future_ir))
+        (SC: Global.sc gl_future_pf = Global.sc gl_future_ir)
+        (GPROMISES: Global.promises gl_future_pf = BoolMap.bot)
+        (GRESERVES: Global.reserves gl_future_pf = BoolMap.bot)
+        (MEMORY: Global.memory gl_future_pf = Global.memory gl_future_ir)
+        (SIM: sim_thread_sl gl_pf gl_ir
+                            (existT _ lang_pf st_pf, lc_pf)
+                            (existT _ lang_ir st_ir, lc_ir)):
+    sim_thread_sl gl_future_pf gl_future_ir
+                  (existT _ lang_pf st_pf, lc_pf)
+                  (existT _ lang_ir st_ir, lc_ir).
+  Proof.
+    inv SIM. Configuration.simplify. econs.
+    - inv THREAD. ss.
+    - des. exists gl_past.
+      splits; ss; try by (etrans; eauto).
+      eapply future_reserved_trans; try exact RESERVED0;
+        try apply FUTURE; try apply GL_FUTURE_IR.
+      eapply future_reserved_incr; try exact RESERVED.
+      eapply Memory.future_max_timemap; try apply GL_WF.
+      apply FUTURE.
+  Qed.
 
   Variant sim_conf: forall (c_pf c_ir: Configuration.t), Prop :=
     | sim_conf_intro
@@ -261,7 +282,10 @@ Module PFtoIR.
       clear GL_WF DISJOINT THREADS PROMISES RESERVES. i. des.
       destruct (classic (tid = tid0)).
       { subst. rewrite TID in *. Configuration.simplify. congr. }
-      admit.
+      dup SIM. inv SIM0. specialize (THS tid0). rewrite TH in *.
+      destruct (IdentMap.find tid0 ths1_pf) as [[[lang0_pf st0_pf] lc0_pf]|] eqn:FIND0_PF; ss.
+      inv THS. Configuration.simplify. des.
+      exploit FutureCertify.spf_consistent_certify; try exact CONS; ss.
     }
 
     destruct (classic (ThreadEvent.is_racy_promise e0)).
@@ -307,19 +331,40 @@ Module PFtoIR.
         eapply PFConfiguration.opt_program_step_opt_step; s; eauto.
         apply IdentMap.gss.
       - ss. econs. i.
+        dup WF1_IR. inv WF1_IR0. inv WF. ss.
+        exploit THREADS; try exact TID. intro LC_WF.
+        clear DISJOINT PROMISES RESERVES THREADS.
+        exploit Thread.rtc_tau_step_future; try exact STEPS; ss. i. des.
+        exploit Thread.step_future; try exact STEP0; ss. i. des.
         destruct (classic (tid = tid0)).
         + subst. repeat rewrite IdentMap.gss. s. econs; ss.
-          esplits; try exact SPF_CONS.
-          * refl.
-          * ii. congr.
-          * admit.
-          * admit.
+          esplits; try exact SPF_CONS; ss; try refl. ii. congr.
         + repeat (rewrite IdentMap.gso; auto).
-          admit.
+          dup SIM. inv SIM1. specialize (THS tid0).
+          destruct (IdentMap.find tid0 ths1_pf) as [[[lang0_pf st0_pf] lc0_pf]|] eqn:FIND0_PF;
+            destruct (IdentMap.find tid0 ths1_ir) as [[[lang0_ir st0_ir] lc0_ir]|] eqn:FIND0_IR; ss.
+          eapply sim_thread_sl_future; try exact THS; try apply SIM0; try by (etrans; eauto).
+          hexploit rtc_all_step_future_reserved; cycle 3.
+          { eapply rtc_n1.
+            - eapply rtc_implies; try exact STEPS. apply tau_union.
+            - econs. econs. eauto.
+          }
+          { eauto. }
+          { ss. }
+          { ss. }
+          { inv WF1_IR. inv WF. ss.
+            exploit DISJOINT; try exact H0; eauto. i. inv x0.
+            exploit THREADS; try exact FIND0_IR. i. inv x0.
+            ii. unfold BoolMap.minus.
+            exploit RESERVES0; try exact LHS. i. rewrite x0. s.
+            destruct (Local.reserves lc1_ir loc) eqn:RSV; ss.
+            exploit RESERVES_DISJOINT; eauto.
+          }
     }
 
     (* race with a promise during certification *)
     inv SPF_RACE. ss.
+    admit.
   Admitted.
 
   Theorem pf_to_ir prog:

@@ -795,4 +795,47 @@ Module Local.
     inv STEP; ss; try by (inv LOCAL; ss).
     inv LOCAL1. inv LOCAL2. ss.
   Qed.
+
+  Lemma write_max_exists
+        reserved lc1 gl1
+        loc val releasedm ord
+        (LC_WF: Local.wf lc1 gl1)
+        (RELEASEDM_WF: View.opt_wf releasedm):
+    exists from to released lc2 gl2,
+      (<<WRITE: write_step reserved lc1 gl1 loc from to val releasedm released ord lc2 gl2>>) /\
+      (<<FROM: Time.lt (Memory.max_ts loc (Global.memory gl1)) from>>).
+  Proof.
+    assert (exists from,
+               Time.lt (Memory.max_ts loc (Global.memory gl1)) from /\
+                 Time.lt (reserved loc) from).
+    { destruct (TimeFacts.le_lt_dec (Memory.max_ts loc (Global.memory gl1)) (reserved loc)).
+      - exists (Time.incr (reserved loc)).
+        split; try apply Time.incr_spec.
+        eapply TimeFacts.le_lt_lt; [exact l|].
+        apply Time.incr_spec.
+      - exists (Time.incr (Memory.max_ts loc (Global.memory gl1))).
+        split; try apply Time.incr_spec.
+        etrans; [exact l|].
+        apply Time.incr_spec.
+    }
+    des.
+    exploit (@Memory.add_exists (Global.memory gl1) loc from (Time.incr from)
+                                (Message.mk val (TView.write_released (tview lc1) loc (Time.incr from) releasedm ord) (Ordering.le ord Ordering.na))).
+    { ii. inv LHS. inv RHS. ss.
+      exploit Memory.max_ts_spec; try exact GET2. i. des.
+      rewrite MAX in TO0.
+      exploit TimeFacts.lt_le_lt; [exact FROM|exact TO0|]. i. timetac.
+    }
+    { apply Time.incr_spec. }
+    { econs. unfold TView.write_released. condtac; econs.
+      repeat (try condtac; aggrtac; try apply LC_WF).
+    }
+    i. des.
+    exists from, (Time.incr from).
+    esplits; ss. econs; eauto. econs.
+    etrans; [|apply Time.incr_spec].
+    eapply TimeFacts.le_lt_lt; [|exact H].
+    inv LC_WF. inv TVIEW_CLOSED. inv CUR. specialize (RLX loc). des.
+    eapply Memory.max_ts_spec. eauto.
+  Qed.
 End Local.

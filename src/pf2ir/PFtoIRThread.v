@@ -49,6 +49,14 @@ Module PFtoIRThread.
     .
     #[local] Hint Constructors sim_thread: core.
 
+    Lemma sim_thread_fully_reserved
+          th_pf th_ir
+          (SIM: PFtoIRThread.sim_thread th_pf th_ir):
+      PFtoIRThread.sim_thread th_pf (Thread.fully_reserved th_ir).
+    Proof.
+      inv SIM. econs; ss.
+    Qed.
+
     Lemma sim_thread_internal_step
           th1_pf th1_ir
           reserved e th2_ir

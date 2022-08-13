@@ -292,6 +292,69 @@ Module PFConfiguration.
     - right. esplits; try exact STEP.
       econs 2; eauto. econs. rewrite <- PF_EVENT. eauto.
   Qed.
+
+  Lemma plus_program_step_plus_step
+        c1 tid lang st1 lc1
+        e th2 th3
+        (FIND: IdentMap.find tid (Configuration.threads c1) = Some (existT _ lang st1, lc1))
+        (STEPS: rtc (tau (Thread.step TimeMap.bot true))
+                    (Thread.mk _ st1 lc1 (Configuration.global c1)) th2)
+        (STEP: Thread.step TimeMap.bot true e th2 th3):
+    (exists c2,
+        (<<STEPS: rtc (tau_step ThreadEvent.get_machine_event_pf) c1 c2>>) /\
+        (<<STEP: step ThreadEvent.get_machine_event_pf (ThreadEvent.get_machine_event_pf e) tid
+                      c2
+                      (Configuration.mk
+                         (IdentMap.add tid (existT _ _ (Thread.state th3), Thread.local th3) (Configuration.threads c1))
+                         (Thread.global th3))>>) /\
+        (<<EVENT: ThreadEvent.get_machine_event_pf e <> MachineEvent.failure>>)) \/
+    (exists c2 c3,
+        (<<STEPS: rtc (tau_step ThreadEvent.get_machine_event_pf) c1 c2>>) /\
+        (<<STEP: step ThreadEvent.get_machine_event_pf MachineEvent.failure tid c2 c3>>)).
+  Proof.
+    exploit rtc_program_step_rtc_step; eauto. i. des; eauto.
+    destruct th2. ss.
+    exploit (@program_step_step
+               ThreadEvent.get_machine_event_pf
+               (Configuration.mk
+                  (IdentMap.add tid (existT _ lang state, local) (Configuration.threads c1))
+                  global)); s; try apply IdentMap.gss; eauto.
+    rewrite IdentMap.add_add_eq.
+    i. destruct (classic (ThreadEvent.get_machine_event_pf e = MachineEvent.failure)).
+    - right. rewrite H in *. esplits; eauto.
+    - left. esplits; eauto.
+  Qed.
+
+  Lemma opt_plus_program_step_opt_plus_step
+        c1 tid lang st1 lc1
+        e th2 th3
+        (FIND: IdentMap.find tid (Configuration.threads c1) = Some (existT _ lang st1, lc1))
+        (STEPS: rtc (tau (Thread.step TimeMap.bot true))
+                    (Thread.mk _ st1 lc1 (Configuration.global c1)) th2)
+        (STEP: Thread.opt_step TimeMap.bot true e th2 th3):
+    (exists c2,
+        (<<STEPS: rtc (tau_step ThreadEvent.get_machine_event_pf) c1 c2>>) /\
+        (<<STEP: opt_step ThreadEvent.get_machine_event_pf (ThreadEvent.get_machine_event_pf e) tid
+                          c2
+                          (Configuration.mk
+                             (IdentMap.add tid (existT _ _ (Thread.state th3), Thread.local th3) (Configuration.threads c1))
+                             (Thread.global th3))>>) /\
+        (<<EVENT: ThreadEvent.get_machine_event_pf e <> MachineEvent.failure>>)) \/
+    (exists c2 c3,
+        (<<STEPS: rtc (tau_step ThreadEvent.get_machine_event_pf) c1 c2>>) /\
+        (<<STEP: step ThreadEvent.get_machine_event_pf MachineEvent.failure tid c2 c3>>)).
+  Proof.
+    exploit rtc_program_step_rtc_step; eauto. i. des; eauto.
+    destruct th2. ss.
+    exploit (@opt_program_step_opt_step
+               (Configuration.mk
+                  (IdentMap.add tid (existT _ lang state, local) (Configuration.threads c1))
+                  global)); s; try apply IdentMap.gss; eauto.
+    rewrite IdentMap.add_add_eq.
+    i. destruct (classic (ThreadEvent.get_machine_event_pf e = MachineEvent.failure)).
+    - right. rewrite H in *. inv x0. esplits; eauto.
+    - left. esplits; eauto.
+  Qed.
 End PFConfiguration.
 #[export] Hint Constructors PFConfiguration.step: core.
 #[export] Hint Constructors PFConfiguration.normal_step: core.

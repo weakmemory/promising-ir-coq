@@ -29,55 +29,12 @@ Require Import PFConsistent.
 
 Set Implicit Arguments.
 
-Lemma write_max_exists
-      reserved lc1 gl1
-      loc val releasedm ord
-      (LC_WF: Local.wf lc1 gl1)
-      (RELEASEDM_WF: View.opt_wf releasedm):
-  exists from to released lc2 gl2,
-    (<<WRITE: Local.write_step reserved lc1 gl1 loc from to val releasedm released ord lc2 gl2>>) /\
-    (<<FROM: Time.lt (Memory.max_ts loc (Global.memory gl1)) from>>).
-Proof.
-  assert (exists from,
-             Time.lt (Memory.max_ts loc (Global.memory gl1)) from /\
-               Time.lt (reserved loc) from).
-  { destruct (TimeFacts.le_lt_dec (Memory.max_ts loc (Global.memory gl1)) (reserved loc)).
-    - exists (Time.incr (reserved loc)).
-      split; try apply Time.incr_spec.
-      eapply TimeFacts.le_lt_lt; [exact l|].
-      apply Time.incr_spec.
-    - exists (Time.incr (Memory.max_ts loc (Global.memory gl1))).
-      split; try apply Time.incr_spec.
-      etrans; [exact l|].
-      apply Time.incr_spec.
-  }
-  des.
-  exploit (@Memory.add_exists (Global.memory gl1) loc from (Time.incr from)
-                              (Message.mk val (TView.write_released (Local.tview lc1) loc (Time.incr from) releasedm ord) (Ordering.le ord Ordering.na))).
-  { ii. inv LHS. inv RHS. ss.
-    exploit Memory.max_ts_spec; try exact GET2. i. des.
-    rewrite MAX in TO0.
-    exploit TimeFacts.lt_le_lt; [exact FROM|exact TO0|]. i. timetac.
-  }
-  { apply Time.incr_spec. }
-  { econs. unfold TView.write_released. condtac; econs.
-    repeat (try condtac; aggrtac; try apply LC_WF).
-  }
-  i. des.
-  exists from, (Time.incr from).
-  esplits; ss. econs; eauto. econs.
-  etrans; [|apply Time.incr_spec].
-  eapply TimeFacts.le_lt_lt; [|exact H].
-  inv LC_WF. inv TVIEW_CLOSED. inv CUR. specialize (RLX loc). des.
-  eapply Memory.max_ts_spec. eauto.
-Qed.
-
 
 Module FutureCertify.
 Section FutureCertify.
   Variable lang: language.
   
-  Variant certify (reserved: TimeMap.t) (loc: Loc.t) (ts: Time.t) (th: Thread.t lang): Prop :=
+  Variant certify (reserved: TimeMap.t) (loc: Loc.t) (th: Thread.t lang): Prop :=
     | certify_failure
         pf e th1 th2
         (STEPS: rtc (pstep (Thread.step reserved true) (strict_pf /1\ non_sc)) th th1)
@@ -89,8 +46,8 @@ Section FutureCertify.
         from to val released ord
         (STEPS: rtc (pstep (Thread.step reserved true) (strict_pf /1\ non_sc)) th th1)
         (STEP_FULFILL: Thread.step reserved pf e th1 th2)
-        (EVENT_FULFILL: ThreadEvent.is_writing e = Some (loc, from, to, val, released, ord))
-        (TO: Time.lt ts to)
+        (EVENT_FULFILL: e = ThreadEvent.write loc from to val released ord)
+        (TO: Time.lt (Memory.max_ts loc (Global.memory (Thread.global th1))) to)
         (ORD: Ordering.le ord Ordering.na)
   .
 
@@ -100,8 +57,7 @@ Section FutureCertify.
         (GL_WF: Global.wf (Thread.global th))
         (CONS: PFConsistent.spf_consistent th)
         (PROMISED: Local.promises (Thread.local th) loc = true):
-    certify (Memory.max_timemap (Global.memory (Thread.global th)))
-            loc (Memory.max_ts loc (Global.memory (Thread.global th)))
+    certify (Memory.max_timemap (Global.memory (Thread.global th))) loc
             (Thread.fully_reserved th).
   Proof.
     inv CONS.
@@ -142,8 +98,7 @@ Section FutureCertify.
       { econs 2; [refl|..].
         - econs 2; [|econs 3]; eauto.
         - ss.
-        - exploit Memory.max_ts_spec; try exact GET. i. des.
-          eapply TimeFacts.le_lt_lt; eauto.
+        - ss.
         - ss.
       }
       exploit (Memory.max_ts_spec loc); try apply GL_WF. i. des.
@@ -318,8 +273,7 @@ Section FutureCertify.
 
   Lemma map_certify
         reserved freserved
-        f th fth
-        loc ts fts
+        f th fth loc
         (MAP_WF: map_wf f)
         (MAP_COMPLETE: map_complete
                          f
@@ -331,9 +285,8 @@ Section FutureCertify.
         (FLC_WF: Local.wf (Thread.local fth) (Thread.global fth))
         (FGL_WF: Global.wf (Thread.global fth))
         (RESERVED: Memory.closed_timemap reserved (Global.memory (Thread.global th)))
-        (TS: f loc ts fts)
-        (CERTIFY: certify reserved loc ts th):
-    certify freserved loc fts fth.
+        (CERTIFY: certify reserved loc th):
+    certify freserved loc fth.
   Proof.
     inv CERTIFY.
     { exploit map_rtc_step; try exact STEPS; eauto. i. des.
@@ -354,21 +307,18 @@ Section FutureCertify.
     }
     { exploit map_rtc_step; try exact STEPS; eauto.
       instantiate (1:=freserved). i. des.
-      exploit Thread.rtc_all_step_future; try eapply rtc_implies; try exact STEPS; eauto.
-      { i. inv H. econs. econs. eauto. }
-      i. des.
+      destruct th1, fth2. inv MAP2. ss. subst.
+      inv STEP_FULFILL; try by (inv STEP; ss).
       exploit Thread.rtc_all_step_future; try eapply rtc_implies; try exact FSTEPS; eauto.
       { i. inv H. econs. econs. eauto. }
       i. des.
-      hexploit Memory.future_closed_timemap; try apply GL_FUTURE; eauto. i.
-      destruct pf; try by (inv STEP_FULFILL; inv STEP; ss).
-      exploit map_step; try exact STEP_FULFILL; try exact MAP2; eauto.
-      { destruct e; ss. }
-      { destruct e; ss. }
-      instantiate (1:=freserved). i. des.
-      exploit event_map_is_writing; try exact EVENT; eauto. i. des.
-      econs 2; try exact FSTEP; eauto.
-      inv MAP_WF0. eapply MAP_LT; try exact TO; eauto.
+      exploit Local.write_max_exists; try exact LC_WF2; try by econs 2. s. i. des.
+      econs 2; try exact FSTEPS.
+      - econs 2; [|econs 3; eauto]. eauto.
+      - ss.
+      - ss. inv WRITE. exploit Memory.add_ts; try exact WRITE0. i.
+        etrans; eauto.
+      - ss.
     }
   Qed.
 
@@ -552,9 +502,8 @@ Section FutureCertify.
   Qed.
 
   Lemma future_certify
-        freserved
-        th fth
-        loc
+        fth
+        freserved th loc
         (STATE: Thread.state th = Thread.state fth)
         (TVIEW: Local.tview (Thread.local th) = Local.tview (Thread.local fth))
         (FPROMISES: Local.promises (Thread.local fth) = BoolMap.bot)
@@ -570,9 +519,8 @@ Section FutureCertify.
         (GL_WF: Global.wf (Thread.global th))
         (FLC_WF: Local.wf (Thread.local fth) (Thread.global fth))
         (FGL_WF: Global.wf (Thread.global fth))
-        (CERTIFY: certify (Memory.max_timemap (Global.memory (Thread.global th))) loc
-                          (Memory.max_ts loc (Global.memory (Thread.global th))) th):
-    certify freserved loc (Memory.max_ts loc (Global.memory (Thread.global th))) fth.
+        (CERTIFY: certify (Memory.max_timemap (Global.memory (Thread.global th))) loc th):
+    certify freserved loc fth.
   Proof.
     exploit future_map; try exact MEMORY; try apply GL_WF; eauto. i. des.
     eapply map_certify; eauto.
@@ -581,8 +529,6 @@ Section FutureCertify.
       eapply future_closed_tview_map; try apply LC_WF; eauto.
       i. subst. esplits; eauto.
     - apply Memory.max_timemap_closed. apply GL_WF.
-    - exploit (Memory.max_ts_spec loc); try apply GL_WF. i. des.
-      subst. esplits; eauto.
   Qed.
 End FutureCertify.
 End FutureCertify.

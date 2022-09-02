@@ -64,7 +64,7 @@ Module PFtoIRThread.
           (STEP: Thread.step reserved false e th1_ir th2_ir):
       <<SIM2: sim_thread th1_pf th2_ir>>.
     Proof.
-      inv SIM1. inv STEP. inv STEP0; inv LOCAL; ss.
+      inv SIM1. inv STEP. inv LOCAL; inv LOCAL0; ss.
     Qed.
 
     Lemma sim_thread_program_step
@@ -80,11 +80,11 @@ Module PFtoIRThread.
       destruct th1_ir as [st1_ir [tview1_ir prm1_ir rsv1_ir] [sc1_ir gprm1_ir grsv1_ir mem1_ir]],
           th1_pf as [st1_pf [tview1_pf prm1_pf rsv1_pf] [sc1_pf gprm1_pf grsv1_pf mem1_pf]].
       inv SIM1. ss. subst.
-      inv STEP. inv STEP0; ss.
+      inv STEP. inv LOCAL; ss.
       - esplits; [econs; [|econs 1]|]; eauto.
-      - inv LOCAL. ss.
+      - inv LOCAL0. ss.
         esplits; [econs; [|econs 2]|]; eauto.
-      - inv LOCAL. ss.
+      - inv LOCAL0. ss.
         esplits; [econs; [|econs 3]|]; eauto.
         + econs; ss; try by intuition. eauto.
         + ss.
@@ -92,17 +92,17 @@ Module PFtoIRThread.
         esplits; [econs; [|econs 4]|]; eauto.
         + econs; ss; try by intuition. eauto.
         + ss.
-      - inv LOCAL.
+      - inv LOCAL0.
         esplits; [econs; [|econs 5]|]; eauto.
-      - inv LOCAL.
+      - inv LOCAL0.
         esplits; [econs; [|econs 6]|]; eauto.
       - esplits; [econs; [|econs 7]|]; eauto.
-      - destruct to; ss. inv LOCAL. inv RACE. ss.
+      - destruct to; ss. inv LOCAL0. inv RACE. ss.
         esplits; [econs; [|econs 8]|]; eauto.
-      - destruct to; ss. inv LOCAL. inv RACE. ss.
+      - destruct to; ss. inv LOCAL0. inv RACE. ss.
         esplits; [econs; [|econs 9]|]; eauto.
       - destruct to; ss.
-        + inv LOCAL. inv RACE. ss.
+        + inv LOCAL0. inv RACE. ss.
           esplits; [econs; [|econs 10]|]; eauto.
         + esplits; [econs; [|econs 10]|]; eauto.
           apply not_and_or in PF. des.
@@ -130,7 +130,7 @@ Module PFtoIRThread.
         destruct e_ir; ss; auto; left; split; ss.
       - exploit sim_thread_internal_step; eauto. i. des.
         esplits; [econs 1|..]; eauto. unguard.
-        inv STEP. inv STEP0; ss; left; split; ss.
+        inv STEP. inv LOCAL; ss; left; split; ss.
     Qed.
 
     Lemma rtc_tau_step_cases

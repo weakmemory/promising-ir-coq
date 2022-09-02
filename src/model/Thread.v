@@ -97,12 +97,12 @@ Module Thread.
     Variant step: forall (pf: bool) (e: ThreadEvent.t) (th1 th2: t), Prop :=
     | step_internal
         e st lc1 gl1 lc2 gl2
-        (STEP: Local.internal_step e lc1 gl1 lc2 gl2):
+        (LOCAL: Local.internal_step e lc1 gl1 lc2 gl2):
       step false e (mk st lc1 gl1) (mk st lc2 gl2)
     | step_program
         e sth1 lc1 gl1 sth2 lc2 gl2
         (STATE: Language.step lang (ThreadEvent.get_program_event e) sth1 sth2)
-        (STEP: Local.program_step reserved e lc1 gl1 lc2 gl2):
+        (LOCAL: Local.program_step reserved e lc1 gl1 lc2 gl2):
         step true e (mk sth1 lc1 gl1) (mk sth2 lc2 gl2)
     .
     #[local] Hint Constructors step: core.
@@ -251,7 +251,7 @@ Module Thread.
       <<STATE: (state th1) = (state th2)>>.
     Proof.
       exploit step_future; eauto. i. des.
-      inv STEP. inv STEP0; esplits; ss.
+      inv STEP. inv LOCAL; esplits; ss.
     Qed.
 
     Lemma rtc_step_nonpf_future

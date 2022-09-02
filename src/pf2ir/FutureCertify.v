@@ -86,10 +86,10 @@ Section FutureCertify.
 
     move PROMISEDY at bottom.
     inv H. inv STEP.
-    inv STEP0; ss; (try congr); (try by inv LOCAL; ss; congr).
+    inv LOCAL; ss; (try congr); (try by inv LOCAL0; ss; congr).
     { (* write *)
       assert (loc0 = loc /\ Ordering.le ord Ordering.na).
-      { inv LOCAL. inv FULFILL; ss; try congr. split; ss.
+      { inv LOCAL0. inv FULFILL; ss; try congr. split; ss.
         revert PROMISEDY. erewrite BoolMap.remove_o; eauto.
         condtac; ss. congr.
       }
@@ -108,7 +108,7 @@ Section FutureCertify.
         econs. econs 2; try exact GET0.
         + unfold TView.racy_view.
           eapply TimeFacts.lt_le_lt; eauto.
-          inv LOCAL. inv WRITABLE. ss.
+          inv LOCAL0. inv WRITABLE. ss.
           eapply TimeFacts.le_lt_lt; eauto.
           apply LC_WF.
         + destruct ord; ss.
@@ -207,7 +207,7 @@ Section FutureCertify.
     - econs; try exact FSTEP.
       erewrite <- event_map_program_event; eauto.
     - eauto.
-    - exploit Local.program_step_reserves; try exact STEP0. i. des.
+    - exploit Local.program_step_reserves; try exact LOCAL0. i. des.
       exploit Local.program_step_promises; try exact FSTEP. i. des.
       exploit Local.program_step_reserves; try exact FSTEP. i. des.
       econs; eauto; s; try congr.
@@ -297,7 +297,7 @@ Section FutureCertify.
       { i. inv H. econs. econs. eauto. }
       i. des.
       hexploit Memory.future_closed_timemap; try apply GL_FUTURE; eauto. i.
-      destruct pf; try by (inv STEP_FAILURE; inv STEP; ss).
+      destruct pf; try by (inv STEP_FAILURE; inv LOCAL; ss).
       exploit map_step; try exact STEP_FAILURE; try exact MAP2; eauto.
       { destruct e; ss. }
       i. des.
@@ -308,7 +308,7 @@ Section FutureCertify.
     { exploit map_rtc_step; try exact STEPS; eauto.
       instantiate (1:=freserved). i. des.
       destruct th1, fth2. inv MAP2. ss. subst.
-      inv STEP_FULFILL; try by (inv STEP; ss).
+      inv STEP_FULFILL; try by (inv LOCAL0; ss).
       exploit Thread.rtc_all_step_future; try eapply rtc_implies; try exact FSTEPS; eauto.
       { i. inv H. econs. econs. eauto. }
       i. des.

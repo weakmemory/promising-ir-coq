@@ -76,8 +76,8 @@ Module PFtoIR.
     future_reserved rsv reserved
                     (Global.memory (Thread.global th1)) (Global.memory (Thread.global th2)).
   Proof.
-    ii. inv STEP; inv STEP0; ss; try congr; try by (inv LOCAL; ss; congr).
-    - inv LOCAL. ss.
+    ii. inv STEP; inv LOCAL; ss; try congr; try by (inv LOCAL0; ss; congr).
+    - inv LOCAL0. ss.
       revert GET2. erewrite Memory.add_o; eauto. condtac; ss; try congr.
       i. des. inv GET2.
       exploit RESERVED; eauto.
@@ -229,10 +229,10 @@ Module PFtoIR.
       (<<GET: Global.promises (Thread.global th1) loc = true>>) /\
       (<<GETP: Local.promises (Thread.local th1) loc = false>>).
   Proof.
-    inv STEP; inv STEP0; ss.
-    - inv LOCAL. inv RACE; ss. eauto.
-    - inv LOCAL. inv RACE; ss. eauto.
-    - inv LOCAL; des.
+    inv STEP; inv LOCAL; ss.
+    - inv LOCAL0. inv RACE; ss. eauto.
+    - inv LOCAL0. inv RACE; ss. eauto.
+    - inv LOCAL0; des.
       + destruct ordr; ss.
       + destruct ordw; ss.
       + inv RACE; ss. eauto.
@@ -346,7 +346,7 @@ Module PFtoIR.
       exploit (@PFConfiguration.rtc_program_step_rtc_step (Configuration.mk ths1_pf gl1_pf));
         try eapply STEPS_PF; eauto. s. i. des; eauto.
       inv CERTIFY_PF.
-      - destruct pf1; try by (inv STEP_FAILURE; inv STEP; ss).
+      - destruct pf1; try by (inv STEP_FAILURE; inv LOCAL; ss).
         exploit (@PFConfiguration.plus_program_step_plus_step
                    (Configuration.mk
                       (IdentMap.add tid (existT _ lang (Thread.state th2_pf), Thread.local th2_pf) ths1_pf)
@@ -368,10 +368,10 @@ Module PFtoIR.
         { exploit Thread.rtc_all_step_future; try eapply rtc_implies; try exact STEPS2; ss.
           { i. inv H0. econs; eauto. }
           i. des.
-          inv STEP_FULFILL; inv STEP. inv LOCAL. ss.
+          inv STEP_FULFILL; inv LOCAL. inv LOCAL0. ss.
           exploit Memory.add_get0; try exact WRITE. i. des.
           inv SIM2. ss. subst.
-          inv STEP_RACE; inv STEP; ss; subst.
+          inv STEP_RACE; inv LOCAL; ss; subst.
           - esplits.
             + econs 2; cycle 1.
               * econs 8. econs. econs 2; try apply GET2; ss.
@@ -404,7 +404,7 @@ Module PFtoIR.
             + ss.
         }
         des. destruct th3_pf.
-        destruct pf1; try by (inv STEP_FULFILL; inv STEP; ss).
+        destruct pf1; try by (inv STEP_FULFILL; inv LOCAL; ss).
         exploit (@PFConfiguration.plus_program_step_plus_step
                    (Configuration.mk
                       (IdentMap.add tid (existT _ lang st2_pf, lc2_pf) ths1_pf) gl2_pf)); s.
@@ -487,7 +487,7 @@ Module PFtoIR.
       exploit (@PFConfiguration.rtc_program_step_rtc_step (Configuration.mk ths1_pf gl1_pf));
         try eapply STEPS_PF; eauto. s. i. des; eauto.
       inv CERTIFY_PF.
-      - destruct pf0; try by (inv STEP_FAILURE; inv STEP; ss).
+      - destruct pf0; try by (inv STEP_FAILURE; inv LOCAL; ss).
         exploit (@PFConfiguration.plus_program_step_plus_step
                    (Configuration.mk
                       (IdentMap.add tid (existT _ lang (Thread.state th2_pf), Thread.local th2_pf) ths1_pf)
@@ -509,10 +509,10 @@ Module PFtoIR.
         { exploit Thread.rtc_all_step_future; try eapply rtc_implies; try exact STEPS2; ss.
           { i. inv H1. econs; eauto. }
           i. des.
-          inv STEP_FULFILL; inv STEP. inv LOCAL. ss.
+          inv STEP_FULFILL; inv LOCAL. inv LOCAL0. ss.
           exploit Memory.add_get0; try exact WRITE. i. des.
           inv SIM2. ss. subst.
-          inv STEP0; inv STEP; ss; subst.
+          inv STEP0; inv LOCAL; ss; subst.
           - esplits.
             + econs 2; cycle 1.
               * econs 8. econs.
@@ -546,7 +546,7 @@ Module PFtoIR.
             + ss.
         }
         des. destruct th3_pf.
-        destruct pf0; try by (inv STEP_FULFILL; inv STEP; ss).
+        destruct pf0; try by (inv STEP_FULFILL; inv LOCAL; ss).
         exploit (@PFConfiguration.plus_program_step_plus_step
                    (Configuration.mk
                       (IdentMap.add tid (existT _ lang st2_pf, lc2_pf) ths1_pf) gl2_pf)); s.
@@ -723,7 +723,7 @@ Module PFtoIR.
       try exact STEPS_PF0; s; try apply IdentMap.gss.
     i. des; eauto.
     inv CERTIFY_PF.
-    - destruct pf1; try by (inv STEP_FAILURE; inv STEP; ss).
+    - destruct pf1; try by (inv STEP_FAILURE; inv LOCAL; ss).
       exploit (@PFConfiguration.plus_program_step_plus_step
                  (Configuration.mk
                     (IdentMap.add tid (existT _ lang (Thread.state th2_pf1), Thread.local th2_pf1) ths1_pf)
@@ -746,10 +746,10 @@ Module PFtoIR.
       { exploit Thread.rtc_all_step_future; try eapply rtc_implies; try exact STEPS3; ss.
         { i. inv H0. econs; eauto. }
         i. des.
-        inv STEP_FULFILL; inv STEP. inv LOCAL. ss.
+        inv STEP_FULFILL; inv LOCAL. inv LOCAL0. ss.
         exploit Memory.add_get0; try exact WRITE. i. des.
         inv SIM1. ss. subst.
-        inv STEP_RACE; inv STEP; ss; subst.
+        inv STEP_RACE; inv LOCAL; ss; subst.
         - esplits.
           + econs 2; cycle 1.
             * econs 8. econs.
@@ -783,7 +783,7 @@ Module PFtoIR.
           + ss.
       }
       des. destruct th3_pf.
-      destruct pf1; try by (inv STEP_FULFILL; inv STEP; ss).
+      destruct pf1; try by (inv STEP_FULFILL; inv LOCAL; ss).
       exploit (@PFConfiguration.plus_program_step_plus_step
                  (Configuration.mk
                     (IdentMap.add tid (existT _ lang st2_pf, lc2_pf) ths1_pf) gl2_pf)); s.

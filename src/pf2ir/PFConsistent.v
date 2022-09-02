@@ -118,7 +118,7 @@ Module PFConsistent.
       destruct (classic (ThreadEvent.is_sc e)).
       - esplits; [refl|]. right. split.
         + econs 2; eauto. econs; eauto.
-        + inv STEP; inv STEP0; ss. inv LOCAL. auto.
+        + inv STEP; inv LOCAL; ss. inv LOCAL0. auto.
       - des.
         + esplits; [|eauto]. econs 2; eauto.
         + esplits; [|eauto]. econs 2; eauto.
@@ -176,15 +176,15 @@ Module PFConsistent.
           (STEP_TGT: Thread.step reserved false e th1_tgt th2_tgt):
       sim_thread th1_src th2_tgt.
     Proof.
-      inv SIM1. inv STEP_TGT. ss. inv STEP.
-      - inv LOCAL. econs; ss.
+      inv SIM1. inv STEP_TGT. ss. inv LOCAL.
+      - inv LOCAL0. econs; ss.
         + etrans; eauto.
           inv PROMISE. eauto using BoolMap.add_le.
         + rewrite GPROMISES.
           eauto using Promises.promise_minus.
         + rewrite GPROMISES_INV.
           eauto using Promises.promise_minus_inv.
-      - inv LOCAL. econs; ss.
+      - inv LOCAL0. econs; ss.
         + inv RESERVE. ii. revert LHS.
           erewrite BoolMap.add_o; eauto. condtac; auto. i. subst.
           destruct (Local.reserves (Thread.local th1_src) loc) eqn:GET; ss.
@@ -192,7 +192,7 @@ Module PFConsistent.
           exploit BoolMap.add_get0; try exact GADD. i. des. congr.
         + i. inv RESERVE.
           erewrite BoolMap.add_o; eauto. condtac; auto.
-      - inv LOCAL. econs; ss.
+      - inv LOCAL0. econs; ss.
         + inv CANCEL. ii. revert LHS.
           erewrite BoolMap.remove_o; eauto. condtac; ss. auto.
         + i. inv CANCEL.
@@ -283,20 +283,20 @@ Module PFConsistent.
       destruct th1_src as [st1_src [tview1_src prm1_src rsv1_src] [sc1_src gprm1_src grsv1_src mem1_src]],
           th1_tgt as [st1_tgt [tview1_tgt prm1_tgt rsv1_tgt] [sc1_tgt gprm1_tgt grsv1_tgt mem1_tgt]].
       inv SIM1. ss. subst.
-      inv STEP_TGT. inv STEP; ss.
+      inv STEP_TGT. inv LOCAL; ss.
       { (* silent *)
         esplits.
         - econs; [|econs 1]; eauto.
         - ss.
       }
       { (* read *)
-        inv LOCAL. ss.
+        inv LOCAL0. ss.
         esplits.
         - econs; [|econs 2]; eauto.
         - ss.
       }
       { (* write *)
-        inv LOCAL. ss.
+        inv LOCAL0. ss.
         exploit sim_fulfill; try exact FULFILL; eauto. i. des.
         esplits.
         - econs; [|econs 3]; eauto.
@@ -320,26 +320,26 @@ Module PFConsistent.
         - econs; ss.
       }
       { (* fence *)
-        inv LOCAL. ss.
+        inv LOCAL0. ss.
         esplits.
         - econs; [|econs 5]; eauto. econs; ss.
         - ss.
       }
       { (* failure *)
-        inv LOCAL. ss.
+        inv LOCAL0. ss.
         esplits.
         - econs; [|econs 7]; eauto.
         - ss.
       }
       { (* racy read *)
-        inv LOCAL. ss.
+        inv LOCAL0. ss.
         esplits.
         - econs; [|econs 8]; eauto.
           econs. eapply sim_is_racy; try eapply RACE; ss.
         - ss.
       }
       { (* racy write *)
-        inv LOCAL. ss.
+        inv LOCAL0. ss.
         esplits.
         - econs; [|econs 9]; eauto.
           econs. eapply sim_is_racy; try eapply RACE; ss.
@@ -348,7 +348,7 @@ Module PFConsistent.
       { (* racy update *)
         esplits.
         - econs; [|econs 10]; eauto.
-          inv LOCAL.
+          inv LOCAL0.
           + econs 1. ss.
           + econs 2. ss.
           + econs 3. eapply sim_is_racy; try eapply RACE; ss.
@@ -386,7 +386,7 @@ Module PFConsistent.
       inv CONS.
       - exploit sim_thread_rtc_non_sc_step; eauto. i. des.
         destruct pf; cycle 1.
-        { inv STEP_FAILURE. inv STEP; ss. }
+        { inv STEP_FAILURE. inv LOCAL; ss. }
         exploit sim_thread_program_step; try exact SIM2; eauto.
         { destruct e; ss. }
         i. des.

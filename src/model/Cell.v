@@ -1,4 +1,5 @@
 Require Import RelationClasses.
+Require Import ZArith.
 
 From sflib Require Import sflib.
 
@@ -18,7 +19,7 @@ Set Implicit Arguments.
 Module Message.
   Variant t := mk (val: Const.t) (released: option View.t) (na: bool).
 
-  Definition elt: t := mk 0 None true.
+  Definition elt: t := mk 0%Z None true.
 
   Variant wf: t -> Prop :=
   | wf_intro

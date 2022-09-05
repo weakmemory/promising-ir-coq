@@ -19,6 +19,7 @@ Open Scope monad_scope.
 Open Scope itree_scope.
 
 Require Import String.
+Require Import ZArith.
 
 From sflib Require Import sflib.
 
@@ -131,15 +132,15 @@ Section Example.
   Let out : Ident.t := xO xH.
 
   Definition factorial : block :=
-    { n =# (10: Const.t);
-      out =# (1: Const.t);
-      while# (! (n ? (0: Const.t))) do#
-      { if# (! (n ? (1: Const.t)))
+    { n =# (10%Z: Const.t);
+      out =# (1%Z: Const.t);
+      while# (! (n ? (0%Z: Const.t))) do#
+      { if# (! (n ? (1%Z: Const.t)))
         then#
         { out =# n * out;
-          n =# n - (1: Const.t) }
+          n =# n - (1%Z: Const.t) }
         else#
-        { n =# (0: Const.t); }
+        { n =# (0%Z: Const.t); }
         fi#;
       }
       end#;

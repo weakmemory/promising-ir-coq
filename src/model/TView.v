@@ -634,7 +634,7 @@ Module TViewFacts.
         loc from to val released na ord tview mem
         (WF_TVIEW: TView.wf tview)
         (RELEASED: View.opt_wf released)
-        (GET: Memory.get loc to mem = Some (from, Message.mk val released na)):
+        (GET: Memory.get loc to mem = Some (from, Message.message val released na)):
     <<WF_TVIEW: TView.wf (TView.read_tview tview loc to released ord)>>.
   Proof.
     econs; repeat (try condtac; tac);
@@ -652,7 +652,7 @@ Module TViewFacts.
         (WF_TVIEW: TView.wf tview)
         (CLOSED_TVIEW: TView.closed tview mem)
         (RELEASED: View.opt_wf released)
-        (GET: Memory.get loc to mem = Some (from, Message.mk val released na)):
+        (GET: Memory.get loc to mem = Some (from, Message.message val released na)):
     <<WF_TVIEW: TView.wf (TView.read_tview tview loc to released ord)>> /\
     <<CLOSED_TVIEW: TView.closed (TView.read_tview tview loc to released ord) mem>>.
   Proof.
@@ -665,7 +665,7 @@ Module TViewFacts.
         mem1 tview1 loc from to val released na ord mem2
         (CLOSED1: Memory.closed mem1)
         (CLOSED2: TView.closed tview1 mem1)
-        (ADD: Memory.add mem1 loc from to (Message.mk val released na) mem2):
+        (ADD: Memory.add mem1 loc from to (Message.message val released na) mem2):
     TView.closed (TView.write_tview tview1 loc to ord) mem2.
   Proof.
     hexploit Memory.add_inhabited; eauto; try by tac. i. des.
@@ -692,7 +692,7 @@ Module TViewFacts.
         (CLOSED1: Memory.closed mem1)
         (CLOSED2: TView.closed tview1 mem1)
         (CLOSED3: Memory.closed_opt_view releasedm mem1)
-        (ADD: Memory.add mem1 loc from to (Message.mk val released na) mem2):
+        (ADD: Memory.add mem1 loc from to (Message.message val released na) mem2):
     Memory.closed_opt_view (TView.write_released tview1 loc to releasedm ord) mem2.
   Proof.
     hexploit Memory.add_inhabited; eauto; try by tac. i. des.
@@ -707,7 +707,7 @@ Module TViewFacts.
         mem1 tview1 loc from to val released na ord
         (CLOSED1: Memory.closed mem1)
         (CLOSED2: TView.closed tview1 mem1)
-        (GET: Memory.get loc to mem1 = Some (from, Message.mk val released na)):
+        (GET: Memory.get loc to mem1 = Some (from, Message.message val released na)):
     TView.closed (TView.write_tview tview1 loc to ord) mem1.
   Proof.
     econs; tac; (try by apply CLOSED2).
@@ -719,7 +719,7 @@ Module TViewFacts.
         (CLOSED1: Memory.closed mem1)
         (CLOSED2: TView.closed tview1 mem1)
         (CLOSED3: Memory.closed_opt_view releasedm mem1)
-        (GET: Memory.get loc to mem1 = Some (from, Message.mk val released na)):
+        (GET: Memory.get loc to mem1 = Some (from, Message.message val released na)):
     Memory.closed_opt_view (TView.write_released tview1 loc to releasedm ord) mem1.
   Proof.
     unfold TView.write_released. condtac; econs.
@@ -772,7 +772,7 @@ Module TViewFacts.
         (CLOSED_TVIEW: TView.closed tview mem1)
         (CLOSED_RELM: Memory.closed_opt_view releasedm mem1)
         (ADD: Memory.add mem1 loc from to
-                        (Message.mk val (TView.write_released tview loc to releasedm ord) na)
+                        (Message.message val (TView.write_released tview loc to releasedm ord) na)
                         mem2):
     <<WF_TVIEW: TView.wf (TView.write_tview tview loc to ord)>> /\
     <<WF_RELEASED: View.opt_wf (TView.write_released tview loc to releasedm ord)>> /\

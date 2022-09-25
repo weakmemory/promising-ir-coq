@@ -138,7 +138,7 @@ Section Mapping.
     | message_map_intro
         val view fview na
         (RELEASED: opt_view_map view fview):
-      message_map (Message.mk val view na) (Message.mk val fview na)
+      message_map (Message.message val view na) (Message.message val fview na)
   .
 
   Variant memory_map_loc (loc: Loc.t) (max: Time.t): forall (rsv: bool) (mem fmem: Memory.t), Prop :=

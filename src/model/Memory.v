@@ -133,64 +133,78 @@ Module Memory.
       + econs; auto.
   Qed.
 
+  Definition reserves_only (rsv: t): Prop :=
+    forall loc from to msg
+      (GET: get loc to rsv = Some (from, msg)),
+      msg = Message.reserve.
+
   Definition bot: t := fun _ => Cell.bot.
 
   Lemma bot_get loc ts: get loc ts bot = None.
-  Proof. unfold get. apply Cell.bot_get. Qed.
+  Proof.
+    unfold get. apply Cell.bot_get.
+  Qed.
 
   Lemma bot_le mem: le bot mem.
-  Proof. ii. rewrite bot_get in LHS. congr. Qed.
+  Proof.
+    ii. rewrite bot_get in LHS. congr.
+  Qed.
 
   Lemma bot_disjoint mem: disjoint bot mem.
   Proof.
     econs. i. rewrite bot_get in *. inv GET1.
   Qed.
 
+  Lemma bot_reserves_only: reserves_only bot.
+  Proof.
+    ii. rewrite bot_get in *. ss.
+  Qed.
+
   Definition init: t := fun _ => Cell.init.
 
   Variant message_to: forall (msg:Message.t) (loc:Loc.t) (to:Time.t), Prop :=
-  | message_to_intro
-      val released na loc to
-      (TS: Time.le ((View.rlx (View.unwrap released)) loc) to):
-    message_to (Message.mk val released na) loc to
+    | message_to_message
+        val released na loc to
+        (TS: Time.le ((View.rlx (View.unwrap released)) loc) to):
+      message_to (Message.message val released na) loc to
+    | message_to_reserve
+      loc to:
+      message_to Message.reserve loc to
   .
   #[global] Hint Constructors message_to: core.
 
   Definition closed_timemap (times:TimeMap.t) (mem:t): Prop :=
-    forall loc, exists from msg,
-      get loc (times loc) mem = Some (from, msg).
+    forall loc, exists from val released na,
+      get loc (times loc) mem = Some (from, Message.message val released na).
 
   Variant closed_view (view:View.t) (mem:t): Prop :=
-  | closed_view_intro
-      (PLN: closed_timemap (View.pln view) mem)
-      (RLX: closed_timemap (View.rlx view) mem)
+    | closed_view_intro
+        (PLN: closed_timemap (View.pln view) mem)
+        (RLX: closed_timemap (View.rlx view) mem)
   .
   #[global] Hint Constructors closed_view: core.
 
   Variant closed_opt_view: forall (view:option View.t) (mem:t), Prop :=
-  | closed_opt_view_some
-      view mem
-      (CLOSED: closed_view view mem):
+    | closed_opt_view_some
+        view mem
+        (CLOSED: closed_view view mem):
       closed_opt_view (Some view) mem
-  | closed_opt_view_none
-      mem:
+    | closed_opt_view_none
+        mem:
       closed_opt_view None mem
   .
   #[global] Hint Constructors closed_opt_view: core.
 
   Variant closed_message: forall (msg:Message.t) (mem:t), Prop :=
-  | closed_message_intro
-      val released na mem
-      (CLOSED: closed_opt_view released mem):
-    closed_message (Message.mk val released na) mem
+    | closed_message_message
+        val released na mem
+        (CLOSED: closed_opt_view released mem):
+      closed_message (Message.message val released na) mem
+    | closed_message_reserve
+        mem:
+      closed_message Message.reserve mem
   .
   #[global] Hint Constructors closed_message: core.
-
-  Definition closed_opt_timemap (otm: OptTimeMap.t) (mem:t): Prop :=
-    forall loc ts (GET: otm loc = Some ts),
-    exists from msg,
-      get loc ts mem = Some (from, msg).
-
 
   Definition inhabited (mem:t): Prop :=
     forall loc, get loc Time.bot mem = Some (Time.bot, Message.elt).
@@ -267,46 +281,64 @@ Module Memory.
     eapply le_closed_opt_view; eauto.
   Qed.
 
-  Lemma le_closed_opt_timemap
-        otm mem1 mem2
-        (LE: le mem1 mem2)
-        (CLOSED: Memory.closed_opt_timemap otm mem1):
-    Memory.closed_opt_timemap otm mem2.
-  Proof.
-    ii. exploit CLOSED; eauto. i. des.
-    exploit LE; eauto.
-  Qed.
-
   Lemma init_closed: closed init.
   Proof.
     econs; i; ss.
     unfold get, init, Cell.get, Cell.init in MSG. ss.
     apply DOMap.singleton_find_inv in MSG. des. inv MSG0.
-    splits; ss. econs. refl.
+    splits; ss.
+    - econs. ss.
+    - econs. refl.
+    - econs. ss.
   Qed.
 
   Variant add (mem1:t) (loc:Loc.t) (from to:Time.t) (msg:Message.t) (mem2:t): Prop :=
-  | add_intro
-      r
-      (ADD: Cell.add (mem1 loc) from to msg r)
-      (MEM2: mem2 = LocFun.add loc r mem1)
+    | add_intro
+        r
+        (ADD: Cell.add (mem1 loc) from to msg r)
+        (MEM2: mem2 = LocFun.add loc r mem1)
   .
   #[global] Hint Constructors add: core.
 
+  Variant remove (mem1:t) (loc:Loc.t) (from to:Time.t) (msg:Message.t) (mem2:t): Prop :=
+    | remove_intro
+        r
+        (REMOVE: Cell.remove (mem1 loc) from to msg r)
+        (MEM2: mem2 = LocFun.add loc r mem1)
+  .
+  #[global] Hint Constructors remove: core.
+
   Variant future_imm (mem1 mem2:t): Prop :=
-  | future_imm_intro
-      loc from to msg
-      (ADD: add mem1 loc from to msg mem2)
-      (CLOSED: closed_message msg mem2)
-      (TS: message_to msg loc to)
+    | future_imm_add
+        loc from to msg
+        (ADD: add mem1 loc from to msg mem2)
+        (CLOSED: closed_message msg mem2)
+        (TS: message_to msg loc to)
+    | future_imm_remove
+        loc from to
+        (REMOVE: remove mem1 loc from to Message.reserve mem2)
   .
   #[global] Hint Constructors future_imm: core.
 
   Definition future := rtc future_imm.
   #[global] Hint Unfold future: core.
 
+  Variant reserve (rsv1 mem1: t) (loc: Loc.t) (from to: Time.t) (rsv2 mem2: t): Prop :=
+    | reserve_intro
+        (RSV: add rsv1 loc from to Message.reserve rsv2)
+        (MEM: add mem1 loc from to Message.reserve mem2)
+  .
+  #[global] Hint Constructors reserve: core.
 
-  (* Lemmas on add & future *)
+  Variant cancel (rsv1 mem1: t) (loc: Loc.t) (from to: Time.t) (rsv2 mem2: t): Prop :=
+    | cancel_intro
+        (RSV: remove rsv1 loc from to Message.reserve rsv2)
+        (MEM: remove mem1 loc from to Message.reserve mem2)
+  .
+  #[global] Hint Constructors cancel: core.
+
+
+  (* Lemmas on add *)
 
   Lemma add_ts
         mem1 mem2 loc from to msg
@@ -372,20 +404,6 @@ Module Memory.
     setoid_rewrite add_o; eauto.
   Qed.
 
-  Lemma future_get1
-        loc from to msg mem1 mem2
-        (FUTURE: future mem1 mem2)
-        (GET: get loc to mem1 = Some (from, msg)):
-    <<GET: get loc to mem2 = Some (from, msg)>>.
-  Proof.
-    revert from msg GET.
-    induction FUTURE; eauto. i.
-    inv H. eauto using add_get1.
-  Qed.
-
-
-  (* inhabited *)
-
   Lemma add_inhabited
         mem1 mem2 loc from to msg
         (ADD: add mem1 loc from to msg mem2)
@@ -396,21 +414,6 @@ Module Memory.
     des. subst. inv ADD. inv ADD0. inv TO.
   Qed.
 
-  Lemma future_inhabited
-        mem1 mem2
-        (FUTURE: future mem1 mem2)
-        (INHABITED: inhabited mem1):
-    inhabited mem2.
-  Proof.
-    revert INHABITED.
-    induction FUTURE; eauto. i. inv H.
-    apply IHFUTURE.
-    eapply add_inhabited; eauto.
-  Qed.
-
-
-  (* le *)
-
   Lemma add_le
         mem1 loc from to msg mem2
         (ADD: add mem1 loc from to msg mem2):
@@ -419,14 +422,136 @@ Module Memory.
     ii. eapply Memory.add_get1; eauto.
   Qed.
 
-  Lemma future_le
-        mem1 mem2
-        (FUTURE: future mem1 mem2):
-    le mem1 mem2.
+  Lemma add_reserves_only
+        mem1 loc from to mem2
+        (ADD: add mem1 loc from to Message.reserve mem2)
+        (ONLY1: reserves_only mem1):
+    reserves_only mem2.
   Proof.
-    induction FUTURE; try refl.
-    etrans; eauto.
-    inv H. eapply add_le; eauto.
+    ii. revert GET.
+    erewrite add_o; eauto. condtac; ss; eauto.
+    i. des. inv GET. ss.
+  Qed.
+
+
+  (* lemmas on remove *)
+
+  Lemma remove_o
+        mem2 mem1 loc from to msg
+        l t
+        (REMOVE: remove mem1 loc from to msg mem2):
+    get l t mem2 =
+    if loc_ts_eq_dec (l, t) (loc, to)
+    then None
+    else get l t mem1.
+  Proof.
+    inv REMOVE. unfold get, LocFun.add. condtac.
+    - subst. erewrite Cell.remove_o; eauto.
+      repeat (condtac; subst; des; ss; try congr).
+    - repeat (condtac; subst; des; ss; try congr).
+  Qed.
+
+  Lemma remove_get0
+        mem1 loc from to msg mem2
+        (REMOVE: remove mem1 loc from to msg mem2):
+    <<GET: get loc to mem1 = Some (from, msg)>> /\
+    <<GET: get loc to mem2 = None>>.
+  Proof.
+    inv REMOVE. eapply Cell.remove_get0; eauto.
+    unfold get, Cell.get, LocFun.add. condtac; ss.
+  Qed.
+
+  Lemma remove_get1
+        m1 loc from to msg m2
+        l f t m
+        (REMOVE: remove m1 loc from to msg m2)
+        (GET1: get l t m1 = Some (f, m)):
+    l = loc /\ f = from /\ t = to /\ m = msg \/
+    get l t m2 = Some (f, m).
+  Proof.
+    erewrite remove_o; eauto. condtac; ss; eauto.
+    des. subst. exploit remove_get0; eauto. i. des.
+    rewrite GET in *. inv GET1. eauto.
+  Qed.
+
+  Lemma remove_get_diff
+        mem1 loc from to msg mem2
+        loc'
+        (REMOVE: remove mem1 loc from to msg mem2)
+        (LOC: loc' <> loc):
+    forall to', get loc' to' mem2 = get loc' to' mem1.
+  Proof.
+    i. erewrite remove_o; eauto. condtac; ss. des. ss.
+  Qed.
+
+  Lemma remove_inj
+        mem loc from to msg mem1 mem2
+        (REMOVE1: remove mem loc from to msg mem1)
+        (REMOVE2: remove mem loc from to msg mem2):
+    mem1 = mem2.
+  Proof.
+    apply ext. i.
+    setoid_rewrite remove_o; eauto.
+  Qed.
+
+  Lemma remove_inhabited
+        mem1 loc from to mem2
+        (REMOVE: remove mem1 loc from to Message.reserve mem2)
+        (INHABITED: inhabited mem1):
+    <<INHABITED: inhabited mem2>>.
+  Proof.
+    ii. erewrite remove_o; eauto. condtac; ss.
+    des. subst. exploit Memory.remove_get0; eauto. i. des.
+    rewrite INHABITED in *. ss.
+  Qed.
+
+  Lemma remove_le
+        mem1 loc from to msg mem2
+        (REMOVE: remove mem1 loc from to msg mem2):
+    Memory.le mem2 mem1.
+  Proof.
+    ii. revert LHS.
+    erewrite Memory.remove_o; eauto. condtac; ss.
+  Qed.
+
+  Lemma remove_reserves_only
+        mem1 loc from to msg mem2
+        (REMOVE: remove mem1 loc from to msg mem2)
+        (ONLY1: reserves_only mem1):
+    reserves_only mem2.
+  Proof.
+    ii. revert GET.
+    erewrite remove_o; eauto. condtac; ss; eauto.
+  Qed.
+
+
+  (* lemmas on future *)
+
+  Lemma future_get1
+        loc from to val released na mem1 mem2
+        (FUTURE: future mem1 mem2)
+        (GET: get loc to mem1 = Some (from, Message.message val released na)):
+    <<GET: get loc to mem2 = Some (from, Message.message val released na)>>.
+  Proof.
+    revert from val released na GET.
+    induction FUTURE; eauto. i.
+    inv H; eauto using add_get1.
+    apply IHFUTURE. erewrite remove_o; eauto.
+    condtac; ss. des. subst.
+    exploit remove_get0; try exact REMOVE. i. des. congr.
+  Qed.
+
+  Lemma future_inhabited
+        mem1 mem2
+        (FUTURE: future mem1 mem2)
+        (INHABITED: inhabited mem1):
+    inhabited mem2.
+  Proof.
+    revert INHABITED.
+    induction FUTURE; eauto.
+    i. apply IHFUTURE. inv H.
+    - eapply add_inhabited; eauto.
+    - eapply remove_inhabited; eauto.
   Qed.
 
 
@@ -505,17 +630,6 @@ Module Memory.
     eapply add_closed_opt_view; eauto.
   Qed.
 
-  Lemma add_closed_opt_timemap
-        otm
-        mem1 loc from to msg mem2
-        (ADD: add mem1 loc from to msg mem2)
-        (CLOSED: closed_opt_timemap otm mem1):
-    closed_opt_timemap otm mem2.
-  Proof.
-    ii. exploit CLOSED; eauto. i. des.
-    erewrite Memory.add_o; eauto. condtac; ss; eauto.
-  Qed.
-
   Lemma add_closed
         mem1 loc from to msg mem2
         (ADD: add mem1 loc from to msg mem2)
@@ -533,15 +647,75 @@ Module Memory.
     - eapply add_inhabited; eauto.
   Qed.
 
+  Lemma remove_closed_timemap
+        times
+        mem1 loc from to mem2
+        (REMOVE: remove mem1 loc from to Message.reserve mem2)
+        (CLOSED: closed_timemap times mem1):
+    closed_timemap times mem2.
+  Proof.
+    ii. erewrite remove_o; eauto. condtac; ss.
+    des. subst. exfalso.
+    specialize (CLOSED loc). des.
+    exploit remove_get0; eauto. i. des. congr.
+  Qed.
+
+  Lemma remove_closed_view
+        view
+        mem1 loc from to mem2
+        (REMOVE: remove mem1 loc from to Message.reserve mem2)
+        (CLOSED: closed_view view mem1):
+    closed_view view mem2.
+  Proof.
+    inv CLOSED. econs; eauto.
+    - eapply remove_closed_timemap; eauto.
+    - eapply remove_closed_timemap; eauto.
+  Qed.
+
+  Lemma remove_closed_opt_view
+        view
+        mem1 loc from to mem2
+        (REMOVE: remove mem1 loc from to Message.reserve mem2)
+        (CLOSED: closed_opt_view view mem1):
+    closed_opt_view view mem2.
+  Proof.
+    inv CLOSED; econs. eapply remove_closed_view; eauto.
+  Qed.
+
+  Lemma remove_closed_message
+        msg'
+        mem1 loc from to mem2
+        (REMOVE: remove mem1 loc from to Message.reserve mem2)
+        (CLOSED: closed_message msg' mem1):
+    closed_message msg' mem2.
+  Proof.
+    destruct msg'; ss. inv CLOSED. econs.
+    eapply remove_closed_opt_view; eauto.
+  Qed.
+
+  Lemma remove_closed
+        mem1 loc from to mem2
+        (REMOVE: remove mem1 loc from to Message.reserve mem2)
+        (CLOSED: closed mem1):
+    closed mem2.
+  Proof.
+    inv CLOSED. econs.
+    - i. revert MSG. erewrite remove_o; eauto. condtac; ss.
+      guardH o. i. exploit CLOSED0; eauto. i. des. splits; auto.
+      eapply remove_closed_message; eauto.
+    - eapply remove_inhabited; eauto.
+  Qed.
+
   Lemma future_closed_timemap
         times mem1 mem2
-        (CLOSED: closed_timemap times mem1)
-        (FUTURE: future mem1 mem2):
+        (FUTURE: future mem1 mem2)
+        (CLOSED: closed_timemap times mem1):
     closed_timemap times mem2.
   Proof.
     revert CLOSED. induction FUTURE; auto. i.
     apply IHFUTURE. inv H.
-    eapply add_closed_timemap; eauto.
+    - eapply add_closed_timemap; eauto.
+    - eapply remove_closed_timemap; eauto.
   Qed.
 
   Lemma future_closed_view
@@ -550,9 +724,7 @@ Module Memory.
         (CLOSED: closed_view view mem1):
     closed_view view mem2.
   Proof.
-    revert CLOSED. induction FUTURE; auto. i.
-    apply IHFUTURE. inv H.
-    eapply add_closed_view; eauto.
+    inv CLOSED. econs; eauto using future_closed_timemap.
   Qed.
 
   Lemma future_closed_opt_view
@@ -561,7 +733,7 @@ Module Memory.
         (CLOSED: closed_opt_view view mem1):
     closed_opt_view view mem2.
   Proof.
-    inv CLOSED; econs. eapply future_closed_view; eauto.
+    inv CLOSED; eauto using future_closed_view.
   Qed.
 
   Lemma future_closed_message
@@ -570,18 +742,7 @@ Module Memory.
         (CLOSED: closed_message msg mem1):
     closed_message msg mem2.
   Proof.
-    inv CLOSED; econs. eapply future_closed_opt_view; eauto.
-  Qed.
-
-  Lemma future_closed_opt_timemap
-        otm mem1 mem2
-        (FUTURE: future mem1 mem2)
-        (CLOSED: closed_opt_timemap otm mem1):
-    closed_opt_timemap otm mem2.
-  Proof.
-    revert CLOSED. induction FUTURE; auto. i.
-    apply IHFUTURE. inv H.
-    eapply add_closed_opt_timemap; eauto.
+    inv CLOSED; eauto using future_closed_opt_view.
   Qed.
 
   Lemma future_closed
@@ -592,12 +753,13 @@ Module Memory.
   Proof.
     revert CLOSED. induction FUTURE; auto. i.
     apply IHFUTURE. inv H.
-    eapply add_closed; eauto.
+    - eapply add_closed; eauto.
+    - eapply remove_closed; eauto.
   Qed.
 
   Lemma singleton_closed_timemap
         loc from to val released na mem
-        (GET: get loc to mem = Some (from, Message.mk val released na))
+        (GET: get loc to mem = Some (from, Message.message val released na))
         (INHABITED: inhabited mem):
     closed_timemap (TimeMap.singleton loc to) mem.
   Proof.
@@ -608,7 +770,7 @@ Module Memory.
 
   Lemma singleton_ur_closed_view
         loc from to val released na mem
-        (GET: get loc to mem = Some (from, Message.mk val released na))
+        (GET: get loc to mem = Some (from, Message.message val released na))
         (INHABITED: inhabited mem):
     closed_view (View.singleton_ur loc to) mem.
   Proof.
@@ -619,7 +781,7 @@ Module Memory.
 
   Lemma singleton_rw_closed_view
         loc from to val released na mem
-        (GET: get loc to mem = Some (from, Message.mk val released na))
+        (GET: get loc to mem = Some (from, Message.message val released na))
         (INHABITED: inhabited mem):
     closed_view (View.singleton_rw loc to) mem.
   Proof.
@@ -630,7 +792,7 @@ Module Memory.
 
   Lemma singleton_ur_if_closed_view
         cond loc from to val released na mem
-        (GET: get loc to mem = Some (from, Message.mk val released na))
+        (GET: get loc to mem = Some (from, Message.message val released na))
         (INHABITED: inhabited mem):
     closed_view (View.singleton_ur_if cond loc to) mem.
   Proof.
@@ -640,22 +802,258 @@ Module Memory.
   Qed.
 
 
+  (* finite *)
+
+  Definition finite (mem:t): Prop :=
+    exists dom,
+    forall loc from to msg (GET: get loc to mem = Some (from, msg)),
+      List.In (loc, to) dom.
+
+  Lemma bot_finite: finite bot.
+  Proof.
+    exists []. ii. rewrite bot_get in *. congr.
+  Qed.
+
+  Lemma add_finite
+        mem1 loc from to msg mem2
+        (ADD: add mem1 loc from to msg mem2)
+        (FINITE: finite mem1):
+    finite mem2.
+  Proof.
+    unfold finite in *. des. exists ((loc, to) :: dom). i.
+    revert GET. erewrite add_o; eauto. condtac; ss; eauto.
+    i. des. inv GET. auto.
+  Qed.
+
+  Lemma remove_finite
+        mem1 loc from to msg mem2
+        (REMOVE: remove mem1 loc from to msg mem2)
+        (FINITE: finite mem1):
+    finite mem2.
+  Proof.
+    unfold finite in *. des. exists dom. i.
+    revert GET. erewrite remove_o; eauto. condtac; ss; eauto.
+  Qed.
+
+
   (* future *)
 
   Lemma add_future
+        rsv
         mem1 loc from to msg mem2
         (ADD: add mem1 loc from to msg mem2)
         (CLOSED1: closed mem1)
+        (LE: le rsv mem1)
         (MSG_CLOSED: closed_message msg mem2)
         (MSG_TS: message_to msg loc to):
     <<CLOSED2: closed mem2>> /\
+    <<LE2: le rsv mem2>> /\
     <<FUTURE: future mem1 mem2>> /\
     <<MSG_WF: Message.wf msg>>.
   Proof.
-    hexploit add_inhabited; try apply CLOSED1; eauto. i. splits.
+    splits; eauto.
     - eapply add_closed; eauto.
-    - econs 2; eauto.
+    - etrans; eauto. eapply add_le; eauto.
     - inv ADD. inv ADD0. ss.
+  Qed.
+
+  Lemma reserve_future
+        rsv1 mem1 loc from to rsv2 mem2
+        (RESERVE: reserve rsv1 mem1 loc from to rsv2 mem2)
+        (CLOSED1: closed mem1)
+        (LE: le rsv1 mem1)
+        (FINITE: finite rsv1)
+        (ONLY: reserves_only rsv1):
+    <<CLOSED2: closed mem2>> /\
+    <<LE2: le rsv2 mem2>> /\
+    <<FINITE2: finite rsv2>> /\
+    <<ONLY2: reserves_only rsv2>> /\
+    <<FUTURE: future mem1 mem2>>.
+  Proof.
+    inv RESERVE. splits; eauto.
+    - eapply add_closed; eauto.
+    - ii. erewrite add_o; eauto.
+      revert LHS. erewrite add_o; try exact RSV.
+      condtac; ss; eauto.
+    - eapply add_finite; eauto.
+    - eapply add_reserves_only; eauto.
+  Qed.
+
+  Lemma cancel_future
+        rsv1 mem1 loc from to rsv2 mem2
+        (CANCEL: cancel rsv1 mem1 loc from to rsv2 mem2)
+        (CLOSED1: closed mem1)
+        (LE: le rsv1 mem1)
+        (FINITE: finite rsv1)
+        (ONLY: reserves_only rsv1):
+    <<CLOSED2: closed mem2>> /\
+    <<LE2: le rsv2 mem2>> /\
+    <<FINITE2: finite rsv2>> /\
+    <<ONLY2: reserves_only rsv2>> /\
+    <<FUTURE: future mem1 mem2>>.
+  Proof.
+    inv CANCEL. splits; eauto.
+    - eapply remove_closed; eauto.
+    - ii. erewrite remove_o; eauto.
+      revert LHS. erewrite remove_o; try exact RSV.
+      condtac; ss; eauto.
+    - eapply remove_finite; eauto.
+    - eapply remove_reserves_only; eauto.
+  Qed.
+
+  Lemma add_disjoint
+        mem1 loc from to msg mem2 ctx
+        (ADD: add mem1 loc from to msg mem2)
+        (LE_CTX: le ctx mem1):
+    <<LE_CTX2: le ctx mem2>>.
+  Proof.
+    ii. exploit LE_CTX; eauto. i.
+    erewrite Memory.add_o; eauto.
+    condtac; ss; eauto. des. subst.
+    exploit Memory.add_get0; eauto. i. des. congr.
+  Qed.
+
+  Lemma reserve_disjoint
+        rsv1 mem1 loc from to rsv2 mem2 ctx
+        (RESERVE: reserve rsv1 mem1 loc from to rsv2 mem2)
+        (DISJOINT: disjoint rsv1 ctx)
+        (LE_CTX: le ctx mem1):
+    <<DISJOINT2: disjoint rsv2 ctx>> /\
+    <<LE_CTX2: le ctx mem2>>.
+  Proof.
+    inv RESERVE. splits.
+    - inv DISJOINT. econs. i.
+      revert GET1. erewrite add_o; eauto.
+      condtac; ss; eauto. i. des. inv GET1. splits.
+      + inv MEM. inv ADD. eauto.
+      + ii. inv H. inv MEM. inv ADD. timetac.
+    - ii. erewrite add_o; eauto.
+      condtac; ss; eauto. des. subst.
+      exploit LE_CTX; eauto. i.
+      exploit Memory.add_get0; try exact MEM. i. des. congr.
+  Qed.
+
+  Lemma cancel_disjoint
+        rsv1 mem1 loc from to rsv2 mem2 ctx
+        (CANCEL: cancel rsv1 mem1 loc from to rsv2 mem2)
+        (DISJOINT: disjoint rsv1 ctx)
+        (LE_CTX: le ctx mem1):
+    <<DISJOINT2: disjoint rsv2 ctx>> /\
+    <<LE_CTX2: le ctx mem2>>.
+  Proof.
+    inv CANCEL. splits.
+    - inv DISJOINT. econs. i.
+      revert GET1. erewrite remove_o; eauto.
+      condtac; ss; eauto.
+    - ii. erewrite remove_o; eauto.
+      condtac; ss; eauto. des. subst.
+      exploit LE_CTX; eauto. i.
+      exploit Memory.remove_get0; try exact RSV. i. des.
+      exploit disjoint_get; try exact DISJOINT; eauto. ss.
+  Qed.
+
+
+  (* messages_le *)
+
+  Definition messages_le (lhs rhs: t): Prop :=
+    forall loc from to val released na
+      (LHS: get loc to lhs = Some (from, Message.message val released na)),
+      get loc to rhs = Some (from, Message.message val released na).
+
+  Global Program Instance messages_le_PreOrder: PreOrder messages_le.
+  Next Obligation. ii. auto. Qed.
+  Next Obligation. ii. auto. Qed.
+
+  Lemma le_messages_le
+        mem1 mem2
+        (LE: le mem1 mem2):
+    messages_le mem1 mem2.
+  Proof.
+    ii. eauto.
+  Qed.
+
+  Lemma add_messages_le
+        mem1 loc from to msg mem2
+        (ADD: Memory.add mem1 loc from to msg mem2):
+    messages_le mem1 mem2.
+  Proof.
+    ii. erewrite Memory.add_o; eauto.
+    condtac; ss. des. subst.
+    exploit Memory.add_get0; eauto. i. des. congr.
+  Qed.
+
+  Lemma remove_messages_le
+        mem1 loc from to mem2
+        (REMOVE: Memory.remove mem1 loc from to Message.reserve mem2):
+    messages_le mem1 mem2.
+  Proof.
+    ii. erewrite Memory.remove_o; eauto.
+    condtac; ss. des. subst.
+    exploit Memory.remove_get0; eauto. i. des. congr.
+  Qed.
+
+  Lemma reserve_messages_le
+        rsv1 mem1 loc from to rsv2 mem2
+        (RESERVE: Memory.reserve rsv1 mem1 loc from to rsv2 mem2):
+    messages_le mem1 mem2.
+  Proof.
+    inv RESERVE. eauto using add_messages_le.
+  Qed.
+
+  Lemma cancel_messages_le
+        rsv1 mem1 loc from to rsv2 mem2
+        (CANCEL: Memory.cancel rsv1 mem1 loc from to rsv2 mem2):
+    messages_le mem1 mem2.
+  Proof.
+    inv CANCEL. eauto using remove_messages_le.
+  Qed.
+
+  Lemma messages_le_closed_timemap
+        times mem1 mem2
+        (LE: messages_le mem1 mem2)
+        (CLOSED: closed_timemap times mem1):
+    closed_timemap times mem2.
+  Proof.
+    ii. specialize (CLOSED loc). des.
+    exploit LE; eauto.
+  Qed.
+
+  Lemma messages_le_closed_view
+        view mem1 mem2
+        (LE: messages_le mem1 mem2)
+        (CLOSED: closed_view view mem1):
+    closed_view view mem2.
+  Proof.
+    inv CLOSED. econs; eauto using messages_le_closed_timemap.
+  Qed.
+
+  Lemma messages_le_closed_opt_view
+        view mem1 mem2
+        (LE: messages_le mem1 mem2)
+        (CLOSED: closed_opt_view view mem1):
+    closed_opt_view view mem2.
+  Proof.
+    inv CLOSED; econs. eapply messages_le_closed_view; eauto.
+  Qed.
+
+  Lemma messages_le_closed_message
+        msg mem1 mem2
+        (LE: messages_le mem1 mem2)
+        (CLOSED: closed_message msg mem1):
+    closed_message msg mem2.
+  Proof.
+    inv CLOSED; econs. eapply messages_le_closed_opt_view; eauto.
+  Qed.
+
+  Lemma future_messages_le
+        mem1 mem2
+        (FUTURE: future mem1 mem2):
+    messages_le mem1 mem2.
+  Proof.
+    induction FUTURE; try refl.
+    etrans; eauto. inv H.
+    - eapply add_messages_le; eauto.
+    - eapply remove_messages_le; eauto.
   Qed.
 
 
@@ -680,18 +1078,6 @@ Module Memory.
     eapply max_ts_spec. eauto.
   Qed.
 
-  Lemma future_max_ts
-        loc mem1 mem2
-        from to msg
-        (INHABITED: get loc to mem1 = Some (from, msg))
-        (FUTURE: future mem1 mem2):
-    Time.le (max_ts loc mem1) (max_ts loc mem2).
-  Proof.
-    exploit max_ts_spec; try apply INHABITED. i. des.
-    exploit future_get1; try exact GET; eauto. i. des.
-    eapply max_ts_spec; eauto.
-  Qed.
-
   Definition max_timemap (mem:t): TimeMap.t :=
     fun loc => max_ts loc mem.
 
@@ -706,53 +1092,13 @@ Module Memory.
     eapply max_ts_spec; eauto.
   Qed.
 
-  Lemma max_timemap_closed
-        mem
-        (INHABITED: inhabited mem):
-    closed_timemap (max_timemap mem) mem.
-  Proof.
-    ii. specialize (INHABITED loc).
-    exploit max_ts_spec; try exact INHABITED. i. des.
-    destruct msg. esplits; eauto.
-  Qed.
-
-  Lemma future_max_timemap
-        mem1 mem2
-        (INHABITED: inhabited mem1)
-        (FUTURE: Memory.future mem1 mem2):
-    TimeMap.le (max_timemap mem1) (max_timemap mem2).
-  Proof.
-    ii. eapply future_max_ts; eauto.
-  Qed.
-
-  Definition max_opt_timemap (rsv: BoolMap.t) (mem: t): OptTimeMap.t :=
-    fun loc => if rsv loc then Some (max_ts loc mem) else None.
-
-  Lemma max_opt_timemap_spec
-        rsv mem loc from to msg
-        (GET: get loc to mem = Some (from, msg))
-        (RESERVE: rsv loc = true):
-    option_le Time.le (Some to) (max_opt_timemap rsv mem loc).
-  Proof.
-    unfold max_opt_timemap. rewrite RESERVE. econs.
-    exploit max_ts_spec; eauto. i. des. ss.
-  Qed.
-
-  Lemma max_opt_timemap_closed
-        rsv mem
-        (INHABITED: inhabited mem):
-    closed_opt_timemap (max_opt_timemap rsv mem) mem.
-  Proof.
-    ii. revert GET. unfold max_opt_timemap.
-    des_ifs. i. inv GET.
-    exploit max_ts_spec; try eapply INHABITED. i. des. eauto.
-  Qed.
-
   Definition max_view (mem:t): View.t :=
     View.mk (max_timemap mem) (max_timemap mem).
 
   Lemma max_view_wf mem: View.wf (max_view mem).
-  Proof. econs. refl. Qed.
+  Proof.
+    econs. refl.
+  Qed.
 
   Lemma max_view_spec tm mem
         (VIEW: closed_view tm mem)
@@ -804,6 +1150,15 @@ Module Memory.
     eexists. econs; eauto.
   Qed.
 
+  Lemma remove_exists
+        mem1 loc from to msg
+        (GET: Memory.get loc to mem1 = Some (from, msg)):
+    exists mem2, remove mem1 loc from to msg mem2.
+  Proof.
+    exploit Cell.remove_exists; eauto. i. des.
+    eexists. econs; eauto.
+  Qed.
+
 
   (* next & previous message *)
 
@@ -833,5 +1188,331 @@ Module Memory.
       empty mem loc to ts.
   Proof.
     exploit Cell.prev_exists; eauto.
+  Qed.
+
+
+  (* adjacent *)
+
+  Variant adjacent (loc: Loc.t) (from1 to1 from2 to2: Time.t) (mem: t): Prop :=
+  | adjacent_intro
+      m1 m2
+      (GET1: get loc to1 mem = Some (from1, m1))
+      (GET2: get loc to2 mem = Some (from2, m2))
+      (TS: Time.lt to1 to2)
+      (EMPTY: forall ts (TS1: Time.lt to1 ts) (TS2: Time.le ts from2),
+          get loc ts mem = None)
+  .
+
+  Lemma adjacent_ts
+        loc from1 to1 from2 to2 mem
+        (ADJ: adjacent loc from1 to1 from2 to2 mem):
+    Time.le to1 from2.
+  Proof.
+    destruct (Time.le_lt_dec to1 from2); auto.
+    exfalso. inv ADJ.
+    exploit get_ts; try exact GET1. i. des.
+    { subst. inv l. }
+    exploit get_ts; try exact GET2. i. des.
+    { subst. inv TS. }
+    exploit get_disjoint; [exact GET1|exact GET2|..]. i. des.
+    { subst. timetac. }
+    apply (x2 to1); econs; ss.
+    - refl.
+    - econs. auto.
+  Qed.
+
+  Lemma adjacent_inj
+        loc to mem
+        from1 from2 from3 to3 from4 to4
+        (ADJ1: adjacent loc from1 to from3 to3 mem)
+        (ADJ2: adjacent loc from2 to from4 to4 mem):
+    from1 = from2 /\ from3 = from4 /\ to3 = to4.
+  Proof.
+    inv ADJ1. inv ADJ2.
+    rewrite GET1 in GET0. inv GET0.
+    destruct (Time.le_lt_dec to3 to4); cycle 1.
+    { exfalso.
+      destruct (Time.le_lt_dec to4 from3).
+      - exploit EMPTY; try exact l0; eauto. i. congr.
+      - exploit get_ts; try exact GET2. i. des.
+        { subst. inv l. }
+        exploit get_ts; try exact GET3. i. des.
+        { subst. inv l0. }
+        exploit get_disjoint; [exact GET2|exact GET3|..]. i. des.
+        { subst. timetac. }
+        apply (x2 to4); econs; ss.
+        + econs. ss.
+        + refl. }
+    inv l.
+    { exfalso.
+      destruct (Time.le_lt_dec to3 from4).
+      - exploit EMPTY0; try exact l; eauto. i. congr.
+      - exploit get_ts; try exact GET2. i. des.
+        { subst. inv l. }
+        exploit get_ts; try exact GET3. i. des.
+        { subst. inv H. }
+        exploit get_disjoint; [exact GET2|exact GET3|..]. i. des.
+        { subst. timetac. }
+        apply (x2 to3); econs; ss.
+        + refl.
+        + econs. ss. }
+    inv H. rewrite GET2 in GET3. inv GET3.
+    splits; auto.
+  Qed.
+
+  Lemma adjacent_exists
+        loc from1 to1 msg mem
+        (GET: get loc to1 mem = Some (from1, msg))
+        (TO: Time.lt to1 (max_ts loc mem)):
+    exists from2 to2,
+      adjacent loc from1 to1 from2 to2 mem.
+  Proof.
+    exploit next_exists; eauto. i. des.
+    esplits. econs; try exact x0; eauto. i.
+    eapply x2; eauto.
+    exploit get_ts; try exact x0. i. des.
+    - subst. inv x1.
+    - eapply TimeFacts.le_lt_lt; eauto.
+  Qed.
+
+
+  (* cap *)
+
+  Inductive cap (mem1 mem2: t): Prop :=
+  | cap_intro
+      (SOUND: le mem1 mem2)
+      (MIDDLE: forall loc from1 to1 from2 to2
+                 (ADJ: adjacent loc from1 to1 from2 to2 mem1)
+                 (TO: Time.lt to1 from2),
+          get loc from2 mem2 = Some (to1, Message.reserve))
+      (BACK: forall loc, get loc (Time.incr (max_ts loc mem1)) mem2 =
+                    Some (max_ts loc mem1, Message.reserve))
+      (COMPLETE: forall loc from to msg
+                   (GET1: get loc to mem1 = None)
+                   (GET2: get loc to mem2 = Some (from, msg)),
+          (exists f m, get loc from mem1 = Some (f, m)))
+  .
+  #[global] Hint Constructors cap: core.
+
+  Lemma cap_inv
+        mem1 mem2
+        loc from to msg
+        (CAP: cap mem1 mem2)
+        (GET: get loc to mem2 = Some (from, msg)):
+    get loc to mem1 = Some (from, msg) \/
+    (get loc to mem1 = None /\
+     exists from1 to2,
+        adjacent loc from1 from to to2 mem1 /\
+        Time.lt from to /\
+        msg = Message.reserve) \/
+    (get loc to mem1 = None /\
+     from = max_ts loc mem1 /\
+     to = Time.incr from /\
+     msg = Message.reserve).
+  Proof.
+    inv CAP. move GET at bottom.
+    destruct (get loc to mem1) as [[]|] eqn:GET1.
+    { exploit SOUND; eauto. intros x.
+      rewrite GET in x. inv x. auto. }
+    right. exploit COMPLETE; eauto. intros x. des.
+    exploit max_ts_spec; eauto. intros x0. des. inv MAX.
+    - left.
+      exploit adjacent_exists; try eapply H; eauto. intros x1. des.
+      assert (LT: Time.lt from from2).
+      { clear MIDDLE BACK COMPLETE GET0 H.
+        inv x1. rewrite GET0 in x. inv x.
+        exploit get_ts; try exact GET2. i. des.
+        { subst. inv TS. }
+        destruct (Time.le_lt_dec from2 from); auto.
+        inv l.
+        - exfalso.
+          exploit get_ts; try exact GET0. i. des.
+          { subst. inv H. }
+          exploit get_disjoint; [exact GET0|exact GET2|..]. i. des.
+          { subst. timetac. }
+          apply (x2 from); econs; ss.
+          + refl.
+          + econs. auto.
+        - exfalso. inv H.
+          exploit SOUND; try exact GET2. intros x.
+          exploit get_ts; try exact GET. i. des.
+          { subst. rewrite GET1 in GET0. inv GET0. }
+          exploit get_disjoint; [exact GET|exact x|..]. i. des.
+          { subst. rewrite GET1 in GET2. inv GET2. }
+          destruct (Time.le_lt_dec to to2).
+          + apply (x3 to); econs; ss. refl.
+          + apply (x3 to2); econs; ss.
+            * econs. auto.
+            * refl.
+      }
+      exploit MIDDLE; try eapply x1; eauto. intros x0.
+      destruct (Time.eq_dec to from2).
+      + subst. rewrite GET in x0. inv x0. esplits; eauto.
+      + exfalso. inv x1.
+        exploit get_ts; try exact GET. i. des.
+        { subst. rewrite GET1 in x. inv x. }
+        exploit get_ts; try exact x0. i. des.
+        { subst. exploit SOUND; try exact GET3. intros x1.
+          exploit get_disjoint; [exact GET|exact x1|..]. i. des.
+          { subst. rewrite GET1 in GET3. inv GET3. }
+          destruct (Time.le_lt_dec to to2).
+          - apply (x4 to); econs; ss. refl.
+          - apply (x4 to2); econs; ss.
+            + econs. auto.
+            + refl.
+        }
+        exploit get_disjoint; [exact GET|exact x0|..]. i. des; try congr.
+        destruct (Time.le_lt_dec to from2).
+        * apply (x4 to); econs; ss. refl.
+        * apply (x4 from2); econs; ss.
+          { econs. auto. }
+          { refl. }
+    - right. inv H. do 2 (split; auto).
+      rewrite GET0 in x. inv x.
+      specialize (BACK loc).
+      exploit get_ts; try exact GET. i. des; try congr.
+      exploit get_disjoint; [exact GET|exact BACK|..]. i. des.
+      { subst. esplits; eauto. }
+      exfalso.
+      destruct (Time.le_lt_dec to (Time.incr (max_ts loc mem1))).
+      + apply (x1 to); econs; ss. refl.
+      + apply (x1 (Time.incr (max_ts loc mem1))); econs; s;
+          eauto using Time.incr_spec; try refl.
+        econs. ss.
+  Qed.
+
+  Lemma cap_closed_timemap
+        mem1 mem2 tm
+        (CAP: cap mem1 mem2)
+        (CLOSED: closed_timemap tm mem1):
+    closed_timemap tm mem2.
+  Proof.
+    inv CAP. ii.
+    specialize (CLOSED loc). des.
+    exploit SOUND; eauto.
+  Qed.
+
+  Lemma cap_closed_view
+        mem1 mem2 view
+        (CAP: cap mem1 mem2)
+        (CLOSED: closed_view view mem1):
+    closed_view view mem2.
+  Proof.
+    inv CLOSED.
+    econs; eauto using cap_closed_timemap.
+  Qed.
+
+  Lemma cap_closed_opt_view
+        mem1 mem2 view
+        (CAP: cap mem1 mem2)
+        (CLOSED: closed_opt_view view mem1):
+    closed_opt_view view mem2.
+  Proof.
+    inv CLOSED; eauto using cap_closed_view.
+  Qed.
+
+  Lemma cap_closed_message
+        mem1 mem2 msg
+        (CAP: cap mem1 mem2)
+        (CLOSED: closed_message msg mem1):
+    closed_message msg mem2.
+  Proof.
+    inv CLOSED; eauto using cap_closed_opt_view.
+  Qed.
+
+  Lemma cap_messages_le
+        mem1 mem2
+        (CAP: cap mem1 mem2):
+    messages_le mem1 mem2.
+  Proof.
+    inv CAP. ii. eauto.
+  Qed.
+
+  Lemma cap_closed
+        mem1 mem2
+        (CAP: cap mem1 mem2)
+        (CLOSED: closed mem1):
+    closed mem2.
+  Proof.
+    inv CLOSED. econs; ii.
+    - exploit cap_inv; eauto. i. des; subst; try by splits; ss.
+      exploit CLOSED0; eauto. i. des.
+      splits; eauto using cap_closed_message.
+    - inv CAP. eapply SOUND; eauto.
+  Qed.
+
+  Lemma cap_inj
+        mem mem1 mem2
+        (CAP1: cap mem mem1)
+        (CAP2: cap mem mem2):
+    mem1 = mem2.
+  Proof.
+    apply ext. i.
+    destruct (get loc ts mem1) as [[from1 msg1]|] eqn:GET1.
+    - inv CAP2. exploit cap_inv; try exact GET1; eauto. i. des.
+      + exploit SOUND; eauto.
+      + subst. exploit MIDDLE; eauto.
+      + subst. exploit BACK; eauto.
+    - destruct (get loc ts mem2) as [[from2 msg2]|] eqn:GET2; ss.
+      inv CAP1. exploit cap_inv; try exact GET2; eauto. i. des.
+      + exploit SOUND; eauto. i. congr.
+      + subst. exploit MIDDLE; eauto. i. congr.
+      + subst. congr.
+  Qed.
+
+  Lemma cap_le
+        rsv mem1 mem2
+        (CAP: cap mem1 mem2)
+        (LE: le rsv mem1):
+    le rsv mem2.
+  Proof.
+    ii. inv CAP. eauto.
+  Qed.
+
+  Lemma cap_max_ts
+        mem1 mem2
+        (CAP: cap mem1 mem2):
+    forall loc, max_ts loc mem2 = Time.incr (max_ts loc mem1).
+  Proof.
+    i. dup CAP. inv CAP0. specialize (BACK loc).
+    exploit max_ts_spec; try exact BACK. i. des.
+    apply TimeFacts.antisym; ss.
+    destruct (Time.le_lt_dec (max_ts loc mem2) (Time.incr (max_ts loc mem1))); ss.
+    specialize (Time.incr_spec (max_ts loc mem1)). i.
+    exploit cap_inv; try exact GET; eauto. i. des.
+    - exploit max_ts_spec; try exact x0. i. des.
+      exploit TimeFacts.lt_le_lt; try exact l; try exact MAX0. i.
+      rewrite x1 in H. timetac.
+    - inv x1. exploit get_ts; try exact GET2. i. des.
+      { rewrite x1 in *. inv l. }
+      exploit max_ts_spec; try exact GET2. i. des.
+      exploit TimeFacts.lt_le_lt; try exact x1; try exact MAX0. i.
+      rewrite x3 in l. rewrite l in H. timetac.
+    - subst. rewrite x2 in *. timetac.
+  Qed.
+
+
+  (* Existence of cap *)
+
+  Lemma cap_exists
+        mem1
+        (INHABITED: inhabited mem1):
+    exists mem2, <<CAP: cap mem1 mem2>>.
+  Proof.
+    cut (exists mem2,
+            forall loc,
+              (fun loc cell =>
+                 Cell.cap (mem1 loc) cell) loc (mem2 loc)).
+    { i. des.
+      exists mem2. econs; ii.
+      - destruct (H loc). eauto.
+      - destruct (H loc). inv ADJ.
+        eapply MIDDLE; eauto. econs; eauto.
+      - destruct (H loc). eauto.
+      - destruct (H loc).
+        exploit COMPLETE; eauto.
+    }
+    apply choice. i.
+    apply Cell.cap_exists; try apply INHABITED; ss.
   Qed.
 End Memory.

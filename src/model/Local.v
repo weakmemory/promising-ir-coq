@@ -250,7 +250,7 @@ Module Local.
   | read_step_intro
       from val' na
       tview2
-      (GET: Memory.get loc to (Global.memory gl1) = Some (from, Message.mk val' released na))
+      (GET: Memory.get loc to (Global.memory gl1) = Some (from, Message.message val' released na))
       (VAL: Const.le val val')
       (READABLE: TView.readable (TView.cur (tview lc1)) loc to ord)
       (TVIEW: TView.read_tview (tview lc1) loc to released ord = tview2)
@@ -272,7 +272,7 @@ Module Local.
       (RESERVED: Global.reserves gl1 loc = true /\ reserves lc1 loc = false -> Time.lt (reserved loc) from)
       (FULFILL: Promises.fulfill (promises lc1) (Global.promises gl1) loc ord prm2 gprm2)
       (WRITE: Memory.add (Global.memory gl1) loc from to
-                         (Message.mk val released (Ordering.le ord Ordering.na)) mem2)
+                         (Message.message val released (Ordering.le ord Ordering.na)) mem2)
       (LC2: lc2 = mk (TView.write_tview (tview lc1) loc to ord) prm2 (reserves lc1))
       (GL2: gl2 = Global.mk (Global.sc gl1) gprm2 (Global.reserves gl1) mem2):
       write_step reserved lc1 gl1 loc from to val releasedm released ord lc2 gl2
@@ -305,7 +305,7 @@ Module Local.
     is_racy lc1 gl1 loc None ord
   | is_racy_message
       to from val released na ord
-      (GET: Memory.get loc to (Global.memory gl1) = Some (from, Message.mk val released na))
+      (GET: Memory.get loc to (Global.memory gl1) = Some (from, Message.message val released na))
       (RACE: TView.racy_view (TView.cur (tview lc1)) loc to)
       (MSG: Ordering.le Ordering.plain ord -> na = true):
     is_racy lc1 gl1 loc (Some to) ord
@@ -820,7 +820,7 @@ Module Local.
     }
     des.
     exploit (@Memory.add_exists (Global.memory gl1) loc from (Time.incr from)
-                                (Message.mk val (TView.write_released (tview lc1) loc (Time.incr from) releasedm ord) (Ordering.le ord Ordering.na))).
+                                (Message.message val (TView.write_released (tview lc1) loc (Time.incr from) releasedm ord) (Ordering.le ord Ordering.na))).
     { ii. inv LHS. inv RHS. ss.
       exploit Memory.max_ts_spec; try exact GET2. i. des.
       rewrite MAX in TO0.

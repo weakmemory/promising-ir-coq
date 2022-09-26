@@ -137,6 +137,13 @@ Module ThreadEvent.
     | _ => False
     end.
 
+  Definition is_pf (e: t): Prop :=
+    match e with
+    | promise _
+    | reserve _ _ _ => False
+    | _ => True
+    end.
+
   Definition is_program (e: t): Prop :=
     match e with
     | promise _
@@ -346,76 +353,81 @@ Module Local.
   #[global] Hint Constructors racy_update_step: core.
 
 
-  Variant step:
+  Variant internal_step:
     forall (e: ThreadEvent.t) (lc1: t) (gl1: Global.t) (lc2: t) (gl2: Global.t), Prop :=
-  | step_promise
+  | internal_step_promise
       lc1 gl1 
       loc lc2 gl2
       (LOCAL: promise_step lc1 gl1 loc lc2 gl2):
-    step (ThreadEvent.promise loc) lc1 gl1 lc2 gl2
-  | step_reserve
+    internal_step (ThreadEvent.promise loc) lc1 gl1 lc2 gl2
+  | internal_step_reserve
       lc1 gl1 
       loc from to lc2 gl2
       (LOCAL: reserve_step lc1 gl1 loc from to lc2 gl2):
-    step (ThreadEvent.reserve loc from to) lc1 gl1 lc2 gl2
-  | step_cancel
+    internal_step (ThreadEvent.reserve loc from to) lc1 gl1 lc2 gl2
+  | internal_step_cancel
       lc1 gl1 
       loc from to lc2 gl2
       (LOCAL: cancel_step lc1 gl1 loc from to lc2 gl2):
-    step (ThreadEvent.cancel loc from to) lc1 gl1 lc2 gl2
-  | step_silent
+    internal_step (ThreadEvent.cancel loc from to) lc1 gl1 lc2 gl2
+  .
+  #[global] Hint Constructors internal_step: core.
+
+  Variant program_step:
+    forall (e: ThreadEvent.t) (lc1: t) (gl1: Global.t) (lc2: t) (gl2: Global.t), Prop :=
+  | program_step_silent
       lc1 gl1:
-    step ThreadEvent.silent lc1 gl1 lc1 gl1
-  | step_read
+    program_step ThreadEvent.silent lc1 gl1 lc1 gl1
+  | program_step_read
       lc1 gl1
       loc to val released ord lc2
       (LOCAL: read_step lc1 gl1 loc to val released ord lc2):
-    step (ThreadEvent.read loc to val released ord) lc1 gl1 lc2 gl1
-  | step_write
+    program_step (ThreadEvent.read loc to val released ord) lc1 gl1 lc2 gl1
+  | program_step_write
       lc1 gl1
       loc from to val released ord lc2 gl2
       (LOCAL: write_step lc1 gl1 loc from to val None released ord lc2 gl2):
-    step (ThreadEvent.write loc from to val released ord) lc1 gl1 lc2 gl2
-  | step_update
+    program_step (ThreadEvent.write loc from to val released ord) lc1 gl1 lc2 gl2
+  | program_step_update
       lc1 gl1
       loc ordr ordw
       tsr valr releasedr releasedw lc2
       tsw valw lc3 gl3
       (LOCAL1: read_step lc1 gl1 loc tsr valr releasedr ordr lc2)
       (LOCAL2: write_step lc2 gl1 loc tsr tsw valw releasedr releasedw ordw lc3 gl3):
-    step (ThreadEvent.update loc tsr tsw valr valw releasedr releasedw ordr ordw)
+    program_step (ThreadEvent.update loc tsr tsw valr valw releasedr releasedw ordr ordw)
       lc1 gl1 lc3 gl3
-  | step_fence
+  | program_step_fence
       lc1 gl1
       ordr ordw lc2 gl2
       (LOCAL: fence_step lc1 gl1 ordr ordw lc2 gl2):
-    step (ThreadEvent.fence ordr ordw) lc1 gl1 lc2 gl2
-  | step_syscall
+    program_step (ThreadEvent.fence ordr ordw) lc1 gl1 lc2 gl2
+  | program_step_syscall
       lc1 gl1
       e lc2 gl2
       (LOCAL: fence_step lc1 gl1 Ordering.seqcst Ordering.seqcst lc2 gl2):
-    step (ThreadEvent.syscall e) lc1 gl1 lc2 gl2
-  | step_failure
+    program_step (ThreadEvent.syscall e) lc1 gl1 lc2 gl2
+  | program_step_failure
       lc1 gl1
       (LOCAL: failure_step lc1):
-    step ThreadEvent.failure lc1 gl1 lc1 gl1
-  | step_racy_read
+    program_step ThreadEvent.failure lc1 gl1 lc1 gl1
+  | program_step_racy_read
       lc1 gl1
       loc to val ord
       (LOCAL: racy_read_step lc1 gl1 loc to val ord):
-    step (ThreadEvent.racy_read loc to val ord) lc1 gl1 lc1 gl1
-  | step_racy_write
+    program_step (ThreadEvent.racy_read loc to val ord) lc1 gl1 lc1 gl1
+  | program_step_racy_write
       lc1 gl1
       loc to val ord
       (LOCAL: racy_write_step lc1 gl1 loc to ord):
-    step (ThreadEvent.racy_write loc to val ord) lc1 gl1 lc1 gl1
-  | step_racy_update
+    program_step (ThreadEvent.racy_write loc to val ord) lc1 gl1 lc1 gl1
+  | program_step_racy_update
       lc1 gl1
       loc to valr valw ordr ordw
       (LOCAL: racy_update_step lc1 gl1 loc to ordr ordw):
-    step (ThreadEvent.racy_update loc to valr valw ordr ordw) lc1 gl1 lc1 gl1
+    program_step (ThreadEvent.racy_update loc to valr valw ordr ordw) lc1 gl1 lc1 gl1
   .
-  #[global] Hint Constructors step: core.
+  #[global] Hint Constructors program_step: core.
 
 
   (* step_future *)
@@ -546,9 +558,25 @@ Module Local.
       apply TViewFacts.write_fence_sc_incr.
   Qed.
 
-  Lemma step_future
+  Lemma internal_step_future
         e lc1 gl1 lc2 gl2
-        (STEP: step e lc1 gl1 lc2 gl2)
+        (STEP: internal_step e lc1 gl1 lc2 gl2)
+        (LC_WF1: wf lc1 gl1)
+        (GL_WF1: Global.wf gl1):
+    <<LC_WF2: wf lc2 gl2>> /\
+    <<GL_WF2: Global.wf gl2>> /\
+    <<TVIEW_FUTURE: TView.le (tview lc1) (tview lc2)>> /\
+    <<GL_FUTURE: Global.future gl1 gl2>>.
+  Proof.
+    inv STEP.
+    - eapply promise_step_future; eauto.
+    - eapply reserve_step_future; eauto.
+    - eapply cancel_step_future; eauto.
+  Qed.
+
+  Lemma program_step_future
+        e lc1 gl1 lc2 gl2
+        (STEP: program_step e lc1 gl1 lc2 gl2)
         (LC_WF1: wf lc1 gl1)
         (GL_WF1: Global.wf gl1):
     <<LC_WF2: wf lc2 gl2>> /\
@@ -557,9 +585,6 @@ Module Local.
     <<GL_FUTURE: Global.future gl1 gl2>>.
   Proof.
     inv STEP; try by (splits; eauto; try refl).
-    - eapply promise_step_future; eauto.
-    - eapply reserve_step_future; eauto.
-    - eapply cancel_step_future; eauto.
     - exploit read_step_future; eauto. i. des.
       esplits; eauto; try refl.
     - exploit write_step_future; eauto;
@@ -579,15 +604,24 @@ Module Local.
 
   (* step_inhabited *)
 
-  Lemma step_inhabited
+  Lemma internal_step_inhabited
         e lc1 gl1 lc2 gl2
-        (STEP: step e lc1 gl1 lc2 gl2)
+        (STEP: internal_step e lc1 gl1 lc2 gl2)
         (INHABITED1: Memory.inhabited (Global.memory gl1)):
     <<INHABITED2: Memory.inhabited (Global.memory gl2)>>.
   Proof.
     inv STEP; try inv LOCAL; ss.
     - eapply Memory.reserve_inhabited; eauto.
     - eapply Memory.cancel_inhabited; eauto.
+  Qed.
+
+  Lemma program_step_inhabited
+        e lc1 gl1 lc2 gl2
+        (STEP: program_step e lc1 gl1 lc2 gl2)
+        (INHABITED1: Memory.inhabited (Global.memory gl1)):
+    <<INHABITED2: Memory.inhabited (Global.memory gl2)>>.
+  Proof.
+    inv STEP; try inv LOCAL; ss.
     - eapply Memory.add_inhabited; eauto.
     - inv LOCAL2. eapply Memory.add_inhabited; eauto.
   Qed.
@@ -682,18 +716,29 @@ Module Local.
     inv READ. auto.
   Qed.
 
-  Lemma step_disjoint
+  Lemma internal_step_disjoint
         e lc1 gl1 lc2 gl2 lc
-        (STEP: step e lc1 gl1 lc2 gl2)
+        (STEP: internal_step e lc1 gl1 lc2 gl2)
+        (DISJOINT1: disjoint lc1 lc)
+        (LC_WF: wf lc gl1):
+    <<DISJOINT2: disjoint lc2 lc>> /\
+    <<LC_WF: wf lc gl2>>.
+  Proof.
+    inv STEP.
+    - eapply promise_step_disjoint; eauto.
+    - eapply reserve_step_disjoint; eauto.
+    - eapply cancel_step_disjoint; eauto.
+  Qed.
+
+  Lemma program_step_disjoint
+        e lc1 gl1 lc2 gl2 lc
+        (STEP: program_step e lc1 gl1 lc2 gl2)
         (DISJOINT1: disjoint lc1 lc)
         (LC_WF: wf lc gl1):
     <<DISJOINT2: disjoint lc2 lc>> /\
     <<LC_WF: wf lc gl2>>.
   Proof.
     inv STEP; try by (splits; eauto).
-    - eapply promise_step_disjoint; eauto.
-    - eapply reserve_step_disjoint; eauto.
-    - eapply cancel_step_disjoint; eauto.
     - exploit read_step_disjoint; eauto.
     - exploit write_step_disjoint; eauto.
     - exploit read_step_disjoint; eauto. i.
@@ -702,72 +747,50 @@ Module Local.
     - exploit fence_step_disjoint; eauto.
   Qed.
 
-  (* Lemma program_step_promises *)
-  (*       reserved e lc1 gl1 lc2 gl2 *)
-  (*       (STEP: program_step reserved e lc1 gl1 lc2 gl2): *)
-  (*   BoolMap.le (promises lc2) (promises lc1) /\ *)
-  (*   BoolMap.le (Global.reserves gl2) (Global.reserves gl1). *)
-  (* Proof. *)
-  (*   inv STEP; ss; try by (inv LOCAL; ss). *)
-  (*   - inv LOCAL. inv FULFILL; ss. *)
-  (*     split; eauto using BoolMap.remove_le. *)
-  (*   - inv LOCAL1. inv LOCAL2. inv FULFILL; ss. *)
-  (*     split; eauto using BoolMap.remove_le. *)
-  (* Qed. *)
+  Lemma program_step_promises
+        e lc1 gl1 lc2 gl2
+        (STEP: program_step e lc1 gl1 lc2 gl2):
+    BoolMap.le (promises lc2) (promises lc1) /\
+    BoolMap.le (Global.promises gl2) (Global.promises gl1).
+  Proof.
+    inv STEP; ss; try by (inv LOCAL; ss).
+    - inv LOCAL. inv FULFILL; ss.
+      split; eauto using BoolMap.remove_le.
+    - inv LOCAL1. inv LOCAL2. inv FULFILL; ss.
+      split; eauto using BoolMap.remove_le.
+  Qed.
 
-  (* Lemma program_step_reserves *)
-  (*       reserved e lc1 gl1 lc2 gl2 *)
-  (*       (STEP: program_step reserved e lc1 gl1 lc2 gl2): *)
-  (*   reserves lc1 = reserves lc2 /\ *)
-  (*   Global.reserves gl1 = Global.reserves gl2. *)
-  (* Proof. *)
-  (*   inv STEP; ss; try by (inv LOCAL; ss). *)
-  (*   inv LOCAL1. inv LOCAL2. ss. *)
-  (* Qed. *)
+  Lemma program_step_reserves
+        e lc1 gl1 lc2 gl2
+        (STEP: program_step e lc1 gl1 lc2 gl2):
+    reserves lc1 = reserves lc2.
+  Proof.
+    inv STEP; ss; try by (inv LOCAL; ss).
+    inv LOCAL1. inv LOCAL2. ss.
+  Qed.
 
-  (* Lemma internal_step_promises_minus *)
-  (*       e lc1 gl1 lc2 gl2 *)
-  (*       (STEP: internal_step e lc1 gl1 lc2 gl2): *)
-  (*   BoolMap.minus (Global.promises gl1) (promises lc1) = *)
-  (*   BoolMap.minus (Global.promises gl2) (promises lc2). *)
-  (* Proof. *)
-  (*   inv STEP; inv LOCAL; ss. *)
-  (*   eapply Promises.promise_minus; eauto. *)
-  (* Qed. *)
+  Lemma internal_step_promises_minus
+        e lc1 gl1 lc2 gl2
+        (STEP: internal_step e lc1 gl1 lc2 gl2):
+    BoolMap.minus (Global.promises gl1) (promises lc1) =
+    BoolMap.minus (Global.promises gl2) (promises lc2).
+  Proof.
+    inv STEP; inv LOCAL; ss.
+    eapply Promises.promise_minus; eauto.
+  Qed.
 
-  (* Lemma program_step_promises_minus *)
-  (*       reserved e lc1 gl1 lc2 gl2 *)
-  (*       (STEP: program_step reserved e lc1 gl1 lc2 gl2): *)
-  (*   BoolMap.minus (Global.promises gl1) (promises lc1) = *)
-  (*   BoolMap.minus (Global.promises gl2) (promises lc2). *)
-  (* Proof. *)
-  (*   inv STEP; ss; try by (inv LOCAL; ss). *)
-  (*   - inv LOCAL. ss. *)
-  (*     eapply Promises.fulfill_minus; eauto. *)
-  (*   - inv LOCAL1. inv LOCAL2. ss. *)
-  (*     eapply Promises.fulfill_minus; eauto. *)
-  (* Qed. *)
-
-  (* Lemma internal_step_reserves_minus *)
-  (*       e lc1 gl1 lc2 gl2 *)
-  (*       (STEP: internal_step e lc1 gl1 lc2 gl2): *)
-  (*   BoolMap.minus (Global.reserves gl1) (reserves lc1) = *)
-  (*   BoolMap.minus (Global.reserves gl2) (reserves lc2). *)
-  (* Proof. *)
-  (*   inv STEP; inv LOCAL; ss. *)
-  (*   - eapply Reserves.reserve_minus; eauto. *)
-  (*   - eapply Reserves.cancel_minus; eauto. *)
-  (* Qed. *)
-
-  (* Lemma program_step_reserves_minus *)
-  (*       reserved e lc1 gl1 lc2 gl2 *)
-  (*       (STEP: program_step reserved e lc1 gl1 lc2 gl2): *)
-  (*   BoolMap.minus (Global.reserves gl1) (reserves lc1) = *)
-  (*   BoolMap.minus (Global.reserves gl2) (reserves lc2). *)
-  (* Proof. *)
-  (*   inv STEP; ss; try by (inv LOCAL; ss). *)
-  (*   inv LOCAL1. inv LOCAL2. ss. *)
-  (* Qed. *)
+  Lemma program_step_promises_minus
+        e lc1 gl1 lc2 gl2
+        (STEP: program_step e lc1 gl1 lc2 gl2):
+    BoolMap.minus (Global.promises gl1) (promises lc1) =
+    BoolMap.minus (Global.promises gl2) (promises lc2).
+  Proof.
+    inv STEP; ss; try by (inv LOCAL; ss).
+    - inv LOCAL. ss.
+      eapply Promises.fulfill_minus; eauto.
+    - inv LOCAL1. inv LOCAL2. ss.
+      eapply Promises.fulfill_minus; eauto.
+  Qed.
 
   (* Lemma write_max_exists *)
   (*       reserved lc1 gl1 *)

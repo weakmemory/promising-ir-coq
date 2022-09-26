@@ -13,7 +13,6 @@ Require Import Time.
 Require Import View.
 Require Import BoolMap.
 Require Import Promises.
-Require Import Reserves.
 Require Import Cell.
 Require Import Memory.
 Require Import TView.
@@ -55,10 +54,6 @@ Module Threads.
         exists tid lang st lc,
           (<<TH: IdentMap.find tid ths = Some (existT _ lang st, lc)>>) /\
           (<<GET: Local.promises lc loc = true>>))
-      (RESERVES: forall loc (GET: Global.reserves gl loc = true),
-        exists tid lang st lc,
-          (<<TH: IdentMap.find tid ths = Some (existT _ lang st, lc)>>) /\
-          (<<GET: Local.reserves lc loc = true>>))
   .
 
   Lemma init_wf syn: wf (init syn) Global.init.
@@ -69,7 +64,7 @@ Module Threads.
                   (@sigT _ (@Language.syntax ProgramEvent.t)) tid1 syn); inv TH1.
       destruct (@UsualFMapPositive.UsualPositiveMap'.find
                   (@sigT _ (@Language.syntax ProgramEvent.t)) tid2 syn); inv TH2.
-      econs; ss.
+      econs; ss. econs. i. rewrite Memory.bot_get in *. ss.
     - i. unfold init in *. rewrite IdentMap.Facts.map_o in *.
       destruct (@UsualFMapPositive.UsualPositiveMap'.find
                   (@sigT _ (@Language.syntax ProgramEvent.t)) tid syn); inv TH.
@@ -168,12 +163,10 @@ Module Configuration.
 
   Variant step: forall (e: MachineEvent.t) (tid: Ident.t) (c1 c2: t), Prop :=
   | step_intro
-      pf e tid c1 lang st1 lc1 th2 st3 lc3 gl3
+      e tid c1 lang st1 lc1 th2 st3 lc3 gl3
       (TID: IdentMap.find tid (threads c1) = Some (existT _ lang st1, lc1))
-      (STEPS: rtc (Thread.tau_step (Memory.max_timemap (Global.memory (global c1))))
-                  (Thread.mk _ st1 lc1 (global c1)) th2)
-      (STEP: Thread.step (Memory.max_timemap (Global.memory (global c1)))
-                         pf e th2 (Thread.mk _ st3 lc3 gl3))
+      (STEPS: rtc (@Thread.tau_step lang) (Thread.mk _ st1 lc1 (global c1)) th2)
+      (STEP: Thread.step e th2 (Thread.mk _ st3 lc3 gl3))
       (CONSISTENT: ThreadEvent.get_machine_event e <> MachineEvent.failure ->
                    Thread.consistent (Thread.mk _ st3 lc3 gl3)):
       step (ThreadEvent.get_machine_event e) tid
@@ -300,18 +293,6 @@ Module Configuration.
         destruct (Global.promises (global c1) loc) eqn:GET1; ss.
         destruct (Local.promises lc1 loc) eqn:LGET1; ss.
         exploit PROMISES; eauto. i. des.
-        exists tid0, lang0, st, lc. splits; ss.
-        rewrite IdentMap.Facts.add_o. condtac; ss. subst. congr.
-    - i. destruct (Local.reserves lc3 loc) eqn:LGET.
-      + exists tid, lang, st3, lc3. splits; ss.
-        rewrite IdentMap.Facts.add_o. condtac; ss.
-      + exploit Thread.rtc_tau_step_reserves_minus; try exact STEPS. s. i.
-        exploit Thread.step_reserves_minus; try exact STEP0. s. i.
-        rewrite x2 in *. eapply equal_f in x1.
-        revert x1. unfold BoolMap.minus. rewrite GET, LGET. s. i.
-        destruct (Global.reserves (global c1) loc) eqn:GET1; ss.
-        destruct (Local.reserves lc1 loc) eqn:LGET1; ss.
-        exploit RESERVES; eauto. i. des.
         exists tid0, lang0, st, lc. splits; ss.
         rewrite IdentMap.Facts.add_o. condtac; ss. subst. congr.
   Qed.

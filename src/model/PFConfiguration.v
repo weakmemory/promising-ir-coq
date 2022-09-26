@@ -13,7 +13,6 @@ Require Import Time.
 Require Import View.
 Require Import BoolMap.
 Require Import Promises.
-Require Import Reserves.
 Require Import Cell.
 Require Import Memory.
 Require Import TView.
@@ -30,9 +29,9 @@ Module PFConfiguration.
     | estep_intro
         e tid c1 lang st1 lc1 st2 lc2 gl2
         (TID: IdentMap.find tid (Configuration.threads c1) = Some (existT _ lang st1, lc1))
-        (STEP: Thread.step TimeMap.bot true e
-                           (Thread.mk _ st1 lc1 (Configuration.global c1))
-                           (Thread.mk _ st2 lc2 gl2)):
+        (STEP: Thread.step e
+                 (Thread.mk _ st1 lc1 (Configuration.global c1))
+                 (Thread.mk _ st2 lc2 gl2)):
       estep e tid
             c1
             (Configuration.mk (IdentMap.add tid (existT _ _ st2, lc2) (Configuration.threads c1)) gl2)
@@ -79,17 +78,6 @@ Module PFConfiguration.
         destruct (Global.promises (Configuration.global c1) loc) eqn:GET1; ss.
         destruct (Local.promises lc1 loc) eqn:LGET1; ss.
         exploit PROMISES; eauto. i. des.
-        exists tid0, lang0, st, lc. splits; ss.
-        rewrite IdentMap.Facts.add_o. condtac; ss. subst. congr.
-    - i. destruct (Local.reserves lc2 loc) eqn:LGET.
-      + exists tid, lang, st2, lc2. splits; ss.
-        rewrite IdentMap.Facts.add_o. condtac; ss.
-      + exploit Thread.step_reserves_minus; try exact STEP0. s. i.
-        eapply equal_f in x1.
-        revert x1. unfold BoolMap.minus. rewrite GET, LGET. s. i.
-        destruct (Global.reserves (Configuration.global c1) loc) eqn:GET1; ss.
-        destruct (Local.reserves lc1 loc) eqn:LGET1; ss.
-        exploit RESERVES; eauto. i. des.
         exists tid0, lang0, st, lc. splits; ss.
         rewrite IdentMap.Facts.add_o. condtac; ss. subst. congr.
   Qed.
@@ -221,8 +209,7 @@ Module PFConfiguration.
           c1 tid lang st1 lc1
           e th2
           (FIND: IdentMap.find tid (Configuration.threads c1) = Some (existT _ lang st1, lc1))
-          (STEP: Thread.step TimeMap.bot true e
-                             (Thread.mk _ st1 lc1 (Configuration.global c1)) th2):
+          (STEP: Thread.step e (Thread.mk _ st1 lc1 (Configuration.global c1)) th2):
       step (get_machine_event e) tid
            c1
            (Configuration.mk
@@ -237,8 +224,7 @@ Module PFConfiguration.
         c1 tid lang st1 lc1
         e th2
         (FIND: IdentMap.find tid (Configuration.threads c1) = Some (existT _ lang st1, lc1))
-        (STEP: Thread.opt_step TimeMap.bot true e
-                               (Thread.mk _ st1 lc1 (Configuration.global c1)) th2):
+        (STEP: Thread.opt_step e (Thread.mk _ st1 lc1 (Configuration.global c1)) th2):
     opt_step ThreadEvent.get_machine_event_pf
              (ThreadEvent.get_machine_event_pf e) tid
              c1
@@ -256,7 +242,7 @@ Module PFConfiguration.
         c1 tid lang st1 lc1
         th2
         (FIND: IdentMap.find tid (Configuration.threads c1) = Some (existT _ lang st1, lc1))
-        (STEPS: rtc (tau (Thread.step TimeMap.bot true))
+        (STEPS: rtc (pstep (@Thread.step lang) (ThreadEvent.is_silent /1\ThreadEvent.is_program))
                     (Thread.mk _ st1 lc1 (Configuration.global c1)) th2):
     (<<STEPS: rtc (tau_step ThreadEvent.get_machine_event_pf)
                   c1
@@ -277,7 +263,7 @@ Module PFConfiguration.
     { left. rewrite IdentMap.gsident; ss. auto. }
     destruct x, y. inv H. ss.
     destruct (ThreadEvent.get_machine_event_pf e) eqn: PF_EVENT; cycle 1.
-    { destruct e; ss. }
+    { des. destruct e; ss. }
     { right. esplits; [refl|].
       rewrite <- PF_EVENT. econs. econs; eauto.
     }
@@ -289,7 +275,7 @@ Module PFConfiguration.
     i. des.
     - rewrite IdentMap.add_add_eq in *.
       left. econs 2; eauto. econs. rewrite <- PF_EVENT. eauto.
-    - right. esplits; try exact STEP.
+    - right. esplits; try exact STEP0.
       econs 2; eauto. econs. rewrite <- PF_EVENT. eauto.
   Qed.
 
@@ -297,9 +283,9 @@ Module PFConfiguration.
         c1 tid lang st1 lc1
         e th2 th3
         (FIND: IdentMap.find tid (Configuration.threads c1) = Some (existT _ lang st1, lc1))
-        (STEPS: rtc (tau (Thread.step TimeMap.bot true))
+        (STEPS: rtc (pstep (@Thread.step lang) (ThreadEvent.is_silent /1\ ThreadEvent.is_program))
                     (Thread.mk _ st1 lc1 (Configuration.global c1)) th2)
-        (STEP: Thread.step TimeMap.bot true e th2 th3):
+        (STEP: Thread.step e th2 th3):
     (exists c2,
         (<<STEPS: rtc (tau_step ThreadEvent.get_machine_event_pf) c1 c2>>) /\
         (<<STEP: step ThreadEvent.get_machine_event_pf (ThreadEvent.get_machine_event_pf e) tid
@@ -329,9 +315,9 @@ Module PFConfiguration.
         c1 tid lang st1 lc1
         e th2 th3
         (FIND: IdentMap.find tid (Configuration.threads c1) = Some (existT _ lang st1, lc1))
-        (STEPS: rtc (tau (Thread.step TimeMap.bot true))
+        (STEPS: rtc (pstep (@Thread.step lang) (ThreadEvent.is_silent /1\ ThreadEvent.is_program))
                     (Thread.mk _ st1 lc1 (Configuration.global c1)) th2)
-        (STEP: Thread.opt_step TimeMap.bot true e th2 th3):
+        (STEP: Thread.opt_step e th2 th3):
     (exists c2,
         (<<STEPS: rtc (tau_step ThreadEvent.get_machine_event_pf) c1 c2>>) /\
         (<<STEP: opt_step ThreadEvent.get_machine_event_pf (ThreadEvent.get_machine_event_pf e) tid

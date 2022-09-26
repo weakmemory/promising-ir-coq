@@ -53,13 +53,13 @@ Module TView <: JoinableType.
     econs; i; eapply Memory.closed_view_bot; apply Memory.init_closed.
   Qed.
 
-  Lemma add_closed
-        tview mem1 loc from to msg mem2
+  Lemma le_closed
+        tview mem1 mem2
         (CLOSED: closed tview mem1)
-        (ADD: Memory.add mem1 loc from to msg mem2):
+        (LE: Memory.messages_le mem1 mem2):
     closed tview mem2.
   Proof.
-    inv CLOSED. econs; i; eapply Memory.add_closed_view; eauto.
+    inv CLOSED. econs; i; eapply Memory.messages_le_closed_view; eauto.
   Qed.
 
   Lemma future_closed
@@ -69,6 +69,15 @@ Module TView <: JoinableType.
     closed tview mem2.
   Proof.
     inv CLOSED. econs; i; eapply Memory.future_closed_view; eauto.
+  Qed.
+
+  Lemma cap_closed
+    tview mem cap
+    (CLOSED: closed tview mem)
+    (CAP: Memory.cap mem cap):
+    closed tview cap.
+  Proof.
+    inv CLOSED. econs; eauto using Memory.cap_closed_view.
   Qed.
 
   Definition eq := @eq t.

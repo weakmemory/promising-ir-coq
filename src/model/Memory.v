@@ -133,7 +133,7 @@ Module Memory.
       + econs; auto.
   Qed.
 
-  Definition reserves_only (rsv: t): Prop :=
+  Definition reserve_only (rsv: t): Prop :=
     forall loc from to msg
       (GET: get loc to rsv = Some (from, msg)),
       msg = Message.reserve.
@@ -155,9 +155,18 @@ Module Memory.
     econs. i. rewrite bot_get in *. inv GET1.
   Qed.
 
-  Lemma bot_reserves_only: reserves_only bot.
+  Lemma bot_reserve_only: reserve_only bot.
   Proof.
     ii. rewrite bot_get in *. ss.
+  Qed.
+
+  Lemma le_reserve_only
+    rsv1 rsv2
+    (LE: le rsv1 rsv2)
+    (ONLY: reserve_only rsv2):
+    reserve_only rsv1.
+  Proof.
+    ii. eapply ONLY. eauto.
   Qed.
 
   Definition init: t := fun _ => Cell.init.
@@ -422,11 +431,11 @@ Module Memory.
     ii. eapply Memory.add_get1; eauto.
   Qed.
 
-  Lemma add_reserves_only
+  Lemma add_reserve_only
         mem1 loc from to mem2
         (ADD: add mem1 loc from to Message.reserve mem2)
-        (ONLY1: reserves_only mem1):
-    reserves_only mem2.
+        (ONLY1: reserve_only mem1):
+    reserve_only mem2.
   Proof.
     ii. revert GET.
     erewrite add_o; eauto. condtac; ss; eauto.
@@ -514,14 +523,35 @@ Module Memory.
     erewrite Memory.remove_o; eauto. condtac; ss.
   Qed.
 
-  Lemma remove_reserves_only
+  Lemma remove_reserve_only
         mem1 loc from to msg mem2
         (REMOVE: remove mem1 loc from to msg mem2)
-        (ONLY1: reserves_only mem1):
-    reserves_only mem2.
+        (ONLY1: reserve_only mem1):
+    reserve_only mem2.
   Proof.
     ii. revert GET.
     erewrite remove_o; eauto. condtac; ss; eauto.
+  Qed.
+
+
+  (* lemmas on reserve & cancel *)
+
+  Lemma reserve_inhabited
+        rsv1 mem1 loc from to rsv2 mem2
+        (RESERVE: reserve rsv1 mem1 loc from to rsv2 mem2)
+        (INHABITED: inhabited mem1):
+    <<INHABITED: inhabited mem2>>.
+  Proof.
+    inv RESERVE. eauto using add_inhabited.
+  Qed.
+
+  Lemma cancel_inhabited
+        rsv1 mem1 loc from to rsv2 mem2
+        (CANCEL: cancel rsv1 mem1 loc from to rsv2 mem2)
+        (INHABITED: inhabited mem1):
+    <<INHABITED: inhabited mem2>>.
+  Proof.
+    inv CANCEL. eauto using remove_inhabited.
   Qed.
 
 
@@ -863,11 +893,11 @@ Module Memory.
         (CLOSED1: closed mem1)
         (LE: le rsv1 mem1)
         (FINITE: finite rsv1)
-        (ONLY: reserves_only rsv1):
+        (ONLY: reserve_only rsv1):
     <<CLOSED2: closed mem2>> /\
     <<LE2: le rsv2 mem2>> /\
     <<FINITE2: finite rsv2>> /\
-    <<ONLY2: reserves_only rsv2>> /\
+    <<ONLY2: reserve_only rsv2>> /\
     <<FUTURE: future mem1 mem2>>.
   Proof.
     inv RESERVE. splits; eauto.
@@ -876,7 +906,7 @@ Module Memory.
       revert LHS. erewrite add_o; try exact RSV.
       condtac; ss; eauto.
     - eapply add_finite; eauto.
-    - eapply add_reserves_only; eauto.
+    - eapply add_reserve_only; eauto.
   Qed.
 
   Lemma cancel_future
@@ -885,11 +915,11 @@ Module Memory.
         (CLOSED1: closed mem1)
         (LE: le rsv1 mem1)
         (FINITE: finite rsv1)
-        (ONLY: reserves_only rsv1):
+        (ONLY: reserve_only rsv1):
     <<CLOSED2: closed mem2>> /\
     <<LE2: le rsv2 mem2>> /\
     <<FINITE2: finite rsv2>> /\
-    <<ONLY2: reserves_only rsv2>> /\
+    <<ONLY2: reserve_only rsv2>> /\
     <<FUTURE: future mem1 mem2>>.
   Proof.
     inv CANCEL. splits; eauto.
@@ -898,7 +928,7 @@ Module Memory.
       revert LHS. erewrite remove_o; try exact RSV.
       condtac; ss; eauto.
     - eapply remove_finite; eauto.
-    - eapply remove_reserves_only; eauto.
+    - eapply remove_reserve_only; eauto.
   Qed.
 
   Lemma add_disjoint
@@ -1278,7 +1308,7 @@ Module Memory.
 
   (* cap *)
 
-  Inductive cap (mem1 mem2: t): Prop :=
+  Variant cap (mem1 mem2: t): Prop :=
   | cap_intro
       (SOUND: le mem1 mem2)
       (MIDDLE: forall loc from1 to1 from2 to2
@@ -1461,12 +1491,11 @@ Module Memory.
   Qed.
 
   Lemma cap_le
-        rsv mem1 mem2
-        (CAP: cap mem1 mem2)
-        (LE: le rsv mem1):
-    le rsv mem2.
+        mem1 mem2
+        (CAP: cap mem1 mem2):
+    le mem1 mem2.
   Proof.
-    ii. inv CAP. eauto.
+    inv CAP. ii. eauto.
   Qed.
 
   Lemma cap_max_ts

@@ -864,8 +864,10 @@ Module Cell.
                  (ADJ: adjacent from1 to1 from2 to2 cell1)
                  (TO: Time.lt to1 from2),
           get from2 cell2 = Some (to1, Message.reserve))
-      (BACK: get (Time.incr (max_ts cell1)) cell2 =
-             Some (max_ts cell1, Message.reserve))
+      (BACK: forall from msg
+               (GET: get (max_ts cell1) cell1 = Some (from, msg)),
+          get (Time.incr (max_ts cell1)) cell2 =
+          Some (max_ts cell1, Message.reserve))
       (COMPLETE: forall from to msg
                    (GET1: get to cell1 = None)
                    (GET2: get to cell2 = Some (from, msg)),
@@ -880,7 +882,9 @@ Module Cell.
                  (ADJ: adjacent from1 to1 from2 to2 cell1)
                  (TO: Time.lt to1 from2),
           get from2 cell2 = Some (to1, Message.reserve))
-      (BACK: forall (IN: List.In (max_ts cell1) dom),
+      (BACK: forall from msg
+               (IN: List.In (max_ts cell1) dom)
+               (GET: get (max_ts cell1) cell1 = Some (from, msg)),
           get (Time.incr (max_ts cell1)) cell2 =
           Some (max_ts cell1, Message.reserve))
       (COMPLETE: forall from to msg
@@ -890,12 +894,10 @@ Module Cell.
           (exists f m, get from cell1 = Some (f, m)))
   .
 
-  Lemma cap_aux_exists
-        dom cell1
-        (INHABITED: get Time.bot cell1 = Some (Time.bot, Message.elt)):
+  Lemma cap_aux_exists dom cell1:
     exists cell2, cap_aux dom cell1 cell2.
   Proof.
-    revert cell1 INHABITED.
+    revert cell1.
     induction dom; i.
     { exists cell1. econs; ss; i. congr. }
     exploit IHdom; eauto. intros x. des. clear IHdom.
@@ -909,8 +911,7 @@ Module Cell.
     destruct (get a cell1) as [[from msg]|] eqn:GET1; cycle 1.
     { exists cell2. inv x. econs; ii; eauto.
       - inv IN; eauto. inv ADJ. congr.
-      - inv IN; eauto.
-        exploit max_ts_spec; eauto. i. des. congr.
+      - inv IN; eauto. congr.
       - exploit COMPLETE; eauto. i. des.
         split; eauto. econs 2; eauto.
     }
@@ -1026,17 +1027,13 @@ Module Cell.
         esplits; eauto.
   Qed.
 
-  Lemma cap_exists
-        cell1
-        (INHABITED: get Time.bot cell1 = Some (Time.bot, Message.elt)):
+  Lemma cap_exists cell1:
     exists cell2, cap cell1 cell2.
   Proof.
     destruct (@finite cell1).
     exploit (@cap_aux_exists x); eauto. i. des.
     exists cell2. inv x1. econs; i; ss; eauto.
     - eapply MIDDLE; eauto. inv ADJ. eauto.
-    - eapply BACK; eauto.
-      exploit max_ts_spec; eauto. i. des. eauto.
     - exploit COMPLETE; eauto. i. des.
       esplits; eauto.
   Qed.

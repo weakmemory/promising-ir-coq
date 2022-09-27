@@ -1,4 +1,5 @@
 Require Import RelationClasses.
+Require Import Coq.Logic.IndefiniteDescription.
 
 From sflib Require Import sflib.
 
@@ -11,8 +12,6 @@ From PromisingLib Require Import Event.
 
 Require Import Time.
 Require Import View.
-Require Import BoolMap.
-Require Import Reserves.
 Require Import Cell.
 
 Set Implicit Arguments.
@@ -1315,8 +1314,10 @@ Module Memory.
                  (ADJ: adjacent loc from1 to1 from2 to2 mem1)
                  (TO: Time.lt to1 from2),
           get loc from2 mem2 = Some (to1, Message.reserve))
-      (BACK: forall loc, get loc (Time.incr (max_ts loc mem1)) mem2 =
-                    Some (max_ts loc mem1, Message.reserve))
+      (BACK: forall loc from msg
+               (GET: get loc (max_ts loc mem1) mem1 = Some (from, msg)),
+          get loc (Time.incr (max_ts loc mem1)) mem2 =
+          Some (max_ts loc mem1, Message.reserve))
       (COMPLETE: forall loc from to msg
                    (GET1: get loc to mem1 = None)
                    (GET2: get loc to mem2 = Some (from, msg)),
@@ -1338,7 +1339,9 @@ Module Memory.
     (get loc to mem1 = None /\
      from = max_ts loc mem1 /\
      to = Time.incr from /\
-     msg = Message.reserve).
+     msg = Message.reserve /\
+     exists f m,
+       get loc from mem1 = Some (f, m)).
   Proof.
     inv CAP. move GET at bottom.
     destruct (get loc to mem1) as [[]|] eqn:GET1.
@@ -1401,12 +1404,13 @@ Module Memory.
       rewrite GET0 in x. inv x.
       specialize (BACK loc).
       exploit get_ts; try exact GET. i. des; try congr.
-      exploit get_disjoint; [exact GET|exact BACK|..]. i. des.
+      exploit BACK; eauto. i.
+      exploit get_disjoint; [exact GET|exact x1|..]. i. des.
       { subst. esplits; eauto. }
       exfalso.
       destruct (Time.le_lt_dec to (Time.incr (max_ts loc mem1))).
-      + apply (x1 to); econs; ss. refl.
-      + apply (x1 (Time.incr (max_ts loc mem1))); econs; s;
+      + apply (x2 to); econs; ss. refl.
+      + apply (x2 (Time.incr (max_ts loc mem1))); econs; s;
           eauto using Time.incr_spec; try refl.
         econs. ss.
   Qed.
@@ -1471,6 +1475,59 @@ Module Memory.
     - inv CAP. eapply SOUND; eauto.
   Qed.
 
+  Lemma cap_le
+        mem1 mem2
+        (CAP: cap mem1 mem2):
+    le mem1 mem2.
+  Proof.
+    inv CAP. ii. eauto.
+  Qed.
+
+  Lemma cap_max_ts
+        mem1 mem2
+        (INHABITED: inhabited mem1)
+        (CAP: cap mem1 mem2):
+    forall loc, max_ts loc mem2 = Time.incr (max_ts loc mem1).
+  Proof.
+    i. dup CAP. inv CAP0.
+    exploit (max_ts_spec loc); try apply INHABITED. i. des.
+    exploit BACK; eauto. i.
+    exploit max_ts_spec; try exact x0. i. des.
+    apply TimeFacts.antisym; ss.
+    destruct (Time.le_lt_dec (max_ts loc mem2) (Time.incr (max_ts loc mem1))); ss.
+    specialize (Time.incr_spec (max_ts loc mem1)). i.
+    exploit cap_inv; try exact GET0; eauto. i. des.
+    - exploit max_ts_spec; try exact x1. i. des.
+      exploit TimeFacts.lt_le_lt; try exact l; try exact MAX1. i.
+      rewrite x2 in H. timetac.
+    - inv x2. exploit get_ts; try exact GET2. i. des.
+      { rewrite x2 in *. inv l. }
+      exploit max_ts_spec; try exact GET2. i. des.
+      exploit TimeFacts.lt_le_lt; try exact x2; try exact MAX1. i.
+      rewrite x4 in l. rewrite l in H. timetac.
+    - subst. rewrite x3 in *. timetac.
+  Qed.
+
+  Lemma cap_exists mem:
+    exists mem_cap, <<CAP: cap mem mem_cap>>.
+  Proof.
+    cut (exists mem_cap,
+            forall loc,
+              (fun loc cell =>
+                 Cell.cap (mem loc) cell) loc (mem_cap loc)).
+    { i. des.
+      exists mem_cap. econs; ii.
+      - destruct (H loc). eauto.
+      - destruct (H loc). inv ADJ.
+        eapply MIDDLE; eauto. econs; eauto.
+      - destruct (H loc). eauto.
+      - destruct (H loc).
+        exploit COMPLETE; eauto.
+    }
+    apply choice. i.
+    apply Cell.cap_exists.
+  Qed.
+
   Lemma cap_inj
         mem mem1 mem2
         (CAP1: cap mem mem1)
@@ -1487,61 +1544,25 @@ Module Memory.
       inv CAP1. exploit cap_inv; try exact GET2; eauto. i. des.
       + exploit SOUND; eauto. i. congr.
       + subst. exploit MIDDLE; eauto. i. congr.
-      + subst. congr.
+      + subst. exploit BACK; eauto. i. congr.
   Qed.
 
-  Lemma cap_le
-        mem1 mem2
-        (CAP: cap mem1 mem2):
-    le mem1 mem2.
+  Definition cap_of_aux (mem: t): { mem_cap: t | cap mem mem_cap }.
   Proof.
-    inv CAP. ii. eauto.
+    apply constructive_indefinite_description.
+    apply cap_exists.
   Qed.
 
-  Lemma cap_max_ts
-        mem1 mem2
-        (CAP: cap mem1 mem2):
-    forall loc, max_ts loc mem2 = Time.incr (max_ts loc mem1).
+  Definition cap_of (mem: t): t :=
+    match cap_of_aux mem with
+    | exist _ mem_cap _ => mem_cap
+    end.
+
+  Lemma cap_of_cap mem:
+    cap mem (cap_of mem).
   Proof.
-    i. dup CAP. inv CAP0. specialize (BACK loc).
-    exploit max_ts_spec; try exact BACK. i. des.
-    apply TimeFacts.antisym; ss.
-    destruct (Time.le_lt_dec (max_ts loc mem2) (Time.incr (max_ts loc mem1))); ss.
-    specialize (Time.incr_spec (max_ts loc mem1)). i.
-    exploit cap_inv; try exact GET; eauto. i. des.
-    - exploit max_ts_spec; try exact x0. i. des.
-      exploit TimeFacts.lt_le_lt; try exact l; try exact MAX0. i.
-      rewrite x1 in H. timetac.
-    - inv x1. exploit get_ts; try exact GET2. i. des.
-      { rewrite x1 in *. inv l. }
-      exploit max_ts_spec; try exact GET2. i. des.
-      exploit TimeFacts.lt_le_lt; try exact x1; try exact MAX0. i.
-      rewrite x3 in l. rewrite l in H. timetac.
-    - subst. rewrite x2 in *. timetac.
-  Qed.
-
-
-  (* Existence of cap *)
-
-  Lemma cap_exists
-        mem1
-        (INHABITED: inhabited mem1):
-    exists mem2, <<CAP: cap mem1 mem2>>.
-  Proof.
-    cut (exists mem2,
-            forall loc,
-              (fun loc cell =>
-                 Cell.cap (mem1 loc) cell) loc (mem2 loc)).
-    { i. des.
-      exists mem2. econs; ii.
-      - destruct (H loc). eauto.
-      - destruct (H loc). inv ADJ.
-        eapply MIDDLE; eauto. econs; eauto.
-      - destruct (H loc). eauto.
-      - destruct (H loc).
-        exploit COMPLETE; eauto.
-    }
-    apply choice. i.
-    apply Cell.cap_exists; try apply INHABITED; ss.
+    unfold cap_of.
+    destruct (cap_of_aux mem).
+    ss.
   Qed.
 End Memory.

@@ -150,6 +150,9 @@ Module Thread.
 
     (* consistency *)
 
+    Definition cap_of (th: t): t :=
+      mk (state th) (local th) (Global.cap_of (global th)).
+
     Variant steps_failure (th1: t): Prop :=
       | steps_failure_intro
           e th2 th3
@@ -158,13 +161,14 @@ Module Thread.
           (EVENT_FAILURE: ThreadEvent.get_machine_event e = MachineEvent.failure)
     .
 
-    Definition consistent (th: t): Prop :=
-      forall gl_cap (CAP: Global.cap (global th) gl_cap),
-        (<<FAILURE: steps_failure (Thread.mk (state th) (local th) gl_cap)>>) \/
-        exists th2,
-          (<<STEPS: rtc tau_step (Thread.mk (state th) (local th) gl_cap) th2>>) /\
-          (<<PROMISES: Local.promises (Thread.local th2) = BoolMap.bot>>).
-
+    Variant consistent (th: t): Prop :=
+      | consistent_failure
+          (FAILURE: steps_failure (cap_of th))
+      | consistent_fulfill
+          th2
+          (STEPS: rtc tau_step (cap_of th) th2)
+          (PROMISES: Local.promises (Thread.local th2) = BoolMap.bot)
+    .
 
     (* step_future *)
 
@@ -344,4 +348,4 @@ End Thread.
 #[export] Hint Constructors Thread.step: core.
 #[export] Hint Constructors Thread.opt_step: core.
 #[export] Hint Constructors Thread.steps_failure: core.
-#[export] Hint Unfold Thread.consistent: core.
+#[export] Hint Constructors Thread.consistent: core.

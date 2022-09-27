@@ -205,15 +205,15 @@ Module Local.
   Qed.
 
   Lemma cap_wf
-        lc gl gl_cap
-        (WF: wf lc gl)
-        (CAP: Global.cap gl gl_cap):
-    wf lc gl_cap.
+        lc gl
+        (WF: wf lc gl):
+    wf lc (Global.cap_of gl).
   Proof.
-    inv WF. inv CAP. econs; ss.
+    inv WF. econs; ss.
     - eapply TView.cap_closed; eauto.
-    - rewrite PROMISES0  in *. ss.
-    - etrans; eauto. apply Memory.cap_le. ss.
+      apply Memory.cap_of_cap.
+    - etrans; eauto. apply Memory.cap_le.
+      apply Memory.cap_of_cap.
   Qed.
 
   Variant disjoint (lc1 lc2:t): Prop :=

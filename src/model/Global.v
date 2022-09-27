@@ -43,22 +43,16 @@ Module Global.
     - apply Memory.init_closed.
   Qed.
 
-  Variant cap (gl gl_cap: t): Prop :=
-    | cap_intro
-        (SC: sc gl = sc gl_cap)
-        (PROMISES: promises gl = promises gl_cap)
-        (MEMORY: Memory.cap (memory gl) (memory gl_cap))
-  .
-  #[global] Hint Constructors cap: core.
+  Definition cap_of (gl: t): t :=
+    mk (sc gl) (promises gl) (Memory.cap_of (memory gl)).
 
-  Lemma cap_exists
-        gl
-        (WF: wf gl):
-    exists gl_cap, cap gl gl_cap.
+  Lemma cap_of_cap gl:
+    (<<SC: sc gl = sc (cap_of gl)>>) /\
+    (<<GPRM: promises gl = promises (cap_of gl)>>) /\
+    (<<MEM: Memory.cap (memory gl) (memory (cap_of gl))>>).
   Proof.
-    destruct gl.
-    exploit Memory.cap_exists; try apply WF. s. i. des.
-    eexists (mk _ _ _). econs; s; eauto.
+    splits; ss.
+    apply Memory.cap_of_cap.
   Qed.
 
   Variant future (gl1 gl2: t): Prop :=
@@ -103,11 +97,12 @@ Module Global.
 
   Lemma cap_le
     gl gl_cap
-    (CAP: cap gl gl_cap):
+    (CAP: gl_cap = cap_of gl):
     le gl gl_cap.
   Proof.
-    destruct gl, gl_cap. inv CAP. ss. subst.
+    destruct gl, gl_cap. inv CAP.
     econs; s; try refl.
-    eauto using Memory.cap_messages_le.
+    apply Memory.cap_messages_le.
+    apply Memory.cap_of_cap.
   Qed.
 End Global.

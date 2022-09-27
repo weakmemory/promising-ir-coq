@@ -144,6 +144,14 @@ Module ThreadEvent.
     | _ => True
     end.
 
+  Definition is_internal (e: t): Prop :=
+    match e with
+    | promise _
+    | reserve _ _ _
+    | cancel _ _ _ => True
+    | _ => False
+    end.
+
   Definition is_program (e: t): Prop :=
     match e with
     | promise _

@@ -174,13 +174,13 @@ Module PFConsistent.
     Qed.
 
     Lemma sim_memory_add
-      rsv_src rsv_tgt
-      mem1_src mem1_tgt
-      loc from to msg mem2_tgt
-      (MEM1: sim_memory mem1_src mem1_tgt)
-      (GRESERVES1: sim_greserves rsv_src mem1_src rsv_tgt mem1_tgt)
-      (ADD_TGT: Memory.add mem1_tgt loc from to msg mem2_tgt)
-      (MSG: msg <> Message.reserve):
+          rsv_src rsv_tgt
+          mem1_src mem1_tgt
+          loc from to msg mem2_tgt
+          (MEM1: sim_memory mem1_src mem1_tgt)
+          (GRESERVES1: sim_greserves rsv_src mem1_src rsv_tgt mem1_tgt)
+          (ADD_TGT: Memory.add mem1_tgt loc from to msg mem2_tgt)
+          (MSG: msg <> Message.reserve):
       exists mem2_src,
         (<<ADD_SRC: Memory.add mem1_src loc from to msg mem2_src>>) /\
         (<<MEM2: sim_memory mem2_src mem2_tgt>>) /\
@@ -212,16 +212,16 @@ Module PFConsistent.
     Qed.
 
     Lemma sim_memory_reserve
-      rsv1_src mem1_src
-      rsv1_tgt mem1_tgt
-      loc from to rsv2_tgt mem2_tgt
-      (MEM1: sim_memory mem1_src mem1_tgt)
-      (RESERVES1: Memory.le rsv1_src rsv1_tgt)
-      (GRESERVES1: sim_greserves rsv1_src mem1_src rsv1_tgt mem1_tgt)
-      (RESERVE_TGT: Memory.reserve rsv1_tgt mem1_tgt loc from to rsv2_tgt mem2_tgt):
+          rsv1_src mem1_src
+          rsv1_tgt mem1_tgt
+          loc from to rsv2_tgt mem2_tgt
+          (MEM1: sim_memory mem1_src mem1_tgt)
+          (RESERVES1: Memory.le rsv1_src rsv1_tgt)
+          (GRESERVES1: sim_greserves rsv1_src mem1_src rsv1_tgt mem1_tgt)
+          (RESERVE_TGT: Memory.reserve rsv1_tgt mem1_tgt loc from to rsv2_tgt mem2_tgt):
       (<<MEM2: sim_memory mem1_src mem2_tgt>>) /\
       (<<RESERVES2: Memory.le rsv1_src rsv2_tgt>>) /\
-      (<<GRESERVES2: sim_greserves rsv1_src mem1_src rsv1_tgt mem2_tgt>>).
+      (<<GRESERVES2: sim_greserves rsv1_src mem1_src rsv2_tgt mem2_tgt>>).
     Proof.
       inv MEM1. inv RESERVE_TGT.
       hexploit Memory.add_le; try exact MEM. i.
@@ -231,24 +231,25 @@ Module PFConsistent.
         ii. revert LHS. erewrite Memory.add_o; eauto.
         condtac; ss; eauto.
       - etrans; eauto using Memory.add_le.
-      - ii. exploit GRESERVES1; eauto. i. des. splits; ss.
-        erewrite Memory.add_o; eauto.
+      - ii. exploit GRESERVES1; eauto. i. des.
+        erewrite (@Memory.add_o rsv2_tgt); eauto.
+        erewrite (@Memory.add_o mem2_tgt); eauto.
         condtac; ss; eauto. des. subst.
         exploit Memory.add_get0; try exact MEM. i. des. congr.
     Qed.
 
     Lemma sim_memory_cancel
-      rsv1_src mem1_src
-      rsv1_tgt mem1_tgt
-      loc from to rsv2_tgt mem2_tgt
-      (MEM1: sim_memory mem1_src mem1_tgt)
-      (RESERVES1: Memory.le rsv1_src rsv1_tgt)
-      (GRESERVES1: sim_greserves rsv1_src mem1_src rsv1_tgt mem1_tgt)
-      (LE1_SRC: Memory.le rsv1_src mem1_src)
-      (CANCEL_TGT: Memory.cancel rsv1_tgt mem1_tgt loc from to rsv2_tgt mem2_tgt):
+          rsv1_src mem1_src
+          rsv1_tgt mem1_tgt
+          loc from to rsv2_tgt mem2_tgt
+          (MEM1: sim_memory mem1_src mem1_tgt)
+          (RESERVES1: Memory.le rsv1_src rsv1_tgt)
+          (GRESERVES1: sim_greserves rsv1_src mem1_src rsv1_tgt mem1_tgt)
+          (LE1_SRC: Memory.le rsv1_src mem1_src)
+          (CANCEL_TGT: Memory.cancel rsv1_tgt mem1_tgt loc from to rsv2_tgt mem2_tgt):
       (<<MEM2: sim_memory mem1_src mem2_tgt>>) /\
       (<<RESERVES2: Memory.le rsv1_src rsv2_tgt>>) /\
-      (<<GRESERVES2: sim_greserves rsv1_src mem1_src rsv1_tgt mem2_tgt>>) \/
+      (<<GRESERVES2: sim_greserves rsv1_src mem1_src rsv2_tgt mem2_tgt>>) \/
       exists rsv2_src mem2_src,
         (<<CANCEL_SRC: Memory.cancel rsv1_src mem1_src loc from to rsv2_src mem2_src>>) /\
         (<<MEM2: sim_memory mem2_src mem2_tgt>>) /\
@@ -300,57 +301,31 @@ Module PFConsistent.
         - erewrite Memory.remove_o; eauto. condtac; ss; eauto.
           des. subst. congr.
         - exploit GRESERVES1; eauto. i. des.
-          erewrite (@Memory.remove_o mem2_tgt); eauto. condtac; ss.
-          des. subst. congr.
+          erewrite (@Memory.remove_o rsv2_tgt); eauto.
+          erewrite (@Memory.remove_o mem2_tgt); eauto.
+          condtac; ss. des. subst. congr.
       }
-    Qed.
-
-    (* TODO *)
-
-    Lemma sim_thread_non_pf_step
-          th1_src
-          e th1_tgt th2_tgt
-          (SIM1: sim_thread th1_src th1_tgt)
-          (STEP_TGT: Thread.step e th1_tgt th2_tgt)
-          (EVENT: ~ ThreadEvent.is_pf e):
-      sim_thread th1_src th2_tgt.
-    Proof.
-      inv SIM1. inv STEP_TGT; inv LOCAL; ss.
-      - inv LOCAL0. econs; ss.
-        + etrans; eauto.
-          inv PROMISE. eauto using BoolMap.add_le.
-        + rewrite GPROMISES.
-          eauto using Promises.promise_minus.
-        + rewrite GPROMISES_INV.
-          eauto using Promises.promise_minus_inv.
-      - inv LOCAL0. inv RESERVE. econs; ss.
-        + hexploit Memory.add_le; try exact RSV. i. etrans; eauto.
-        + inv MEMORY.
-          hexploit Memory.add_le; try exact MEM. i.
-          hexploit Memory.le_messages_le; try exact H. i.
-          econs; try by (etrans; eauto).
-          ii. revert LHS. erewrite Memory.add_o; eauto.
-          condtac; ss; eauto.
     Qed.
 
     Lemma sim_is_racy
           lc_src gl_src lc_tgt gl_tgt
           loc to ord
           (TVIEW: Local.tview lc_src = Local.tview lc_tgt)
-          (PROMISES: BoolMap.minus (Global.promises gl_src) (Local.promises lc_src) =
-                     BoolMap.minus (Global.promises gl_tgt) (Local.promises lc_tgt))
-          (MEMORY: Global.memory gl_src = Global.memory gl_tgt)
+          (GPROMISES: BoolMap.minus (Global.promises gl_src) (Local.promises lc_src) =
+                      BoolMap.minus (Global.promises gl_tgt) (Local.promises lc_tgt))
+          (MEMORY: sim_memory (Global.memory gl_src) (Global.memory gl_tgt))
           (RACE_TGT: Local.is_racy lc_tgt gl_tgt loc to ord):
       Local.is_racy lc_src gl_src loc to ord.
     Proof.
       inv RACE_TGT.
-      - eapply equal_f in PROMISES.
+      - eapply equal_f in GPROMISES.
         unfold BoolMap.minus in *.
         rewrite GET, GETP in *. ss.
         destruct (Global.promises gl_src loc) eqn:GRSV; ss.
         destruct (Local.promises lc_src loc) eqn:RSV; ss.
         econs 1; eauto.
-      - rewrite <- TVIEW, <- MEMORY in *. eauto.
+      - inv MEMORY. exploit COMPLETE; eauto. i.
+        econs 2; eauto. congr.
     Qed.
 
     Lemma sim_fulfill
@@ -358,13 +333,12 @@ Module PFConsistent.
           prm1_tgt gprm1_tgt loc ord prm2_tgt gprm2_tgt
           (PROMISES: BoolMap.le prm1_src prm1_tgt)
           (GPROMISES: BoolMap.minus gprm1_src prm1_src = BoolMap.minus gprm1_tgt prm1_tgt)
-          (GPROMISES_INV: BoolMap.minus prm1_src gprm1_src = BoolMap.minus prm1_tgt gprm1_tgt)
+          (LE_SRC: BoolMap.le prm1_src gprm1_src)
           (FULFILL_TGT: Promises.fulfill prm1_tgt gprm1_tgt loc ord prm2_tgt gprm2_tgt):
       exists prm2_src gprm2_src,
         (<<FULFILL_SRC: Promises.fulfill prm1_src gprm1_src loc ord prm2_src gprm2_src>>) /\
         (<<PROMISES: BoolMap.le prm2_src prm2_tgt>>) /\
-        (<<GPROMISES: BoolMap.minus gprm2_src prm2_src = BoolMap.minus gprm2_tgt prm2_tgt>>) /\
-        (<<GPROMISES_INV: BoolMap.minus prm2_src gprm2_src = BoolMap.minus prm2_tgt gprm2_tgt>>).
+        (<<GPROMISES: BoolMap.minus gprm2_src prm2_src = BoolMap.minus gprm2_tgt prm2_tgt>>).
     Proof.
       inv FULFILL_TGT.
       { esplits; [econs 1|..]; eauto. }
@@ -372,17 +346,12 @@ Module PFConsistent.
       exploit BoolMap.remove_get0; try exact GREMOVE. i. des.
       destruct (prm1_src loc) eqn:GET_SRC.
       - destruct (gprm1_src loc) eqn:GGET_SRC; cycle 1.
-        { unfold BoolMap.minus in *.
-          eapply equal_f in GPROMISES_INV.
-          rewrite GET1, GET0, GET_SRC, GGET_SRC in GPROMISES_INV. ss.
-        }
+        { exploit LE_SRC; eauto. congr. }
         exploit BoolMap.remove_exists; try exact GET_SRC. i. des.
         exploit BoolMap.remove_exists; try exact GGET_SRC. i. des.
         esplits; [econs 2|..]; eauto using BoolMap.le_remove.
-        + erewrite <- BoolMap.remove_minus; try exact x0; try exact x1.
-          rewrite GPROMISES. eauto using BoolMap.remove_minus.
-        + erewrite <- BoolMap.remove_minus; try exact x0; try exact x1.
-          rewrite GPROMISES_INV. eauto using BoolMap.remove_minus.
+        erewrite <- BoolMap.remove_minus; try exact x0; try exact x1.
+        rewrite GPROMISES. eauto using BoolMap.remove_minus.
       - destruct (gprm1_src loc) eqn:GGET_SRC.
         { unfold BoolMap.minus in *.
           eapply equal_f in GPROMISES.
@@ -395,169 +364,238 @@ Module PFConsistent.
           inv REMOVE. inv GREMOVE. unfold LocFun.add. condtac; ss.
           * subst. rewrite GET_SRC, GGET_SRC. ss.
           * eapply equal_f in GPROMISES. rewrite GPROMISES. ss.
-        + extensionality x. unfold BoolMap.minus in *.
-          inv REMOVE. inv GREMOVE. unfold LocFun.add. condtac; ss.
-          * subst. rewrite GET_SRC, GGET_SRC. ss.
-          * eapply equal_f in GPROMISES_INV. rewrite GPROMISES_INV. ss.
     Qed.
 
-    Lemma sim_thread_pf_step
+    (* Lemma sim_thread_non_pf_step *)
+    (*       th1_src *)
+    (*       e th1_tgt th2_tgt *)
+    (*       (SIM1: sim_thread th1_src th1_tgt) *)
+    (*       (WF1_SRC: Local.wf (Thread.local th1_src) (Thread.global th1_src)) *)
+    (*       (STEP_TGT: Thread.step e th1_tgt th2_tgt) *)
+    (*       (EVENT: ~ ThreadEvent.is_pf e): *)
+    (*   sim_thread th1_src th2_tgt. *)
+    (* Proof. *)
+    (*   inv SIM1. inv STEP_TGT; inv LOCAL; ss. *)
+    (*   - inv LOCAL0. econs; ss. *)
+    (*     + etrans; eauto. *)
+    (*       inv PROMISE. eauto using BoolMap.add_le. *)
+    (*     + rewrite GPROMISES. *)
+    (*       eauto using Promises.promise_minus. *)
+    (*     + rewrite GPROMISES_INV. *)
+    (*       eauto using Promises.promise_minus_inv. *)
+    (*   - inv LOCAL0. inv RESERVE. econs; ss. *)
+    (*     + hexploit Memory.add_le; try exact RSV. i. etrans; eauto. *)
+    (*     + inv MEMORY. *)
+    (*       hexploit Memory.add_le; try exact MEM. i. *)
+    (*       hexploit Memory.le_messages_le; try exact H. i. *)
+    (*       econs; try by (etrans; eauto). *)
+    (*       ii. revert LHS. erewrite Memory.add_o; eauto. *)
+    (*       condtac; ss; eauto. *)
+    (* Qed. *)
+
+    Lemma sim_thread_step
           th1_src
-          e th1_tgt th2_tgt
+          e_tgt th1_tgt th2_tgt
           (SIM1: sim_thread th1_src th1_tgt)
-          (STEP_TGT: Thread.step e th1_tgt th2_tgt)
-          (NONSC: ~ ThreadEvent.is_sc e):
-      exists th2_src,
-        (<<STEP_SRC: Thread.step e th1_src th2_src>>) /\
+          (WF1_SRC: Local.wf (Thread.local th1_src) (Thread.global th1_src))
+          (STEP_TGT: Thread.step e_tgt th1_tgt th2_tgt):
+      exists e_src th2_src,
+        (<<STEP_SRC: Thread.opt_step e_src th1_src th2_src>>) /\
+        (<<EVENT: __guard__ (
+                      e_src = e_tgt \/
+                      e_src = ThreadEvent.silent /\ ThreadEvent.is_internal e_tgt)>>) /\
+        (<<EVENT_PF: ThreadEvent.is_pf e_src>>) /\
         (<<SIM2: sim_thread th2_src th2_tgt>>).
     Proof.
+      unguard.
       destruct th1_src as [st1_src [tview1_src prm1_src rsv1_src] [sc1_src gprm1_src mem1_src]],
           th1_tgt as [st1_tgt [tview1_tgt prm1_tgt rsv1_tgt] [sc1_tgt gprm1_tgt mem1_tgt]].
       inv SIM1. ss. subst.
-      inv STEP_TGT. inv LOCAL; ss.
+      inv STEP_TGT; inv LOCAL; ss.
+      { (* promise *)
+        inv LOCAL0. ss.
+        esplits; [econs 1|..]; eauto; ss.
+        econs; ss.
+        - etrans; eauto.
+          inv PROMISE. eauto using BoolMap.add_le.
+        - rewrite GPROMISES.
+          eauto using Promises.promise_minus.
+      }
+      { (* reserve *)
+        inv LOCAL0. ss.
+        exploit sim_memory_reserve; try exact RESERVE; eauto. i. des.
+        esplits; [econs 1|..]; eauto; ss.
+      }
+      { (* cancel *)
+        inv LOCAL0. ss.
+        exploit sim_memory_cancel; try exact RESERVE; eauto; try apply WF1_SRC. i. des.
+        - esplits; [econs 1|..]; eauto; ss.
+        - esplits.
+          + econs 2. econs 1. econs 3; eauto.
+          + auto.
+          + ss.
+          + ss.
+      }
       { (* silent *)
         esplits.
-        - econs; [|econs 1]; eauto.
+        - econs 2. econs 2; [|econs 1]; eauto.
+        - auto.
+        - ss.
         - ss.
       }
       { (* read *)
         inv LOCAL0. ss.
+        dup MEMORY. inv MEMORY0. exploit COMPLETE; eauto. i.
         esplits.
-        - econs; [|econs 2]; eauto.
+        - econs 2. econs 2; [|econs 2]; eauto.
+        - auto.
+        - ss.
         - ss.
       }
       { (* write *)
         inv LOCAL0. ss.
-        exploit sim_fulfill; try exact FULFILL; eauto. i. des.
+        exploit sim_fulfill; try exact FULFILL; eauto; try apply WF1_SRC. i. des.
+        exploit sim_memory_add; try exact WRITE; eauto; ss. i. des.
         esplits.
-        - econs; [|econs 3]; eauto.
-          econs; s; eauto.
-          i. des. apply RESERVED.
-          destruct (rsv1_tgt loc) eqn:RSV.
-          + apply RESERVES in RSV. congr.
-          + exploit GRESERVES; eauto.
-        - econs; ss.
+        - econs 2. econs 2; [|econs 3]; eauto.
+        - auto.
+        - ss.
+        - ss.
       }
       { (* update *)
         inv LOCAL1. inv LOCAL2. ss.
-        exploit sim_fulfill; try exact FULFILL; eauto. i. des.
+        dup MEMORY. inv MEMORY0. exploit COMPLETE; eauto. i.
+        exploit sim_fulfill; try exact FULFILL; eauto; try apply WF1_SRC. i. des.
+        exploit sim_memory_add; try exact WRITE; eauto; ss. i. des.
         esplits.
-        - econs; [|econs 4]; eauto.
-          econs; s; eauto.
-          i. des. apply RESERVED.
-          destruct (rsv1_tgt loc) eqn:RSV.
-          + apply RESERVES in RSV. congr.
-          + exploit GRESERVES; eauto.
-        - econs; ss.
+        - econs 2. econs 2; [|econs 4]; eauto.
+        - auto.
+        - ss.
+        - ss.
       }
       { (* fence *)
         inv LOCAL0. ss.
         esplits.
-        - econs; [|econs 5]; eauto. econs; ss.
+        - econs 2. econs 2; [|econs 5]; eauto. econs; ss. i.
+          exploit PROMISES0; eauto. i. subst.
+          apply BoolMap.antisym; ss.
+        - auto.
+        - ss.
+        - ss.
+      }
+      { (* syscall *)
+        inv LOCAL0. ss.
+        esplits.
+        - econs 2. econs 2; [|econs 6]; eauto. econs; ss. i.
+          exploit PROMISES0; eauto. i. subst.
+          apply BoolMap.antisym; ss.
+        - auto.
+        - ss.
         - ss.
       }
       { (* failure *)
         inv LOCAL0. ss.
         esplits.
-        - econs; [|econs 7]; eauto.
+        - econs 2. econs 2; [|econs 7]; eauto.
+        - auto.
+        - ss.
         - ss.
       }
       { (* racy read *)
         inv LOCAL0. ss.
         esplits.
-        - econs; [|econs 8]; eauto.
+        - econs 2. econs 2; [|econs 8]; eauto.
           econs. eapply sim_is_racy; try eapply RACE; ss.
+        - auto.
+        - ss.
         - ss.
       }
       { (* racy write *)
         inv LOCAL0. ss.
         esplits.
-        - econs; [|econs 9]; eauto.
+        - econs 2. econs 2; [|econs 9]; eauto.
           econs. eapply sim_is_racy; try eapply RACE; ss.
+        - auto.
+        - ss.
         - ss.
       }
       { (* racy update *)
         esplits.
-        - econs; [|econs 10]; eauto.
+        - econs 2. econs 2; [|econs 10]; eauto.
           inv LOCAL0.
           + econs 1. ss.
           + econs 2. ss.
           + econs 3. eapply sim_is_racy; try eapply RACE; ss.
+        - auto.
+        - ss.
         - ss.
       }
     Qed.
 
     Lemma sim_thread_rtc_non_sc_step
-          reserved
           th1_src
           th1_tgt th2_tgt
           (SIM1: sim_thread th1_src th1_tgt)
-          (STEPS_TGT: rtc (pstep (Thread.step_allpf reserved) non_sc) th1_tgt th2_tgt):
+          (LC_WF1_SRC: Local.wf (Thread.local th1_src) (Thread.global th1_src))
+          (GL_WF1_SRC: Global.wf (Thread.global th1_src))
+          (STEPS_TGT: rtc (pstep (@Thread.step _) non_sc) th1_tgt th2_tgt):
       exists th2_src,
-        (<<STEPS_SRC: rtc (pstep (Thread.step reserved true) non_sc) th1_src th2_src>>) /\
+        (<<STEPS_SRC: rtc (pstep (@Thread.step _) (ThreadEvent.is_pf /1\ non_sc)) th1_src th2_src>>) /\
         (<<SIM2: sim_thread th2_src th2_tgt>>).
     Proof.
-      revert th1_src SIM1.
+      revert th1_src SIM1 LC_WF1_SRC GL_WF1_SRC.
       induction STEPS_TGT; eauto; i.
-      inv H. inv STEP.
-      destruct pf; eauto using sim_thread_internal_step.
-      exploit sim_thread_program_step; try exact SIM1; eauto.
-      { ii. apply EVENT in H. ss. }
-      i. des.
+      inv H.
+      exploit sim_thread_step; try exact SIM1; eauto. i. des.
+      exploit Thread.opt_step_future; eauto. i. des.
       exploit IHSTEPS_TGT; eauto. i. des.
-      esplits; [econs 2|]; eauto.
+      inv STEP_SRC; eauto.
+      esplits; [|eauto].
+      econs 2; [|eauto].
+      econs; eauto. split; ss.
+      inv EVENT0; try congr.
+      des. subst. auto.
     Qed.
 
-    Lemma non_sc_consistent_pf_consistent_aux
-          reserved th_src th_tgt
-          (SIM: sim_thread th_src th_tgt)
-          (CONS: non_sc_consistent reserved th_tgt):
-      pf_consistent_aux reserved th_src.
-    Proof.
-      inv CONS.
-      - exploit sim_thread_rtc_non_sc_step; eauto. i. des.
-        destruct pf; cycle 1.
-        { inv STEP_FAILURE. inv LOCAL; ss. }
-        exploit sim_thread_program_step; try exact SIM2; eauto.
-        { destruct e; ss. }
-        i. des.
-        econs 1; eauto.
-      - exploit sim_thread_rtc_non_sc_step; eauto. i. des.
-        econs 2; eauto.
-        inv SIM2. rewrite PROMISES in *.
-        extensionality x. specialize (PROMISES0 x).
-        destruct (Local.promises (Thread.local th2_src) x); ss; auto.
-        exploit PROMISES0; eauto.
-    Qed.
-
-    Lemma pf_consistent_aux_pf_consistent
+    Lemma non_sc_consistent_pf_consistent
           th
-          (CONS: pf_consistent_aux
-                   (Memory.max_timemap (Global.memory (Thread.global th)))
-                   (Thread.cap_of th)):
+          (LC_WF: Local.wf (Thread.local th) (Thread.global th))
+          (GL_WF: Global.wf (Thread.global th))
+          (CONS: non_sc_consistent th):
       pf_consistent th.
     Proof.
+      exploit Thread.cap_wf; eauto. clear LC_WF GL_WF. i. des.
       inv CONS.
-      - econs 1; eauto.
-      - econs 2; eauto.
+      - exploit sim_thread_rtc_non_sc_step; [refl|..]; eauto. i. des.
+        exploit Thread.rtc_all_step_future; try eapply rtc_implies; try exact STEPS_SRC; eauto.
+        { i. inv H. econs. eauto. }
+        i. des.
+        exploit sim_thread_step; try exact STEP_FAILURE; eauto. i. des.
+        unguard. des; try by destruct e; ss. subst.
+        inv STEP_SRC; ss.
+        econs 1; eauto.
+      - exploit sim_thread_rtc_non_sc_step; [refl|..]; eauto. i. des.
+        econs 2; eauto.
+        inv SIM2. rewrite PROMISES in *.
+        apply BoolMap.antisym; ss.
     Qed.
 
     Lemma consistent_pf_consistent
           th
+          (LC_WF: Local.wf (Thread.local th) (Thread.global th))
+          (GL_WF: Global.wf (Thread.global th))
           (CONS: Thread.consistent th):
       pf_consistent th.
     Proof.
-      apply pf_consistent_aux_pf_consistent.
-      eapply non_sc_consistent_pf_consistent_aux;
-        try apply fully_reserved_sim_thread.
-      apply consistent_non_sc_consistent. auto.
+      apply non_sc_consistent_pf_consistent; ss.
+      apply consistent_non_sc_consistent. ss.
     Qed.
 
     Lemma rtc_pf_steps_rtc_spf_steps
-          reserved th1 th2
-          (STEPS: rtc (pstep (Thread.step reserved true) non_sc) th1 th2):
-      (<<SPF_STEPS: rtc (pstep (Thread.step reserved true) (strict_pf /1\ non_sc)) th1 th2>>) \/
-      (<<SPF_RACE: spf_race reserved th1>>).
+          th1 th2
+          (STEPS: rtc (pstep (@Thread.step _) (ThreadEvent.is_pf /1\ non_sc)) th1 th2):
+      (<<SPF_STEPS: rtc (pstep (@Thread.step _) (strict_pf /1\ non_sc)) th1 th2>>) \/
+      (<<SPF_RACE: spf_race th1>>).
     Proof.
       induction STEPS; eauto.
       inv H. destruct (classic (ThreadEvent.is_racy_promise e)).
@@ -572,15 +610,13 @@ Module PFConsistent.
           th
           (CONS: pf_consistent th):
       (<<SPF_CONS: spf_consistent th>>) \/
-      (<<SPF_RACE: spf_race
-                     (Memory.max_timemap (Global.memory (Thread.global th)))
-                     (Thread.cap_of th)>>).
+      (<<SPF_RACE: spf_race (Thread.cap_of th)>>).
     Proof.
       inv CONS.
       - exploit rtc_pf_steps_rtc_spf_steps; eauto. i. des; eauto.
         destruct (classic (ThreadEvent.is_racy_promise e)).
         + right. econs; eauto.
-        + left. econs 1; eauto.
+        + left. econs 1; eauto. split; ss. destruct e; ss.
       - exploit rtc_pf_steps_rtc_spf_steps; eauto. i. des; eauto.
         left. econs 2; eauto.
     Qed.

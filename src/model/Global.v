@@ -55,6 +55,16 @@ Module Global.
     apply Memory.cap_of_cap.
   Qed.
 
+  Lemma cap_wf
+        gl
+        (WF: wf gl):
+    wf (cap_of gl).
+  Proof.
+    inv WF.
+    econs; s; eauto using Memory.cap_of_cap,
+      Memory.cap_closed, Memory.cap_closed_timemap.
+  Qed.
+
   Variant future (gl1 gl2: t): Prop :=
   | future_intro
       (SC: TimeMap.le (sc gl1) (sc gl2))

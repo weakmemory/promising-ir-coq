@@ -170,6 +170,17 @@ Module Thread.
           (PROMISES: Local.promises (Thread.local th2) = BoolMap.bot)
     .
 
+    Lemma cap_wf
+          th
+          (WF_LC: Local.wf (local th) (global th))
+          (WF_GL: Global.wf (global th)):
+      (<<WF_LC_CAP: Local.wf (local (cap_of th)) (global (cap_of th))>>) /\
+      (<<WF_GL_CAP: Global.wf (global (cap_of th))>>).
+    Proof.
+      exploit Local.cap_wf; eauto.
+      exploit Global.cap_wf; eauto.
+    Qed.
+
     (* step_future *)
 
     Lemma step_future

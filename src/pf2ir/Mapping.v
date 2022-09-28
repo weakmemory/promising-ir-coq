@@ -157,7 +157,6 @@ Section Mapping.
               (<<MSG: message_map msg fmsg>>))
         (COMPLETE: forall loc ffrom fto fmsg
                           (FGET: Memory.get loc fto fmem = Some (ffrom, fmsg)),
-            (<<RESERVE: fmsg <> Message.reserve>>) /\
             exists ffrom' fto' from to msg,
               (<<RSV: Memory.get loc to rsv = None>>) /\
               (<<GET: Memory.get loc to mem = Some (from, msg)>>) /\
@@ -589,10 +588,10 @@ Proof.
   exploit add_cases; eauto. i. unguard. des.
 
   { (* target non-latest *)
-    assert (EMPTY: forall ts fts
-                          (LT1: Time.lt pto ts)
-                          (LT2: Time.lt ts nfrom)
-                          (MAP: f1 loc ts fts),
+    assert (MAP_EMPTY: forall ts fts
+                         (LT1: Time.lt pto ts)
+                         (LT2: Time.lt ts nfrom)
+                         (MAP: f1 loc ts fts),
                False).
     { i. exploit COMPLETE1; try exact MAP. i. unguardH x0. des; subst.
       - destruct (TimeFacts.le_lt_dec to to0); cycle 1.
@@ -641,7 +640,12 @@ Proof.
     i. des.
 
     { (* source latest *)
-      admit.
+      assert (FMAP_EMPTY: forall ts fts
+                            (LT: Time.lt fpto ts)
+                            (MAP: f1 loc ts fts),
+                 False).
+      { i. exploit COMPLETE1; try exact MAP. i. des.
+      }
     }
 
     { (* source non-latest *)

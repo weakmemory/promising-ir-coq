@@ -24,6 +24,8 @@ Require Import Global.
 Require Import Local.
 Require Import Thread.
 
+Require Import Cover.
+
 Set Implicit Arguments.
 
 
@@ -135,67 +137,46 @@ Section Mapping.
   .
 
   Variant message_map: forall (msg fmsg: Message.t), Prop :=
-    | message_map_intro
+    | message_map_message
         val view fview na
         (RELEASED: opt_view_map view fview):
       message_map (Message.message val view na) (Message.message val fview na)
+    | message_map_reserve:
+      message_map Message.reserve Message.reserve
   .
 
-  Variant memory_map_loc (loc: Loc.t) (max: Time.t): forall (rsv: bool) (mem fmem: Memory.t), Prop :=
-    | memory_map_loc_reserved
-        mem fmem
-        fmax
-        (SOUND: forall from to msg (GET: Memory.get loc to mem = Some (from, msg)),
-          exists ffrom fto fmsg,
-            (<<FGET: Memory.get loc fto fmem = Some (ffrom, fmsg)>>) /\
-            (<<FROM: f loc from ffrom>>) /\
-            (<<TO: f loc to fto>>) /\
-            (<<MSG: message_map msg fmsg>>) /\
-            (<<FTO_IN: Time.lt fto fmax>>))
-        (COMPLETE: forall ffrom fto fmsg
+  Variant memory_map (rsv: Memory.t) (mem fmem: Memory.t): Prop :=
+    | memory_map_intro
+        (SOUND: forall loc from to msg
+                       (GET: Memory.get loc to mem = Some (from, msg)),
+            (<<RESERVE: msg = Message.reserve>>) \/
+            exists ffrom fto fmsg,
+              (<<FGET: Memory.get loc fto fmem = Some (ffrom, fmsg)>>) /\
+              (<<FROM: f loc from ffrom>>) /\
+              (<<TO: f loc to fto>>) /\
+              (<<MSG: message_map msg fmsg>>))
+        (COMPLETE: forall loc ffrom fto fmsg
                           (FGET: Memory.get loc fto fmem = Some (ffrom, fmsg)),
-            (<<FFROM_OUT: Time.lt fmax ffrom>>) \/
-            (<<FTO_IN: Time.lt fto fmax>>) /\
-            exists from to msg,
+            (<<RESERVE: fmsg <> Message.reserve>>) /\
+            exists ffrom' fto' from to msg,
+              (<<RSV: Memory.get loc to rsv = None>>) /\
               (<<GET: Memory.get loc to mem = Some (from, msg)>>) /\
-              (<<FROM: f loc from ffrom>>) /\
-              (<<TO: f loc to fto>>) /\
-              (<<MSG: message_map msg fmsg>>)):
-      memory_map_loc loc max true mem fmem
-    | memory_map_loc_non_reserved
-        mem fmem
-        fmin
-        (SOUND: forall from to msg (GET: Memory.get loc to mem = Some (from, msg)),
-          exists ffrom fto fmsg,
-            (<<FGET: Memory.get loc fto fmem = Some (ffrom, fmsg)>>) /\
-            (<<FROM: f loc from ffrom>>) /\
-            (<<TO: f loc to fto>>) /\
-            (<<MSG: message_map msg fmsg>>) /\
-            (<<FTO_IN: Time.lt max to -> Time.lt fmin fto>>))
-        (COMPLETE: forall ffrom fto fmsg
-                     (FGET: Memory.get loc fto fmem = Some (ffrom, fmsg))
-                     (FTO_IN: Time.lt fmin fto),
-            (<<FFROM_IN: Time.lt fmin ffrom>>) /\
-            exists from to msg,
-              (<<GET: Memory.get loc to mem = Some (from, msg)>>) /\
-              (<<FROM: f loc from ffrom>>) /\
-              (<<TO: f loc to fto>>) /\
-              (<<MSG: message_map msg fmsg>>) /\
-              (<<TO_IN: Time.lt max to>>)):
-      memory_map_loc loc max false mem fmem
+              (<<FFROM: Time.le ffrom' ffrom>>) /\
+              (<<FTO: Time.le fto fto'>>) /\
+              (<<FROM: f loc from ffrom'>>) /\
+              (<<TO: f loc to fto'>>) /\
+              (<<COVERED: forall ts (ITV: Interval.mem (ffrom, fto) ts),
+                  covered loc ts mem>>))
   .
-
-  Definition memory_map (max: TimeMap.t) (rsv: BoolMap.t) (mem fmem: Memory.t): Prop :=
-    forall loc, memory_map_loc loc (max loc) (rsv loc) mem fmem.
 
   Variant local_map (lc flc: Local.t): Prop :=
     | local_map_intro
         (TVIEW: tview_map (Local.tview lc) (Local.tview flc))
   .
 
-  Variant global_map (max: TimeMap.t) (rsv: BoolMap.t) (gl fgl: Global.t): Prop :=
+  Variant global_map (rsv: Memory.t) (gl fgl: Global.t): Prop :=
     | global_map_intro
-        (MEMORY: memory_map max rsv (Global.memory gl) (Global.memory fgl))
+        (MEMORY: memory_map rsv (Global.memory gl) (Global.memory fgl))
   .
 
   Variant event_map: forall (e fe: ThreadEvent.t), Prop :=
@@ -203,11 +184,15 @@ Section Mapping.
         loc:
       event_map (ThreadEvent.promise loc) (ThreadEvent.promise loc)
     | event_map_reserve
-        loc:
-      event_map (ThreadEvent.reserve loc) (ThreadEvent.reserve loc)
+        loc from to ffrom fto
+        (FROM: f loc from ffrom)
+        (TO: f loc to fto):
+      event_map (ThreadEvent.reserve loc from to) (ThreadEvent.reserve loc ffrom fto)
     | event_map_cancel
-        loc:
-      event_map (ThreadEvent.cancel loc) (ThreadEvent.cancel loc)
+        loc from to ffrom fto
+        (FROM: f loc from ffrom)
+        (TO: f loc to fto):
+      event_map (ThreadEvent.cancel loc from to) (ThreadEvent.cancel loc ffrom fto)
     | event_map_silent:
       event_map ThreadEvent.silent ThreadEvent.silent
     | event_map_read
@@ -448,7 +433,7 @@ Lemma message_map_incr
       (INCR: f1 <3= f2):
   message_map f1 <2= message_map f2.
 Proof.
-  i. inv PR. econs.
+  i. inv PR; econs.
   eauto using opt_view_map_incr.
 Qed.
 
@@ -467,8 +452,8 @@ Lemma event_map_incr
 Proof.
   i. inv PR.
   - econs 1.
-  - econs 2.
-  - econs 3.
+  - econs 2; eauto.
+  - econs 3; eauto.
   - econs 4.
   - econs 5; eauto using opt_view_map_incr.
   - econs 6; eauto using opt_view_map_incr.
@@ -482,35 +467,36 @@ Proof.
 Qed.
 
 Lemma memory_map_get
-      f max rsv mem fmem
+      f rsv mem fmem
       loc from to msg
-      (MAP: memory_map f max rsv mem fmem)
-      (GET: Memory.get loc to mem = Some (from, msg)):
+      (MAP: memory_map f rsv mem fmem)
+      (GET: Memory.get loc to mem = Some (from, msg))
+      (RESERVE: msg <> Message.reserve):
   exists ffrom fto fmsg,
     (<<FGET: Memory.get loc fto fmem = Some (ffrom, fmsg)>>) /\
     (<<FROM: f loc from ffrom>>) /\
     (<<TO: f loc to fto>>) /\
     (<<MSG: message_map f msg fmsg>>).
 Proof.
-  destruct (MAP loc).
-  - exploit SOUND; eauto. i. des. esplits; eauto.
-  - exploit SOUND; eauto. i. des. esplits; eauto.
+  destruct MAP.
+  exploit SOUND; eauto. i. des; try congr.
+  esplits; eauto.
 Qed.
 
 Lemma memory_map_closed_timemap
-      f max rsv mem fmem
+      f rsv mem fmem
       tm ftm
       (WF: map_wf f)
-      (MEMORY: memory_map f max rsv mem fmem)
+      (MEMORY: memory_map f rsv mem fmem)
       (TIMEMAP: timemap_map f tm ftm)
       (CLOSED: Memory.closed_timemap tm mem):
   Memory.closed_timemap ftm fmem.
 Proof.
   ii. specialize (CLOSED loc). des.
-  exploit memory_map_get; eauto. i. des.
+  exploit memory_map_get; eauto; ss. i. des. inv MSG.
   specialize (TIMEMAP loc).
   inv WF. exploit MAP_EQ; [|exact TIMEMAP|exact TO|]; ss. i. subst.
-  eauto.
+  esplits; eauto.
 Qed.
 
 Lemma lt_get_from
@@ -536,14 +522,14 @@ Lemma add_cases
       (ADD: Memory.add mem1 loc from to msg mem2):
   exists pfrom pto pmsg,
     (<<PGET: Memory.get loc pto mem1 = Some (pfrom, pmsg)>>) /\
-    (<<PREV_FROM: Time.le pto from>>) /\
-    (<<PREV_TO: Time.lt pto to>>) /\
+    (<<PREV: Time.le pto from>>) /\
+    (<<PREV_TS: Time.le pfrom pto>>) /\
     (<<PEMPTY: Memory.empty mem1 loc pto to>>) /\
     __guard__ (
         (exists nfrom nto nmsg,
             (<<NGET: Memory.get loc nto mem1 = Some (nfrom, nmsg)>>) /\
-            (<<NEXT_FROM: Time.le to nfrom>>) /\
-            (<<NEXT_TO: Time.lt to nto>>) /\
+            (<<NEXT: Time.le to nfrom>>) /\
+            (<<NEXT_TS: Time.lt nfrom nto>>) /\
             (<<NEMPTY: Memory.empty mem1 loc to nto>>)) \/
         (<<LATEST: forall ts (LT: Time.lt to ts), Memory.get loc ts mem1 = None>>)).
 Proof.
@@ -560,6 +546,7 @@ Proof.
   { exploit Memory.add_get1; try exact x1; eauto. i.
     eapply lt_get_from; eauto.
   }
+  { exploit Memory.get_ts; try exact x1. i. des; timetac. }
   { ii. exploit x3; eauto.
     erewrite Memory.add_o; eauto. condtac; ss.
   }
@@ -571,22 +558,21 @@ Proof.
   }
   { left.
     exploit Memory.next_exists; try exact l; eauto. i. des.
+    exploit Memory.get_ts; try exact x4. i. des; timetac.
     esplits; eauto.
-    exploit Memory.add_get1; try exact x6; eauto. i.
+    exploit Memory.add_get1; try exact x4; eauto. i.
     eapply lt_get_from; eauto.
   }
 Qed.
 
 Lemma memory_map_add
-      f1 max rsv mem1 fmem1
+      f1 rsv mem1 fmem1
       loc from to msg mem2
       (WF1: map_wf f1)
       (COMPLETE1: map_complete f1 mem1 fmem1)
-      (MAP1: memory_map f1 max rsv mem1 fmem1)
+      (MAP1: memory_map f1 rsv mem1 fmem1)
       (INHABITED1: Memory.inhabited mem1)
-      (MAX: Memory.closed_timemap max mem1)
-      (ADD: Memory.add mem1 loc from to msg mem2)
-      (RESERVE: rsv loc = false -> Time.lt (max loc) from):
+      (ADD: Memory.add mem1 loc from to msg mem2):
   exists ffrom fto f2,
     (<<F2: f2 = map_add loc from ffrom (map_add loc to fto f1)>>) /\
     (<<WF2: map_wf f2>>) /\
@@ -596,11 +582,78 @@ Lemma memory_map_add
     exists fmem2,
       (<<FADD: Memory.add fmem1 loc ffrom fto fmsg fmem2>>) /\
       (<<COMPLETE2: map_complete f2 mem2 fmem2>>) /\
-      (<<MAP2: memory_map f2 max rsv mem2 fmem2>>).
+      (<<MAP2: memory_map f2 rsv mem2 fmem2>>).
 Proof.
-  inv WF1.
+  inv WF1. inv MAP1.
   exploit Memory.add_ts; eauto. intro TS.
-  exploit add_cases; eauto. i. des.
+  exploit add_cases; eauto. i. unguard. des.
+
+  { (* target non-latest *)
+    assert (EMPTY: forall ts fts
+                          (LT1: Time.lt pto ts)
+                          (LT2: Time.lt ts nfrom)
+                          (MAP: f1 loc ts fts),
+               False).
+    { i. exploit COMPLETE1; try exact MAP. i. unguardH x0. des; subst.
+      - destruct (TimeFacts.le_lt_dec to to0); cycle 1.
+        { exploit PEMPTY; try exact l; try congr.
+          exploit Memory.get_ts; try exact GET. i.
+          des; subst; timetac. etrans; eauto.
+        }
+        inv l; cycle 1.
+        { inv H. exploit Memory.add_get0; try exact ADD. i. des. congr. }
+        destruct (TimeFacts.le_lt_dec nto to0); cycle 1.
+        { exploit NEMPTY; try exact l; ss. congr. }
+        exploit Memory.get_disjoint; [exact NGET|exact GET|].
+        i. des; subst; timetac.
+        exploit Memory.get_ts; try exact NGET. i. des; subst; timetac.
+        apply (x0 nto); econs; ss; try refl.
+        etrans; eauto.
+      - destruct (TimeFacts.le_lt_dec to to0); cycle 1.
+        { exploit PEMPTY; try exact l; try congr. }
+        inv l; cycle 1.
+        { inv H. exploit Memory.add_get0; try exact ADD. i. des. congr. }
+        exploit NEMPTY; try exact H; try congr.
+        exploit Memory.get_ts; try exact NGET. i. des; subst; timetac.
+        etrans; eauto.
+    }
+
+    assert (Time.lt pto nfrom).
+    { eapply TimeFacts.le_lt_lt; try exact PREV.
+      eapply TimeFacts.lt_le_lt; eauto.
+    }
+
+    specialize (Memory.max_exists
+                  (fun fts => exists ts, f1 loc ts fts /\ Time.le ts pto) loc fmem1).
+    i. des.
+    { exploit SOUND; try eapply INHABITED1. i. des; ss.
+      exploit MAP_EQ; [|exact TO|eapply MAP_INHABITED|]; ss. i. subst.
+      exploit NONE; try exact FGET; ss.
+      esplits; eauto. timetac.
+    }
+    rename from_max into fpfrom, to_max into fpto, msg_max into fpmsg.
+    rename SAT into PTO_MAP, SAT0 into PTO_LE, MAX into PTO_MAX.
+
+    (* TODO: properties on pto *)
+
+    specialize (Memory.min_exists
+                  (fun fts => exists ts, f1 loc ts fts /\ Time.le nto ts) loc fmem1).
+    i. des.
+
+    { (* source latest *)
+      admit.
+    }
+
+    { (* source non-latest *)
+      admit.
+    }
+  }
+
+  { (* latest *)
+    admit.
+  }
+Admitted.
+
   destruct (rsv loc) eqn:RSV.
   { (* reserved *)
     generalize (MAP1 loc). rewrite RSV. i. inv H.
@@ -1796,7 +1849,6 @@ Proof.
       }
     }
   }
-Qed.
 
 Lemma map_readable
       f tview ftview
@@ -1831,14 +1883,13 @@ Proof.
 Qed.
 
 Lemma map_read_step
-      max rsv
+      rsv
       f1 lc1 gl1 flc1 fgl1
       loc to val released ord lc2
       (MAP_WF1: map_wf f1)
       (MAP_COMPLETE1: map_complete f1 (Global.memory gl1) (Global.memory fgl1))
       (LC_MAP1: local_map f1 lc1 flc1)
-      (GL_MAP1: global_map f1 max rsv gl1 fgl1)
-      (MAX: Memory.closed_timemap max (Global.memory gl1))
+      (GL_MAP1: global_map f1 rsv gl1 fgl1)
       (STEP: Local.read_step lc1 gl1 loc to val released ord lc2):
   exists fto freleased flc2,
     (<<FSTEP: Local.read_step flc1 fgl1 loc fto val freleased ord flc2>>) /\
@@ -1846,7 +1897,7 @@ Lemma map_read_step
     (<<RELEASED_MAP: opt_view_map f1 released freleased>>) /\
     (<<LC_MAP2: local_map f1 lc2 flc2>>).
 Proof.
-  inv STEP. exploit memory_map_get; try apply GL_MAP1; eauto. i. des. inv MSG.
+  inv STEP. exploit memory_map_get; try apply GL_MAP1; eauto; ss. i. des. inv MSG.
   esplits; eauto.
   - econs; eauto.
     eapply map_readable; try apply LC_MAP1; eauto.
@@ -1908,7 +1959,7 @@ Proof.
 Qed.
 
 Lemma map_write_step
-      reserved freserved rsv
+      rsv
       f1 lc1 gl1 flc1 fgl1
       loc from to val releasedm released ord lc2 gl2
       freleasedm
@@ -1919,7 +1970,6 @@ Lemma map_write_step
       (LC_WF1: Local.wf lc1 gl1)
       (GL_WF1: Global.wf gl1)
       (FLC_WF1: Local.wf flc1 fgl1)
-      (RESERVED: Memory.closed_timemap reserved (Global.memory gl1))
       (RESERVES: Local.reserves lc1 = rsv)
       (GRESERVES: Global.reserves gl1 = BoolMap.top)
       (FGRESERVES: Global.reserves fgl1 = BoolMap.bot)

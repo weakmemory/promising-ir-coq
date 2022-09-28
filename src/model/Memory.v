@@ -1189,6 +1189,41 @@ Module Memory.
   Qed.
 
 
+  (* maximal & minimal messages satisfying a property *)
+
+  Lemma max_exists P loc mem:
+    (<<NONE: forall from to msg
+                    (GET: get loc to mem = Some (from, msg)),
+        ~ P to>>) \/
+    exists from_max to_max msg_max,
+      (<<GET: get loc to_max mem = Some (from_max, msg_max)>>) /\
+      (<<SAT: P to_max>>) /\
+      (<<MAX: forall from to msg
+                     (GET: get loc to mem = Some (from, msg))
+                     (SAT: P to),
+          Time.le to to_max>>).
+  Proof.
+    specialize (Cell.max_exists P (mem loc)). i. des; eauto.
+    right. esplits; eauto.
+  Qed.
+
+  Lemma min_exists P loc mem:
+    (<<NONE: forall from to msg
+                    (GET: get loc to mem = Some (from, msg)),
+        ~ P to>>) \/
+    exists from_min to_min msg_min,
+      (<<GET: get loc to_min mem = Some (from_min, msg_min)>>) /\
+      (<<SAT: P to_min>>) /\
+      (<<MIN: forall from to msg
+                     (GET: get loc to mem = Some (from, msg))
+                     (SAT: P to),
+          Time.le to_min to>>).
+  Proof.
+    specialize (Cell.min_exists P (mem loc)). i. des; eauto.
+    right. esplits; eauto.
+  Qed.
+
+
   (* next & previous message *)
 
   Definition empty (mem: Memory.t) (loc: Loc.t) (ts1 ts2: Time.t): Prop :=

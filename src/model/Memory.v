@@ -57,15 +57,37 @@ Module Memory.
         to1 from1 msg1
         to2 from2 msg2
         (LT: Time.lt to1 to2)
-        (GET1: Memory.get loc to1 mem = Some (from1, msg1))
-        (GET2: Memory.get loc to2 mem = Some (from2, msg2)):
+        (GET1: get loc to1 mem = Some (from1, msg1))
+        (GET2: get loc to2 mem = Some (from2, msg2)):
     Time.le to1 from2.
   Proof.
-    exploit Memory.get_ts; try exact GET1. i. des; timetac.
+    exploit get_ts; try exact GET1. i. des; timetac.
     destruct (TimeFacts.le_lt_dec to1 from2); ss.
-    exploit Memory.get_disjoint; [exact GET1|exact GET2|]. i. des; timetac.
+    exploit get_disjoint; [exact GET1|exact GET2|]. i. des; timetac.
     exfalso. apply (x1 to1); econs; ss; try refl.
     econs. ss.
+  Qed.
+
+  Lemma lt_from_get
+        loc mem
+        to1 from1 msg1
+        to2 from2 msg2
+        (LT: Time.lt from1 to2)
+        (GET1: get loc to1 mem = Some (from1, msg1))
+        (GET2: get loc to2 mem = Some (from2, msg2)):
+    from1 = from2 /\ to1 = to2 /\ msg1 = msg2 \/
+    Time.le to1 from2.
+  Proof.
+    exploit get_ts; try exact GET1. i. des.
+    { subst. right. timetac. }
+    exploit get_ts; try exact GET2. i. des.
+    { subst. right. timetac. }
+    destruct (TimeFacts.le_lt_dec to1 from2); auto.
+    exploit get_disjoint; [exact GET1|exact GET2|]. i. des; auto.
+    exfalso.
+    destruct (TimeFacts.le_lt_dec to1 to2).
+    - apply (x2 to1); econs; ss. refl.
+    - apply (x2 to2); econs; ss; timetac. refl.
   Qed.
 
   Definition le (lhs rhs:t): Prop :=
@@ -253,8 +275,8 @@ Module Memory.
   Lemma le_closed_timemap
         tm mem1 mem2
         (LE: le mem1 mem2)
-        (CLOSED: Memory.closed_timemap tm mem1):
-    Memory.closed_timemap tm mem2.
+        (CLOSED: closed_timemap tm mem1):
+    closed_timemap tm mem2.
   Proof.
     ii. exploit CLOSED; eauto. i. des.
     esplits; eauto.
@@ -263,8 +285,8 @@ Module Memory.
   Lemma le_closed_view
         view mem1 mem2
         (LE: le mem1 mem2)
-        (CLOSED: Memory.closed_view view mem1):
-    Memory.closed_view view mem2.
+        (CLOSED: closed_view view mem1):
+    closed_view view mem2.
   Proof.
     inv CLOSED. econs; eauto using le_closed_timemap.
   Qed.
@@ -272,8 +294,8 @@ Module Memory.
   Lemma le_closed_opt_view
         view mem1 mem2
         (LE: le mem1 mem2)
-        (CLOSED: Memory.closed_opt_view view mem1):
-    Memory.closed_opt_view view mem2.
+        (CLOSED: closed_opt_view view mem1):
+    closed_opt_view view mem2.
   Proof.
     inv CLOSED; econs.
     eapply le_closed_view; eauto.
@@ -282,8 +304,8 @@ Module Memory.
   Lemma le_closed_message
         msg mem1 mem2
         (LE: le mem1 mem2)
-        (CLOSED: Memory.closed_message msg mem1):
-    Memory.closed_message msg mem2.
+        (CLOSED: closed_message msg mem1):
+    closed_message msg mem2.
   Proof.
     inv CLOSED; econs.
     eapply le_closed_opt_view; eauto.
@@ -427,7 +449,7 @@ Module Memory.
         (ADD: add mem1 loc from to msg mem2):
     le mem1 mem2.
   Proof.
-    ii. eapply Memory.add_get1; eauto.
+    ii. eapply add_get1; eauto.
   Qed.
 
   Lemma add_reserve_only
@@ -509,17 +531,17 @@ Module Memory.
     <<INHABITED: inhabited mem2>>.
   Proof.
     ii. erewrite remove_o; eauto. condtac; ss.
-    des. subst. exploit Memory.remove_get0; eauto. i. des.
+    des. subst. exploit remove_get0; eauto. i. des.
     rewrite INHABITED in *. ss.
   Qed.
 
   Lemma remove_le
         mem1 loc from to msg mem2
         (REMOVE: remove mem1 loc from to msg mem2):
-    Memory.le mem2 mem1.
+    le mem2 mem1.
   Proof.
     ii. revert LHS.
-    erewrite Memory.remove_o; eauto. condtac; ss.
+    erewrite remove_o; eauto. condtac; ss.
   Qed.
 
   Lemma remove_reserve_only
@@ -937,9 +959,9 @@ Module Memory.
     <<LE_CTX2: le ctx mem2>>.
   Proof.
     ii. exploit LE_CTX; eauto. i.
-    erewrite Memory.add_o; eauto.
+    erewrite add_o; eauto.
     condtac; ss; eauto. des. subst.
-    exploit Memory.add_get0; eauto. i. des. congr.
+    exploit add_get0; eauto. i. des. congr.
   Qed.
 
   Lemma reserve_disjoint
@@ -959,7 +981,7 @@ Module Memory.
     - ii. erewrite add_o; eauto.
       condtac; ss; eauto. des. subst.
       exploit LE_CTX; eauto. i.
-      exploit Memory.add_get0; try exact MEM. i. des. congr.
+      exploit add_get0; try exact MEM. i. des. congr.
   Qed.
 
   Lemma cancel_disjoint
@@ -977,7 +999,7 @@ Module Memory.
     - ii. erewrite remove_o; eauto.
       condtac; ss; eauto. des. subst.
       exploit LE_CTX; eauto. i.
-      exploit Memory.remove_get0; try exact RSV. i. des.
+      exploit remove_get0; try exact RSV. i. des.
       exploit disjoint_get; try exact DISJOINT; eauto. ss.
   Qed.
 
@@ -1003,27 +1025,27 @@ Module Memory.
 
   Lemma add_messages_le
         mem1 loc from to msg mem2
-        (ADD: Memory.add mem1 loc from to msg mem2):
+        (ADD: add mem1 loc from to msg mem2):
     messages_le mem1 mem2.
   Proof.
-    ii. erewrite Memory.add_o; eauto.
+    ii. erewrite add_o; eauto.
     condtac; ss. des. subst.
-    exploit Memory.add_get0; eauto. i. des. congr.
+    exploit add_get0; eauto. i. des. congr.
   Qed.
 
   Lemma remove_messages_le
         mem1 loc from to mem2
-        (REMOVE: Memory.remove mem1 loc from to Message.reserve mem2):
+        (REMOVE: remove mem1 loc from to Message.reserve mem2):
     messages_le mem1 mem2.
   Proof.
-    ii. erewrite Memory.remove_o; eauto.
+    ii. erewrite remove_o; eauto.
     condtac; ss. des. subst.
-    exploit Memory.remove_get0; eauto. i. des. congr.
+    exploit remove_get0; eauto. i. des. congr.
   Qed.
 
   Lemma reserve_messages_le
         rsv1 mem1 loc from to rsv2 mem2
-        (RESERVE: Memory.reserve rsv1 mem1 loc from to rsv2 mem2):
+        (RESERVE: reserve rsv1 mem1 loc from to rsv2 mem2):
     messages_le mem1 mem2.
   Proof.
     inv RESERVE. eauto using add_messages_le.
@@ -1031,7 +1053,7 @@ Module Memory.
 
   Lemma cancel_messages_le
         rsv1 mem1 loc from to rsv2 mem2
-        (CANCEL: Memory.cancel rsv1 mem1 loc from to rsv2 mem2):
+        (CANCEL: cancel rsv1 mem1 loc from to rsv2 mem2):
     messages_le mem1 mem2.
   Proof.
     inv CANCEL. eauto using remove_messages_le.
@@ -1181,7 +1203,7 @@ Module Memory.
 
   Lemma remove_exists
         mem1 loc from to msg
-        (GET: Memory.get loc to mem1 = Some (from, msg)):
+        (GET: get loc to mem1 = Some (from, msg)):
     exists mem2, remove mem1 loc from to msg mem2.
   Proof.
     exploit Cell.remove_exists; eauto. i. des.
@@ -1226,7 +1248,7 @@ Module Memory.
 
   (* next & previous message *)
 
-  Definition empty (mem: Memory.t) (loc: Loc.t) (ts1 ts2: Time.t): Prop :=
+  Definition empty (mem: t) (loc: Loc.t) (ts1 ts2: Time.t): Prop :=
     forall ts (TS1: Time.lt ts1 ts) (TS2: Time.lt ts ts2),
       get loc ts mem = None.
 

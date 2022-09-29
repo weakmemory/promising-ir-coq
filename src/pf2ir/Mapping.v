@@ -163,9 +163,7 @@ Section Mapping.
               (<<FFROM: Time.le ffrom' ffrom>>) /\
               (<<FTO: Time.le fto fto'>>) /\
               (<<FROM: f loc from ffrom'>>) /\
-              (<<TO: f loc to fto'>>) /\
-              (<<COVERED: forall ts (ITV: Interval.mem (ffrom, fto) ts),
-                  covered loc ts mem>>))
+              (<<TO: f loc to fto'>>))
   .
 
   Variant local_map (lc flc: Local.t): Prop :=
@@ -570,6 +568,7 @@ Lemma memory_map_add
       (WF1: map_wf f1)
       (COMPLETE1: map_complete f1 mem1 fmem1)
       (MAP1: memory_map f1 rsv mem1 fmem1)
+      (LE: Memory.le rsv mem1)
       (INHABITED1: Memory.inhabited mem1)
       (ADD: Memory.add mem1 loc from to msg mem2):
   exists ffrom fto f2,
@@ -588,6 +587,15 @@ Proof.
   exploit add_cases; eauto. i. unguard. des.
 
   { (* target non-latest *)
+    assert (EMPTY: Memory.empty mem1 loc pto nto).
+    { ii. destruct (TimeFacts.le_lt_dec ts to); cycle 1.
+      { eapply NEMPTY; eauto. }
+      inv l.
+      { eapply PEMPTY; eauto. }
+      inv H.
+      exploit Memory.add_get0; eauto. i. des. congr.
+    }
+
     assert (MAP_EMPTY: forall ts fts
                          (LT1: Time.lt pto ts)
                          (LT2: Time.lt ts nfrom)
@@ -623,38 +631,700 @@ Proof.
     }
 
     specialize (Memory.max_exists
-                  (fun fts => exists ts, f1 loc ts fts /\ Time.le ts pto) loc fmem1).
+                  (fun fpto => exists ts fts, f1 loc ts fts /\ Time.le ts pto /\ Time.le fpto fts)
+                  loc fmem1).
     i. des.
     { exploit SOUND; try eapply INHABITED1. i. des; ss.
       exploit MAP_EQ; [|exact TO|eapply MAP_INHABITED|]; ss. i. subst.
       exploit NONE; try exact FGET; ss.
-      esplits; eauto. timetac.
+      esplits; eauto; timetac.
     }
     rename from_max into fpfrom, to_max into fpto, msg_max into fpmsg.
-    rename SAT into PTO_MAP, SAT0 into PTO_LE, MAX into PTO_MAX.
+    rename GET into FPGET, SAT into PTO_MAP, SAT0 into PTO_LE, SAT1 into FPTO_LE, MAX into PTO_MAX.
 
-    (* TODO: properties on pto *)
+    (* TODO: does the following work? *)
+    (* specialize (Memory.min_exists *)
+    (*               (fun fnto => exists ts fts, f1 loc ts fts /\ Time.le nfrom ts /\ Time.lt fts fnto) *)
+    (*               loc fmem1). *)
+    (* i. des. *)
 
     specialize (Memory.min_exists
-                  (fun fts => exists ts, f1 loc ts fts /\ Time.le nto ts) loc fmem1).
+                  (fun fnto => exists ts fts,
+                       f1 loc ts fts /\
+                       (__guard__ (
+                            Time.lt nfrom ts /\ Time.le fts fnto \/
+                            Time.le nfrom ts /\ Time.lt fts fnto)))
+                  loc fmem1).
     i. des.
 
     { (* source latest *)
+      assert (FEMPTY: forall fto (FTO: Time.lt fpto fto),
+                 Memory.get loc fto fmem1 = None).
+      { i. destruct (Memory.get loc fto fmem1) as [[ffrom fmsg]|] eqn:FGET; ss.
+        exfalso.
+        exploit Memory.lt_get; try exact FTO; try eassumption. i.
+        exploit COMPLETE; try exact FGET. i. des.
+        destruct (TimeFacts.le_lt_dec to0 pto).
+        { exploit PTO_MAX; try exact FGET; i; timetac.
+          esplits; try exact TO; ss.
+        }
+        destruct (TimeFacts.le_lt_dec to0 nfrom).
+        { exploit EMPTY; try exact l; timetac. congr. }
+        exploit Memory.lt_from_get; try exact l0; try eassumption. i. des.
+        { subst. eapply NONE; try exact FGET.
+          esplits; try exact FROM.
+          right. split; try refl.
+          eapply TimeFacts.le_lt_lt; [eassumption|].
+          exploit Memory.get_ts; try exact FGET. i. des; ss.
+          subst. timetac.
+        }
+        eapply NONE; try exact FGET.
+        esplits; try exact FROM.
+        left. split; timetac.
+        etrans; [eassumption|].
+        exploit Memory.get_ts; try exact FGET. i. des; timetac.
+      }
+
       assert (FMAP_EMPTY: forall ts fts
-                            (LT: Time.lt fpto ts)
+                            (LT: Time.lt fpto fts)
                             (MAP: f1 loc ts fts),
                  False).
       { i. exploit COMPLETE1; try exact MAP. i. des.
+        assert (FPTO_FTO: Time.lt fpto fto).
+        { unguard. des; subst; ss.
+          exploit Memory.get_ts; try exact FGET.
+          i. des; subst; timetac. etrans; eauto.
+        }
+        exploit FEMPTY; try exact FPTO_FTO. congr.
+      }
+      inv FPTO_LE.
+      { exploit FMAP_EMPTY; try exact H0; eauto. ss. }
+      symmetry in H0. inv H0.
+
+      (* find ffrom and fto *)
+      assert (exists ffrom fto,
+                 (<<FPREV: Time.le fpto ffrom>>) /\
+                 (<<FPREV_EQ: __guard__ (ts = from <-> fpto = ffrom)>>) /\
+                 (<<FTS: Time.lt ffrom fto>>)).
+      { destruct (classic (ts = from)).
+        { subst. inv PREV; timetac. inv H0.
+          exists fpto, (Time.incr fpto).
+          splits; ss; try refl. apply Time.incr_spec.
+        }
+        exists (Time.incr fpto), (Time.incr (Time.incr fpto)).
+        splits.
+        - econs. apply Time.incr_spec.
+        - unguard. split; ss. i.
+          specialize (Time.incr_spec fpto).
+          rewrite H1 at 1. i. timetac.
+        - apply Time.incr_spec.
+      }
+      des.
+      exists ffrom, fto. esplits; [refl|..].
+
+      { (* map_wf *)
+        econs.
+        - (* map_inhabited *)
+          repeat apply add_map_inhabited. ss.
+        - (* map_eq *)
+          apply add_map_eq.
+          { apply add_map_eq; ss. i.
+            exploit FMAP_EMPTY; try exact MAP; ss.
+            eapply MAP_LT; try exact PTO_MAP; try exact MAP.
+            eapply TimeFacts.le_lt_lt; [eassumption|].
+            eapply TimeFacts.le_lt_lt; eassumption.
+          }
+          unfold map_add. i. des; subst; timetac.
+          rewrite PREV in PTO_LE. inv PTO_LE.
+          { exfalso. eauto. }
+          inv H0. unguard. des.
+          exploit FPREV_EQ; try refl. i. subst.
+          exploit MAP_EQ; [|exact PTO_MAP|exact MAP|]; ss.
+        - (* map_eq_inv *)
+          apply add_map_eq_inv.
+          { apply add_map_eq_inv; ss. i.
+            exploit FMAP_EMPTY; try exact MAP; ss.
+            eapply TimeFacts.le_lt_lt; eassumption.
+          }
+          unfold map_add. i. des; subst; timetac.
+          inv FPREV.
+          { exfalso. eauto. }
+          inv H0. unguard. des.
+          exploit FPREV_EQ0; try refl. i. subst.
+          exploit MAP_EQ_INV; [|exact PTO_MAP|exact MAP|]; ss.
+        - (* map_lt *)
+          apply add_map_lt.
+          { apply add_map_lt; ss. i.
+            destruct (TimeFacts.le_lt_dec ts' ts).
+            { left. split.
+              - eapply TimeFacts.le_lt_lt; try exact l.
+                eapply TimeFacts.le_lt_lt; try exact PTO_LE.
+                eapply TimeFacts.le_lt_lt; eauto.
+              - exploit map_le; try exact l; try eassumption. i.
+                eapply TimeFacts.le_lt_lt; try exact x0.
+                eapply TimeFacts.le_lt_lt; eauto.
+            }
+            exploit FMAP_EMPTY; try exact MAP; ss.
+            eapply MAP_LT; try exact l; eassumption.
+          }
+          unfold map_add. i. des; subst; timetac.
+          destruct (TimeFacts.le_lt_dec ts ts'); cycle 1.
+          { left. split.
+            - eapply TimeFacts.lt_le_lt; try exact l.
+              etrans; eauto.
+            - exploit MAP_LT; try exact l; try eassumption. i.
+              eapply TimeFacts.lt_le_lt; eauto.
+          }
+          inv l.
+          { exploit FMAP_EMPTY; try exact MAP; ss.
+            eapply MAP_LT; try exact H0; eassumption.
+          }
+          symmetry in H0. inv H0.
+          exploit MAP_EQ; [|exact PTO_MAP|exact MAP|]; ss. i. subst.
+          rewrite PREV in PTO_LE. inv PTO_LE; inv FPREV; eauto.
+          { inv H1. inv FPREV_EQ. exploit H2; ss. i. subst. timetac. }
+          { inv H0. inv FPREV_EQ. exploit H0; ss. i. subst. timetac. }
+        - (* map_lt_inv *)
+          apply add_map_lt_inv.
+          { apply add_map_lt_inv; ss. i.
+            destruct (TimeFacts.le_lt_dec ts' ts).
+            { left. split.
+              - eapply TimeFacts.le_lt_lt; try exact l.
+                eapply TimeFacts.le_lt_lt; try exact PTO_LE.
+                eapply TimeFacts.le_lt_lt; eauto.
+              - exploit map_le; try exact l; try eassumption. i.
+                eapply TimeFacts.le_lt_lt; try exact x0.
+                eapply TimeFacts.le_lt_lt; eauto.
+            }
+            exploit FMAP_EMPTY; try exact MAP; ss.
+            eapply MAP_LT; try exact l; eassumption.
+          }
+          unfold map_add. i. des; subst; timetac.
+          destruct (TimeFacts.le_lt_dec ts ts'); cycle 1.
+          { left. split.
+            - eapply TimeFacts.lt_le_lt; try exact l.
+              etrans; eauto.
+            - exploit MAP_LT; try exact l; try eassumption. i.
+              eapply TimeFacts.lt_le_lt; eauto.
+          }
+          inv l.
+          { exploit FMAP_EMPTY; try exact MAP; ss.
+            eapply MAP_LT; try exact H0; eassumption.
+          }
+          symmetry in H0. inv H0.
+          exploit MAP_EQ; [|exact PTO_MAP|exact MAP|]; ss. i. subst.
+          rewrite PREV in PTO_LE. inv PTO_LE; inv FPREV; eauto.
+          { inv H1. inv FPREV_EQ. exploit H2; ss. i. subst. timetac. }
+          { inv H0. inv FPREV_EQ. exploit H0; ss. i. subst. timetac. }
+      }
+
+      i. exploit (@Memory.add_exists fmem1 loc); try exact FTS; try exact FMSG_WF.
+      { ii. inv LHS. inv RHS. ss.
+        exploit TimeFacts.lt_le_lt; [exact FROM|exact TO0|]. i.
+        rewrite FEMPTY in GET2; ss.
+        eapply TimeFacts.le_lt_lt; try exact x1. ss.
+      }
+      i. des. rename x0 into FADD.
+      esplits; try exact FADD.
+
+      { (* map_complete *)
+        exploit Memory.add_get0; try exact ADD. i. des.
+        exploit Memory.add_get0; try exact FADD. i. des.
+        unfold map_add. ii. des; subst.
+        - esplits; eauto. unguard. auto.
+        - esplits; eauto. unguard. auto.
+        - exploit COMPLETE1; try exact MAP. i. des.
+          exploit Memory.add_get1; try exact GET3; eauto. i.
+          exploit Memory.add_get1; try exact FGET1; eauto. i.
+          esplits; try exact x1; try exact x2; eauto.
+      }
+
+      { (* memory_map *)
+        econs; i.
+        { revert GET. erewrite Memory.add_o; eauto.
+          condtac; ss; i.
+          - des. inv GET. right.
+            exploit Memory.add_get0; try exact FADD. i. des.
+            esplits; try exact GET0; eauto 6.
+          - guardH o.
+            exploit SOUND; eauto. i. des; eauto.
+            exploit Memory.add_get1; try exact FGET; eauto. i.
+            right. esplits; eauto.
+            do 2 (eapply message_map_incr; try eapply map_add_incr). ss.
+        }
+        { revert FGET. erewrite Memory.add_o; eauto.
+          condtac; ss; i.
+          - des. symmetry in FGET. inv FGET.
+            exploit Memory.add_get0; try exact ADD. i. des.
+            esplits; try exact GET0; try refl.
+            + destruct (Memory.get loc to rsv) as [[]|] eqn:RSV; ss.
+              exploit LE; eauto. i. congr.
+            + auto 6.
+            + auto 6.
+          - guardH o.
+            exploit COMPLETE; eauto. i. des.
+            exploit Memory.add_get1; try exact GET; eauto. i.
+            esplits; try exact x0; eauto.
+        }
       }
     }
 
     { (* source non-latest *)
-      admit.
+      rename from_min into fnfrom, to_min into fnto, msg_min into fnmsg.
+      rename GET into FNGET, SAT into NFROM_MAP, MIN into NFROM_MIN.
+
+      assert (FEMPTY: Memory.empty fmem1 loc fpto fnto).
+      { ii. rename ts1 into fto.
+        destruct (Memory.get loc fto fmem1) as [[ffrom fmsg]|] eqn:FGET; ss.
+        exfalso.
+        exploit Memory.lt_get; try exact TS1; try eassumption. i.
+        exploit Memory.lt_get; try exact TS2; try eassumption. i.
+        exploit COMPLETE; try exact FGET. i. des.
+        destruct (TimeFacts.le_lt_dec to0 pto).
+        { exploit PTO_MAX; try exact FGET; i; timetac.
+          esplits; try exact TO; ss.
+        }
+        destruct (TimeFacts.le_lt_dec to0 nfrom).
+        { exploit EMPTY; try exact l; timetac. congr. }
+        exploit Memory.lt_from_get; try exact l0; try eassumption. i. des.
+        { subst. exploit NFROM_MIN; try exact FGET; i; timetac.
+          esplits; try exact FROM.
+          right. split; try refl.
+          eapply TimeFacts.le_lt_lt; [eassumption|].
+          exploit Memory.get_ts; try exact FGET. i. des; ss.
+          subst. timetac.
+        }
+        exploit NFROM_MIN; try exact FGET; i; timetac.
+        esplits; try exact FROM.
+        left. split; timetac.
+        etrans; [eassumption|].
+        exploit Memory.get_ts; try exact FGET. i. des; timetac.
+      }
+
+      assert (FMAP_EMPTY: forall ts fts
+                            (LT1: Time.lt fpto fts)
+                            (LT2: Time.lt fts fnfrom)
+                            (MAP: f1 loc ts fts),
+                 False).
+      { i. exploit COMPLETE1; try exact MAP. i. des.
+        exploit Memory.get_ts; try exact FNGET. i. des; subst; timetac.
+        assert (FPTO_FTO: Time.lt fpto fto).
+        { unguardH x0. des; subst; ss.
+          exploit Memory.get_ts; try exact FGET.
+          i. des; subst; timetac. etrans; eauto.
+        }
+        assert (FTO_FNTO: Time.lt fto fnto).
+        { unguardH x0. des; subst; cycle 1.
+          { eapply TimeFacts.lt_le_lt; try exact LT2. timetac. }
+          destruct (TimeFacts.le_lt_dec fnto fto); ss.
+          inv l.
+          { exploit Memory.lt_get; try exact H0; try eassumption. i.
+            rewrite x1 in LT2.
+            exploit TimeFacts.le_lt_lt; try exact x0; try eassumption. i. timetac.
+          }
+          inv H0. rewrite FGET in *. inv FNGET. timetac.
+        }
+        exploit FEMPTY; try exact FPTO_FTO; try eassumption. congr.
+      }
+      inv FPTO_LE.
+      { admit.
+      }
+      symmetry in H0. inv H0.
+
+      (* find ffrom and fto *)
+      assert (exists ffrom fto,
+                 (<<FPREV: Time.le fpto ffrom>>) /\
+                 (<<FPREV_EQ: __guard__ (ts = from <-> fpto = ffrom)>>) /\
+                 (<<FTS: Time.lt ffrom fto>>)).
+      { destruct (classic (ts = from)).
+        { subst. inv PREV; timetac. inv H0.
+          exists fpto, (Time.incr fpto).
+          splits; ss; try refl. apply Time.incr_spec.
+        }
+        exists (Time.incr fpto), (Time.incr (Time.incr fpto)).
+        splits.
+        - econs. apply Time.incr_spec.
+        - unguard. split; ss. i.
+          specialize (Time.incr_spec fpto).
+          rewrite H1 at 1. i. timetac.
+        - apply Time.incr_spec.
+      }
+      des.
+      exists ffrom, fto. esplits; [refl|..].
+
+      { (* map_wf *)
+        econs.
+        - (* map_inhabited *)
+          repeat apply add_map_inhabited. ss.
+        - (* map_eq *)
+          apply add_map_eq.
+          { apply add_map_eq; ss. i.
+            exploit FMAP_EMPTY; try exact MAP; ss.
+            eapply MAP_LT; try exact PTO_MAP; try exact MAP.
+            eapply TimeFacts.le_lt_lt; [eassumption|].
+            eapply TimeFacts.le_lt_lt; eassumption.
+          }
+          unfold map_add. i. des; subst; timetac.
+          rewrite PREV in PTO_LE. inv PTO_LE.
+          { exfalso. eauto. }
+          inv H0. unguard. des.
+          exploit FPREV_EQ; try refl. i. subst.
+          exploit MAP_EQ; [|exact PTO_MAP|exact MAP|]; ss.
+        - (* map_eq_inv *)
+          apply add_map_eq_inv.
+          { apply add_map_eq_inv; ss. i.
+            exploit FMAP_EMPTY; try exact MAP; ss.
+            eapply TimeFacts.le_lt_lt; eassumption.
+          }
+          unfold map_add. i. des; subst; timetac.
+          inv FPREV.
+          { exfalso. eauto. }
+          inv H0. unguard. des.
+          exploit FPREV_EQ0; try refl. i. subst.
+          exploit MAP_EQ_INV; [|exact PTO_MAP|exact MAP|]; ss.
+        - (* map_lt *)
+          apply add_map_lt.
+          { apply add_map_lt; ss. i.
+            destruct (TimeFacts.le_lt_dec ts' ts).
+            { left. split.
+              - eapply TimeFacts.le_lt_lt; try exact l.
+                eapply TimeFacts.le_lt_lt; try exact PTO_LE.
+                eapply TimeFacts.le_lt_lt; eauto.
+              - exploit map_le; try exact l; try eassumption. i.
+                eapply TimeFacts.le_lt_lt; try exact x0.
+                eapply TimeFacts.le_lt_lt; eauto.
+            }
+            exploit FMAP_EMPTY; try exact MAP; ss.
+            eapply MAP_LT; try exact l; eassumption.
+          }
+          unfold map_add. i. des; subst; timetac.
+          destruct (TimeFacts.le_lt_dec ts ts'); cycle 1.
+          { left. split.
+            - eapply TimeFacts.lt_le_lt; try exact l.
+              etrans; eauto.
+            - exploit MAP_LT; try exact l; try eassumption. i.
+              eapply TimeFacts.lt_le_lt; eauto.
+          }
+          inv l.
+          { exploit FMAP_EMPTY; try exact MAP; ss.
+            eapply MAP_LT; try exact H0; eassumption.
+          }
+          symmetry in H0. inv H0.
+          exploit MAP_EQ; [|exact PTO_MAP|exact MAP|]; ss. i. subst.
+          rewrite PREV in PTO_LE. inv PTO_LE; inv FPREV; eauto.
+          { inv H1. inv FPREV_EQ. exploit H2; ss. i. subst. timetac. }
+          { inv H0. inv FPREV_EQ. exploit H0; ss. i. subst. timetac. }
+        - (* map_lt_inv *)
+          apply add_map_lt_inv.
+          { apply add_map_lt_inv; ss. i.
+            destruct (TimeFacts.le_lt_dec ts' ts).
+            { left. split.
+              - eapply TimeFacts.le_lt_lt; try exact l.
+                eapply TimeFacts.le_lt_lt; try exact PTO_LE.
+                eapply TimeFacts.le_lt_lt; eauto.
+              - exploit map_le; try exact l; try eassumption. i.
+                eapply TimeFacts.le_lt_lt; try exact x0.
+                eapply TimeFacts.le_lt_lt; eauto.
+            }
+            exploit FMAP_EMPTY; try exact MAP; ss.
+            eapply MAP_LT; try exact l; eassumption.
+          }
+          unfold map_add. i. des; subst; timetac.
+          destruct (TimeFacts.le_lt_dec ts ts'); cycle 1.
+          { left. split.
+            - eapply TimeFacts.lt_le_lt; try exact l.
+              etrans; eauto.
+            - exploit MAP_LT; try exact l; try eassumption. i.
+              eapply TimeFacts.lt_le_lt; eauto.
+          }
+          inv l.
+          { exploit FMAP_EMPTY; try exact MAP; ss.
+            eapply MAP_LT; try exact H0; eassumption.
+          }
+          symmetry in H0. inv H0.
+          exploit MAP_EQ; [|exact PTO_MAP|exact MAP|]; ss. i. subst.
+          rewrite PREV in PTO_LE. inv PTO_LE; inv FPREV; eauto.
+          { inv H1. inv FPREV_EQ. exploit H2; ss. i. subst. timetac. }
+          { inv H0. inv FPREV_EQ. exploit H0; ss. i. subst. timetac. }
+      }
+
+      i. exploit (@Memory.add_exists fmem1 loc); try exact FTS; try exact FMSG_WF.
+      { ii. inv LHS. inv RHS. ss.
+        exploit TimeFacts.lt_le_lt; [exact FROM|exact TO0|]. i.
+        rewrite FEMPTY in GET2; ss.
+        eapply TimeFacts.le_lt_lt; try exact x1. ss.
+      }
+      i. des. rename x0 into FADD.
+      esplits; try exact FADD.
+
+      { (* map_complete *)
+        exploit Memory.add_get0; try exact ADD. i. des.
+        exploit Memory.add_get0; try exact FADD. i. des.
+        unfold map_add. ii. des; subst.
+        - esplits; eauto. unguard. auto.
+        - esplits; eauto. unguard. auto.
+        - exploit COMPLETE1; try exact MAP. i. des.
+          exploit Memory.add_get1; try exact GET4; eauto. i.
+          exploit Memory.add_get1; try exact FGET1; eauto. i.
+          esplits; try exact x1; try exact x2; eauto.
+      }
+
+      { (* memory_map *)
+        econs; i.
+        { revert GET0. erewrite Memory.add_o; eauto.
+          condtac; ss; i.
+          - des. inv GET0. right.
+            exploit Memory.add_get0; try exact FADD. i. des.
+            esplits; try exact GET1; eauto 6.
+          - guardH o.
+            exploit SOUND; eauto. i. des; eauto.
+            exploit Memory.add_get1; try exact FGET; eauto. i.
+            right. esplits; eauto.
+            do 2 (eapply message_map_incr; try eapply map_add_incr). ss.
+        }
+        { revert FGET. erewrite Memory.add_o; eauto.
+          condtac; ss; i.
+          - des. symmetry in FGET. inv FGET.
+            exploit Memory.add_get0; try exact ADD. i. des.
+            esplits; try exact GET1; try refl.
+            + destruct (Memory.get loc to rsv) as [[]|] eqn:RSV; ss.
+              exploit LE; eauto. i. congr.
+            + auto 6.
+            + auto 6.
+          - guardH o.
+            exploit COMPLETE; eauto. i. des.
+            exploit Memory.add_get1; try exact GET0; eauto. i.
+            esplits; try exact x0; eauto.
+        }
+      }
     }
   }
 
-  { (* latest *)
-    admit.
+  { (* target latest *)
+    assert (EMPTY: forall to (TO: Time.lt pto to),
+               Memory.get loc to mem1 = None).
+    { i. destruct (TimeFacts.le_lt_dec to to0); eauto.
+      inv l; eauto. inv H.
+      exploit Memory.add_get0; eauto. i. des. congr.
+    }
+
+    assert (MAP_EMPTY: forall ts fts
+                         (LT1: Time.lt pto ts)
+                         (MAP: f1 loc ts fts),
+               False).
+    { i. exploit COMPLETE1; try exact MAP. i. des.
+      rewrite EMPTY in GET; ss. unguardH x0. des; subst; ss.
+      eapply TimeFacts.lt_le_lt; try exact LT1.
+      exploit Memory.get_ts; try exact GET. i. des; timetac.
+    }
+
+    specialize (Memory.max_exists
+                  (fun fpto => exists ts fts, f1 loc ts fts /\ Time.le ts pto /\ Time.le fpto fts)
+                  loc fmem1).
+    i. des.
+    { exploit SOUND; try eapply INHABITED1. i. des; ss.
+      exploit MAP_EQ; [|exact TO|eapply MAP_INHABITED|]; ss. i. subst.
+      exploit NONE; try exact FGET; ss.
+      esplits; eauto; timetac.
+    }
+    rename from_max into fpfrom, to_max into fpto, msg_max into fpmsg.
+    rename SAT into PTO_MAP, SAT0 into PTO_LE, SAT1 into FPTO_LE, MAX into PTO_MAX.
+
+    assert (FEMPTY: forall fto (FTO: Time.lt fpto fto),
+               Memory.get loc fto fmem1 = None).
+    { i. destruct (Memory.get loc fto fmem1) as [[ffrom fmsg]|] eqn:FGET; ss.
+      exfalso.
+      exploit COMPLETE; try exact FGET. i. des.
+      destruct (TimeFacts.le_lt_dec to0 pto).
+      { exploit PTO_MAX; try exact FGET; i; timetac.
+        esplits; try exact TO; ss.
+      }
+      erewrite EMPTY in GET0; ss.
+    }
+
+    assert (FMAP_EMPTY: forall ts fts
+                               (LT: Time.lt fpto fts)
+                               (MAP: f1 loc ts fts),
+               False).
+    { i. exploit COMPLETE1; try exact MAP. i. des.
+      assert (FPTO_FTO: Time.lt fpto fto).
+      { unguard. des; subst; ss.
+        exploit Memory.get_ts; try exact FGET.
+        i. des; subst; timetac. etrans; eauto.
+      }
+      erewrite FEMPTY in FGET; ss.
+    }
+
+    inv FPTO_LE.
+    { exploit FMAP_EMPTY; try exact H; eauto. ss. }
+    symmetry in H. inv H.
+
+    (* find ffrom and fto *)
+    assert (exists ffrom fto,
+               (<<FPREV: Time.le fpto ffrom>>) /\
+               (<<FPREV_EQ: __guard__ (ts = from <-> fpto = ffrom)>>) /\
+               (<<FTS: Time.lt ffrom fto>>)).
+    { destruct (classic (ts = from)).
+      { subst. inv PREV; timetac. inv H.
+        exists fpto, (Time.incr fpto).
+        splits; ss; try refl. apply Time.incr_spec.
+      }
+      exists (Time.incr fpto), (Time.incr (Time.incr fpto)).
+      splits.
+      - econs. apply Time.incr_spec.
+      - unguard. split; ss. i.
+        specialize (Time.incr_spec fpto).
+        rewrite H0 at 1. i. timetac.
+      - apply Time.incr_spec.
+    }
+    des.
+    exists ffrom, fto. esplits; [refl|..].
+
+    { (* map_wf *)
+      econs.
+      - (* map_inhabited *)
+        repeat apply add_map_inhabited. ss.
+      - (* map_eq *)
+        apply add_map_eq.
+        { apply add_map_eq; ss. i.
+          exploit FMAP_EMPTY; try exact MAP; ss.
+          eapply MAP_LT; try exact PTO_MAP; try exact MAP.
+          eapply TimeFacts.le_lt_lt; [eassumption|].
+          eapply TimeFacts.le_lt_lt; eassumption.
+        }
+        unfold map_add. i. des; subst; timetac.
+        rewrite PREV in PTO_LE. inv PTO_LE.
+        { exfalso. eauto. }
+        inv H. unguard. des.
+        exploit FPREV_EQ; try refl. i. subst.
+        exploit MAP_EQ; [|exact PTO_MAP|exact MAP|]; ss.
+      - (* map_eq_inv *)
+        apply add_map_eq_inv.
+        { apply add_map_eq_inv; ss. i.
+          exploit FMAP_EMPTY; try exact MAP; ss.
+          eapply TimeFacts.le_lt_lt; eassumption.
+        }
+        unfold map_add. i. des; subst; timetac.
+        inv FPREV.
+        { exfalso. eauto. }
+        inv H. unguard. des.
+        exploit FPREV_EQ0; try refl. i. subst.
+        exploit MAP_EQ_INV; [|exact PTO_MAP|exact MAP|]; ss.
+      - (* map_lt *)
+        apply add_map_lt.
+        { apply add_map_lt; ss. i.
+          destruct (TimeFacts.le_lt_dec ts' ts).
+          { left. split.
+            - eapply TimeFacts.le_lt_lt; try exact l.
+              eapply TimeFacts.le_lt_lt; try exact PTO_LE.
+              eapply TimeFacts.le_lt_lt; eauto.
+            - exploit map_le; try exact l; try eassumption. i.
+              eapply TimeFacts.le_lt_lt; try exact x0.
+              eapply TimeFacts.le_lt_lt; eauto.
+          }
+          exploit FMAP_EMPTY; try exact MAP; ss.
+          eapply MAP_LT; try exact l; eassumption.
+        }
+        unfold map_add. i. des; subst; timetac.
+        destruct (TimeFacts.le_lt_dec ts ts'); cycle 1.
+        { left. split.
+          - eapply TimeFacts.lt_le_lt; try exact l.
+            etrans; eauto.
+          - exploit MAP_LT; try exact l; try eassumption. i.
+            eapply TimeFacts.lt_le_lt; eauto.
+        }
+        inv l.
+        { exploit FMAP_EMPTY; try exact MAP; ss.
+          eapply MAP_LT; try exact H0; eassumption.
+        }
+        symmetry in H. inv H.
+        exploit MAP_EQ; [|exact PTO_MAP|exact MAP|]; ss. i. subst.
+        rewrite PREV in PTO_LE. inv PTO_LE; inv FPREV; eauto.
+        { inv H0. inv FPREV_EQ. exploit H1; ss. i. subst. timetac. }
+        { inv H. inv FPREV_EQ. exploit H; ss. i. subst. timetac. }
+      - (* map_lt_inv *)
+        apply add_map_lt_inv.
+        { apply add_map_lt_inv; ss. i.
+          destruct (TimeFacts.le_lt_dec ts' ts).
+          { left. split.
+            - eapply TimeFacts.le_lt_lt; try exact l.
+              eapply TimeFacts.le_lt_lt; try exact PTO_LE.
+              eapply TimeFacts.le_lt_lt; eauto.
+            - exploit map_le; try exact l; try eassumption. i.
+              eapply TimeFacts.le_lt_lt; try exact x0.
+              eapply TimeFacts.le_lt_lt; eauto.
+          }
+          exploit FMAP_EMPTY; try exact MAP; ss.
+          eapply MAP_LT; try exact l; eassumption.
+        }
+        unfold map_add. i. des; subst; timetac.
+        destruct (TimeFacts.le_lt_dec ts ts'); cycle 1.
+        { left. split.
+          - eapply TimeFacts.lt_le_lt; try exact l.
+            etrans; eauto.
+          - exploit MAP_LT; try exact l; try eassumption. i.
+            eapply TimeFacts.lt_le_lt; eauto.
+        }
+        inv l.
+        { exploit FMAP_EMPTY; try exact MAP; ss.
+          eapply MAP_LT; try exact H0; eassumption.
+        }
+        symmetry in H. inv H.
+        exploit MAP_EQ; [|exact PTO_MAP|exact MAP|]; ss. i. subst.
+        rewrite PREV in PTO_LE. inv PTO_LE; inv FPREV; eauto.
+        { inv H0. inv FPREV_EQ. exploit H1; ss. i. subst. timetac. }
+        { inv H. inv FPREV_EQ. exploit H; ss. i. subst. timetac. }
+    }
+
+    i. exploit (@Memory.add_exists fmem1 loc); try exact FTS; try exact FMSG_WF.
+    { ii. inv LHS. inv RHS. ss.
+      exploit TimeFacts.lt_le_lt; [exact FROM|exact TO0|]. i.
+      rewrite FEMPTY in GET2; ss.
+      eapply TimeFacts.le_lt_lt; try exact x1. ss.
+    }
+    i. des. rename x0 into FADD.
+    esplits; try exact FADD.
+
+    { (* map_complete *)
+      exploit Memory.add_get0; try exact ADD. i. des.
+      exploit Memory.add_get0; try exact FADD. i. des.
+      unfold map_add. ii. des; subst.
+      - esplits; eauto. unguard. auto.
+      - esplits; eauto. unguard. auto.
+      - exploit COMPLETE1; try exact MAP. i. des.
+        exploit Memory.add_get1; try exact GET4; eauto. i.
+        exploit Memory.add_get1; try exact FGET1; eauto. i.
+        esplits; try exact x1; try exact x2; eauto.
+    }
+
+    { (* memory_map *)
+      econs; i.
+      { revert GET0. erewrite Memory.add_o; eauto.
+        condtac; ss; i.
+        - des. inv GET0. right.
+          exploit Memory.add_get0; try exact FADD. i. des.
+          esplits; try exact GET1; eauto 6.
+        - guardH o.
+          exploit SOUND; eauto. i. des; eauto.
+          exploit Memory.add_get1; try exact FGET; eauto. i.
+          right. esplits; eauto.
+          do 2 (eapply message_map_incr; try eapply map_add_incr). ss.
+      }
+      { revert FGET. erewrite Memory.add_o; eauto.
+        condtac; ss; i.
+        - des. symmetry in FGET. inv FGET.
+          exploit Memory.add_get0; try exact ADD. i. des.
+          esplits; try exact GET1; try refl.
+          + destruct (Memory.get loc to rsv) as [[]|] eqn:RSV; ss.
+            exploit LE; eauto. i. congr.
+          + auto 6.
+          + auto 6.
+        - guardH o.
+          exploit COMPLETE; eauto. i. des.
+          exploit Memory.add_get1; try exact GET0; eauto. i.
+          esplits; try exact x0; eauto.
+      }
+    }
   }
 Admitted.
 

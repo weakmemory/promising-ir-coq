@@ -642,20 +642,19 @@ Proof.
     rename from_max into fpfrom, to_max into fpto, msg_max into fpmsg.
     rename GET into FPGET, SAT into PTO_MAP, SAT0 into PTO_LE, SAT1 into FPTO_LE, MAX into PTO_MAX.
 
-    (* TODO: does the following work? *)
-    (* specialize (Memory.min_exists *)
-    (*               (fun fnto => exists ts fts, f1 loc ts fts /\ Time.le nfrom ts /\ Time.lt fts fnto) *)
-    (*               loc fmem1). *)
-    (* i. des. *)
-
     specialize (Memory.min_exists
-                  (fun fnto => exists ts fts,
-                       f1 loc ts fts /\
-                       (__guard__ (
-                            Time.lt nfrom ts /\ Time.le fts fnto \/
-                            Time.le nfrom ts /\ Time.lt fts fnto)))
+                  (fun fnto => exists ts fts, f1 loc ts fts /\ Time.le nfrom ts /\ Time.lt fts fnto)
                   loc fmem1).
     i. des.
+
+    (* specialize (Memory.min_exists *)
+    (*               (fun fnto => exists ts fts, *)
+    (*                    f1 loc ts fts /\ *)
+    (*                    (__guard__ ( *)
+    (*                         Time.lt nfrom ts /\ Time.le fts fnto \/ *)
+    (*                         Time.le nfrom ts /\ Time.lt fts fnto))) *)
+    (*               loc fmem1). *)
+    (* i. des. *)
 
     { (* source latest *)
       assert (FEMPTY: forall fto (FTO: Time.lt fpto fto),
@@ -672,17 +671,16 @@ Proof.
         { exploit EMPTY; try exact l; timetac. congr. }
         exploit Memory.lt_from_get; try exact l0; try eassumption. i. des.
         { subst. eapply NONE; try exact FGET.
-          esplits; try exact FROM.
-          right. split; try refl.
+          esplits; try exact FROM; try refl.
           eapply TimeFacts.le_lt_lt; [eassumption|].
           exploit Memory.get_ts; try exact FGET. i. des; ss.
           subst. timetac.
         }
         eapply NONE; try exact FGET.
         esplits; try exact FROM.
-        left. split; timetac.
-        etrans; [eassumption|].
-        exploit Memory.get_ts; try exact FGET. i. des; timetac.
+        - etrans; try exact x1. econs. ss.
+        - eapply TimeFacts.le_lt_lt; try exact FFROM.
+          exploit Memory.get_ts; try exact FGET. i. des; timetac.
       }
 
       assert (FMAP_EMPTY: forall ts fts
@@ -871,7 +869,25 @@ Proof.
 
     { (* source non-latest *)
       rename from_min into fnfrom, to_min into fnto, msg_min into fnmsg.
-      rename GET into FNGET, SAT into NFROM_MAP, MIN into NFROM_MIN.
+      rename GET into FNGET, SAT into NFROM_MAP,
+        SAT0 into NFROM_LE, SAT1 into FNTO_LE, MIN into NFROM_MIN.
+
+      destruct (TimeFacts.le_lt_dec fts0 fnfrom); cycle 1.
+      { exfalso.
+        exploit COMPLETE1; try exact NFROM_MAP. i. des.
+        exploit Memory.get_ts; try exact FNGET. i. des; subst; timetac.
+        exploit Memory.get_ts; try exact FGET. i. des.
+        { subst. unguard. des; subst; timetac. }
+        unguardH x0. des; subst.
+        - exploit Memory.get_disjoint; [exact FNGET|exact FGET|]. i. des; subst; timetac.
+          destruct (TimeFacts.le_lt_dec fto fnto).
+          + apply (x0 fto); econs; ss; try refl.
+            etrans; try exact l. ss.
+          + apply (x0 fnto); econs; ss; try refl. econs. ss.
+        - exploit Memory.get_disjoint; [exact FNGET|exact FGET|]. i. des; subst; timetac.
+          apply (x0 fto); econs; ss; try refl. econs. ss.
+      }
+      rename l into FNFROM_LE.
 
       assert (FEMPTY: Memory.empty fmem1 loc fpto fnto).
       { ii. rename ts1 into fto.
@@ -896,9 +912,9 @@ Proof.
         }
         exploit NFROM_MIN; try exact FGET; i; timetac.
         esplits; try exact FROM.
-        left. split; timetac.
-        etrans; [eassumption|].
-        exploit Memory.get_ts; try exact FGET. i. des; timetac.
+        - etrans; try exact x2. econs. ss.
+        - eapply TimeFacts.le_lt_lt; [eassumption|].
+          exploit Memory.get_ts; try exact FGET. i. des; timetac.
       }
 
       assert (FMAP_EMPTY: forall ts fts
@@ -927,11 +943,31 @@ Proof.
         exploit FEMPTY; try exact FPTO_FTO; try eassumption. congr.
       }
       inv FPTO_LE.
-      { admit.
+      { exploit FMAP_EMPTY; try exact H0; try eassumption; ss.
+        eapply TimeFacts.lt_le_lt; try exact FNFROM_LE.
+        eapply MAP_LT; try exact PTO_MAP; try exact NFROM_MAP.
+        eapply TimeFacts.le_lt_lt; try exact PTO_LE.
+        eapply TimeFacts.lt_le_lt; try exact H. ss.
       }
       symmetry in H0. inv H0.
+      inv FNFROM_LE.
+      { exploit FMAP_EMPTY; try exact H0; try eassumption; ss.
+        eapply MAP_LT; try exact PTO_MAP; try exact NFROM_MAP.
+        eapply TimeFacts.le_lt_lt; try exact PTO_LE.
+        eapply TimeFacts.lt_le_lt; try exact H. ss.
+      }
+      inv H0.
 
       (* find ffrom and fto *)
+      assert (exists fto,
+                 (<<FTO_PREV: Time.lt fpto fto>>) /\
+                 (<<FTO_NEXT: Time.le fto fnfrom>>) /\
+                 (<<FTO_EQ: __guard__ (ts0 = nfrom <-> fnfrom = fto)>>)).
+      { destruct (Time.eq_dec ts0 nfrom).
+        { admit.
+        }
+        admit.
+      }
       assert (exists ffrom fto,
                  (<<FPREV: Time.le fpto ffrom>>) /\
                  (<<FPREV_EQ: __guard__ (ts = from <-> fpto = ffrom)>>) /\

@@ -1638,25 +1638,21 @@ Proof.
 Qed.
 
 Lemma map_write_step
-      rsv
       f1 lc1 gl1 flc1 fgl1
       loc from to val releasedm released ord lc2 gl2
       freleasedm
       (MAP_WF1: map_wf f1)
       (MAP_COMPLETE1: map_complete f1 (Global.memory gl1) (Global.memory fgl1))
       (LC_MAP1: local_map f1 lc1 flc1)
-      (GL_MAP1: global_map f1 reserved rsv gl1 fgl1)
+      (GL_MAP1: global_map f1 (Local.reserves lc1) gl1 fgl1)
       (LC_WF1: Local.wf lc1 gl1)
       (GL_WF1: Global.wf gl1)
       (FLC_WF1: Local.wf flc1 fgl1)
-      (RESERVES: Local.reserves lc1 = rsv)
-      (GRESERVES: Global.reserves gl1 = BoolMap.top)
-      (FGRESERVES: Global.reserves fgl1 = BoolMap.bot)
       (RELEASEDM_MAP: opt_view_map f1 releasedm freleasedm)
       (FRELEASEDM: View.opt_wf freleasedm)
-      (STEP: Local.write_step reserved lc1 gl1 loc from to val releasedm released ord lc2 gl2):
+      (STEP: Local.write_step lc1 gl1 loc from to val releasedm released ord lc2 gl2):
   exists f2 ffrom fto freleased flc2 fgl2,
-    (<<FSTEP: Local.write_step freserved flc1 fgl1 loc ffrom fto val freleasedm freleased ord flc2 fgl2>>) /\
+    (<<FSTEP: Local.write_step flc1 fgl1 loc ffrom fto val freleasedm freleased ord flc2 fgl2>>) /\
     (<<F2: f2 = map_add loc from ffrom (map_add loc to fto f1)>>) /\
     (<<MAP_WF2: map_wf f2>>) /\
     (<<MAP_COMPLETE2: map_complete f2 (Global.memory gl2) (Global.memory fgl2)>>) /\
@@ -1664,15 +1660,16 @@ Lemma map_write_step
     (<<TO_MAP: f2 loc to fto>>) /\
     (<<RELEASED_MAP: opt_view_map f2 released freleased>>) /\
     (<<LC_MAP2: local_map f2 lc2 flc2>>) /\
-    (<<GL_MAP2: global_map f2 reserved rsv gl2 fgl2>>).
+    (<<GL_MAP2: global_map f2 (Local.reserves lc2) gl2 fgl2>>).
 Proof.
   destruct lc1 as [tview1 prm1 rsv1].
   destruct flc1 as [ftview1 fprm1 frsv1].
-  destruct gl1 as [sc1 gprm1 grsv1 mem1].
-  destruct fgl1 as [fsc1 fgprm1 fgrsv1 fmem1].
-  inv LC_MAP1. inv GL_MAP1. ss. subst.
+  destruct gl1 as [sc1 gprm1 mem1].
+  destruct fgl1 as [fsc1 fgprm1 fmem1].
+  inv LC_MAP1. inv GL_MAP1. ss.
   inv STEP. ss.
-  exploit memory_map_add; try exact MEMORY; eauto; try apply GL_WF1. i. des.
+  exploit memory_map_add; try exact MEMORY;
+    try apply LC_WF1; try apply GL_WF1; eauto. i. des.
   assert (REL: opt_view_map
                  f2
                  (TView.write_released tview1 loc to releasedm ord)
@@ -1689,10 +1686,9 @@ Proof.
   i. des. clear x0. subst.
   esplits; eauto 6.
   - econs; try exact FADD; eauto; s.
-    + eapply map_writable; try exact WRITABLE; try exact WF2; auto 6.
-      eapply tview_map_incr; try exact TVIEW.
-      i. repeat apply map_add_incr. ss.
-    + i. des. ss.
+    eapply map_writable; try exact WRITABLE; try exact WF2; auto 6.
+    eapply tview_map_incr; try exact TVIEW.
+    i. repeat apply map_add_incr. ss.
   - ss.
   - econs; ss.
     apply write_tview_map; ss; auto 6.
@@ -1726,25 +1722,24 @@ Proof.
 Qed.
 
 Lemma map_fence_step
-      reserved rsv
+      rsv
       f1 lc1 gl1 flc1 fgl1
       ordr ordw lc2 gl2
       (MAP_WF1: map_wf f1)
       (MAP_COMPLETE1: map_complete f1 (Global.memory gl1) (Global.memory fgl1))
       (LC_MAP1: local_map f1 lc1 flc1)
-      (GL_MAP1: global_map f1 reserved rsv gl1 fgl1)
-      (FPROMISES: Local.promises flc1 = BoolMap.bot)
+      (GL_MAP1: global_map f1 rsv gl1 fgl1)
       (ORD: Ordering.le ordw Ordering.acqrel)
       (STEP: Local.fence_step lc1 gl1 ordr ordw lc2 gl2):
   exists flc2 fgl2,
     (<<FSTEP: Local.fence_step flc1 fgl1 ordr ordw flc2 fgl2>>) /\
     (<<MAP_COMPLETE2: map_complete f1 (Global.memory gl2) (Global.memory fgl2)>>) /\
     (<<LC_MAP2: local_map f1 lc2 flc2>>) /\
-    (<<GL_MAP2: global_map f1 reserved rsv gl2 fgl2>>).
+    (<<GL_MAP2: global_map f1 rsv gl2 fgl2>>).
 Proof.
   inv STEP.
   esplits.
-  - econs; eauto.
+  - econs; eauto. destruct ordw; ss.
   - ss.
   - econs; try apply LC_MAP1. s.
     apply write_fence_tview_map; ss; try apply GL_MAP1.
@@ -1766,12 +1761,12 @@ Proof.
 Qed.
 
 Lemma map_is_racy
-      reserved rsv
+      rsv
       f1 lc1 gl1 flc1 fgl1
       loc to ord
       (MAP_WF1: map_wf f1)
       (LC_MAP1: local_map f1 lc1 flc1)
-      (GL_MAP1: global_map f1 reserved rsv gl1 fgl1)
+      (GL_MAP1: global_map f1 rsv gl1 fgl1)
       (STEP: Local.is_racy lc1 gl1 loc (Some to) ord):
   exists fto,
     (<<FSTEP: Local.is_racy flc1 fgl1 loc (Some fto) ord>>) /\
@@ -1779,18 +1774,18 @@ Lemma map_is_racy
 Proof.
   inv LC_MAP1. inv GL_MAP1.
   inv STEP.
-  exploit memory_map_get; eauto. i. des. inv MSG0.
+  exploit memory_map_get; eauto; ss. i. des. inv MSG0.
   esplits; [econs 2|]; eauto.
   eapply map_racy_view; try apply TVIEW; eauto.
 Qed.
 
 Lemma map_racy_read_step
-      reserved rsv
+      rsv
       f1 lc1 gl1 flc1 fgl1
       loc to val ord
       (MAP_WF1: map_wf f1)
       (LC_MAP1: local_map f1 lc1 flc1)
-      (GL_MAP1: global_map f1 reserved rsv gl1 fgl1)
+      (GL_MAP1: global_map f1 rsv gl1 fgl1)
       (STEP: Local.racy_read_step lc1 gl1 loc (Some to) val ord):
   exists fto,
     (<<FSTEP: Local.racy_read_step flc1 fgl1 loc (Some fto) val ord>>) /\
@@ -1802,12 +1797,12 @@ Proof.
 Qed.
 
 Lemma map_racy_write_step
-      reserved rsv
+      rsv
       f1 lc1 gl1 flc1 fgl1
       loc to ord
       (MAP_WF1: map_wf f1)
       (LC_MAP1: local_map f1 lc1 flc1)
-      (GL_MAP1: global_map f1 reserved rsv gl1 fgl1)
+      (GL_MAP1: global_map f1 rsv gl1 fgl1)
       (STEP: Local.racy_write_step lc1 gl1 loc (Some to) ord):
   exists fto,
     (<<FSTEP: Local.racy_write_step flc1 fgl1 loc (Some fto) ord>>) /\
@@ -1819,12 +1814,12 @@ Proof.
 Qed.
 
 Lemma map_racy_update_step
-      reserved rsv
+      rsv
       f1 lc1 gl1 flc1 fgl1
       loc to ordr ordw
       (MAP_WF1: map_wf f1)
       (LC_MAP1: local_map f1 lc1 flc1)
-      (GL_MAP1: global_map f1 reserved rsv gl1 fgl1)
+      (GL_MAP1: global_map f1 rsv gl1 fgl1)
       (RACE: to = None -> Ordering.le ordr Ordering.na \/ Ordering.le ordw Ordering.na)
       (STEP: Local.racy_update_step lc1 gl1 loc to ordr ordw):
   exists fto,
@@ -1841,39 +1836,34 @@ Proof.
 Qed.
 
 Lemma map_program_step
-      reserved freserved
-      rsv
       f1 lc1 gl1 flc1 fgl1
       e lc2 gl2
       (MAP_WF1: map_wf f1)
       (MAP_COMPLETE1: map_complete f1 (Global.memory gl1) (Global.memory fgl1))
       (LC_MAP1: local_map f1 lc1 flc1)
-      (GL_MAP1: global_map f1 reserved rsv gl1 fgl1)
+      (GL_MAP1: global_map f1 (Local.reserves lc1) gl1 fgl1)
       (LC_WF1: Local.wf lc1 gl1)
       (GL_WF1: Global.wf gl1)
       (FLC_WF1: Local.wf flc1 fgl1)
       (FGL_WF1: Global.wf fgl1)
-      (RESERVED: Memory.closed_timemap reserved (Global.memory gl1))
-      (FPROMISES: Local.promises flc1 = BoolMap.bot)
-      (RESERVES: Local.reserves lc1 = rsv)
-      (GRESERVES: Global.reserves gl1 = BoolMap.top)
-      (FGRESERVES: Global.reserves fgl1 = BoolMap.bot)
-      (STEP: Local.program_step reserved e lc1 gl1 lc2 gl2)
+      (STEP: Local.program_step e lc1 gl1 lc2 gl2)
       (EVENT1: ~ ThreadEvent.is_racy_promise e)
       (EVENT2: ~ ThreadEvent.is_sc e):
   exists f2 fe flc2 fgl2,
-    (<<FSTEP: Local.program_step freserved fe flc1 fgl1 flc2 fgl2>>) /\
+    (<<FSTEP: Local.program_step fe flc1 fgl1 flc2 fgl2>>) /\
     (<<EVENT: event_map f2 e fe>>) /\
     (<<MAP_INCR: f1 <3= f2>>) /\
     (<<MAP_WF2: map_wf f2>>) /\
     (<<MAP_COMPLETE2: map_complete f2 (Global.memory gl2) (Global.memory fgl2)>>) /\
     (<<LC_MAP2: local_map f2 lc2 flc2>>) /\
-    (<<GL_MAP2: global_map f2 reserved rsv gl2 fgl2>>).
+    (<<GL_MAP2: global_map f2 (Local.reserves lc2) gl2 fgl2>>).
 Proof.
   inv STEP.
   - esplits; [econs 1|..]; eauto. econs.
   - exploit map_read_step; eauto. i. des.
-    esplits; [econs 2|..]; eauto. econs; ss.
+    esplits; [econs 2|..]; eauto.
+    + econs; ss.
+    + inv LOCAL. ss.
   - exploit map_write_step; eauto; try by econs. i. des.
     esplits; [econs 3|..]; try exact MAP_WF2; eauto.
     + econs; ss.
@@ -1894,7 +1884,9 @@ Proof.
   - exploit map_fence_step; eauto.
     { destruct ordw; ss. }
     i. des.
-    esplits; [econs 5|..]; eauto. econs; ss.
+    esplits; [econs 5|..]; eauto.
+    + econs; ss.
+    + inv LOCAL. ss.
   - exploit map_fence_step; eauto; ss.
   - esplits; [econs 7|..]; eauto. econs.
   - destruct to; ss.

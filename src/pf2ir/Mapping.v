@@ -165,6 +165,29 @@ Section Mapping.
               (<<TO: f loc to fto'>>))
   .
 
+  Variant memory_map_fix (rsv: Memory.t) (mem fmem: Memory.t): Prop :=
+    | memory_map_fix_intro
+        (SOUND: forall loc from to msg
+                       (GET: Memory.get loc to mem = Some (from, msg)),
+            (<<RESERVE: msg = Message.reserve>>) \/
+            exists ffrom fto fmsg,
+              (<<FGET: Memory.get loc fto fmem = Some (ffrom, fmsg)>>) /\
+              (<<FROM: f loc from ffrom>>) /\
+              (<<TO: f loc to fto>>) /\
+              (<<MSG: message_map msg fmsg>>))
+        (COMPLETE: forall loc ffrom fto fmsg
+                          (FGET: Memory.get loc fto fmem = Some (ffrom, fmsg)),
+            exists ffrom' fto' from to,
+              (<<FFROM: Time.le ffrom' ffrom>>) /\
+              (<<FTO: Time.le fto fto'>>) /\
+              (<<FROM: f loc from ffrom'>>) /\
+              (<<TO: f loc to fto'>>) /\
+              (<<COVERED: forall ts (ITV: Interval.mem (from, to) ts), covered loc ts mem>>) /\
+              (<<RESERVED: forall f t m
+                             (GET: Memory.get loc t rsv = Some (f, m)),
+                  Interval.disjoint (f, t) (from, to)>>))
+  .
+
   Variant local_map (lc flc: Local.t): Prop :=
     | local_map_intro
         (TVIEW: tview_map (Local.tview lc) (Local.tview flc))

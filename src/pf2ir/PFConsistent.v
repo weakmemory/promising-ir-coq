@@ -31,8 +31,11 @@ Definition non_sc (e: ThreadEvent.t): Prop :=
 #[export] Hint Unfold non_sc: core.
 
 Definition strict_pf (e: ThreadEvent.t): Prop :=
-  ThreadEvent.is_pf e  /\ ~ ThreadEvent.is_racy_promise e.
+  ThreadEvent.is_pf e /\ ~ ThreadEvent.is_racy_promise e.
 #[export] Hint Unfold strict_pf: core.
+
+Definition fully_pf (e: ThreadEvent.t): Prop :=
+  ThreadEvent.is_program e /\ ~ ThreadEvent.is_racy_promise e.
 
 
 Module PFConsistent.

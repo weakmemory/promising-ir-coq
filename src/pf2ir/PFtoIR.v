@@ -16,7 +16,6 @@ Require Import Time.
 Require Import View.
 Require Import BoolMap.
 Require Import Promises.
-Require Import Reserves.
 Require Import Cell.
 Require Import Memory.
 Require Import TView.

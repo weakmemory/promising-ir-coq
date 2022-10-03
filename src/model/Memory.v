@@ -1188,6 +1188,25 @@ Module Memory.
     rewrite MAX in TO0. eapply Time.lt_strorder. eapply TimeFacts.le_lt_lt; eauto.
   Qed.
 
+  Lemma add_exists_max
+        mem1 loc to msg
+        (TO: Time.lt (max_ts loc mem1) to)
+        (MSG_WF: Message.wf msg):
+    exists from,
+      (<<FROM: Time.lt (max_ts loc mem1) from>>) /\
+      exists mem2,
+        (<<ADD: add mem1 loc from to msg mem2>>).
+  Proof.
+    exploit Time.middle_spec; try exact TO. i. des.
+    eexists. splits; try exact x0.
+    eapply add_exists; eauto.
+    ii. inv LHS. inv RHS. ss.
+    exploit max_ts_spec; try exact GET2. i. des.
+    rewrite MAX in TO1.
+    rewrite FROM in x0.
+    timetac.
+  Qed.
+
   Lemma add_exists_le
         mem1' mem1 loc from to msg mem2
         (LE: le mem1' mem1)

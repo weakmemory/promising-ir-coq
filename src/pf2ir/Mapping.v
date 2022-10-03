@@ -1834,6 +1834,30 @@ Proof.
       i. des; esplits; eauto; ss.
 Qed.
 
+Lemma map_internal_step
+      f1 lc1 gl1 flc1 fgl1
+      e lc2 gl2
+      (MAP_WF1: map_wf f1)
+      (MAP_COMPLETE1: map_complete f1 (Global.memory gl1) (Global.memory fgl1))
+      (LC_MAP1: local_map f1 lc1 flc1)
+      (GL_MAP1: global_map f1 (Local.reserves lc1) gl1 fgl1)
+      (LC_WF1: Local.wf lc1 gl1)
+      (GL_WF1: Global.wf gl1)
+      (STEP: Local.internal_step e lc1 gl1 lc2 gl2):
+  (<<MAP_COMPLETE2: map_complete f1 (Global.memory gl2) (Global.memory fgl1)>>) /\
+  (<<LC_MAP2: local_map f1 lc2 flc1>>) /\
+  (<<GL_MAP2: global_map f1 (Local.reserves lc2) gl2 fgl1>>).
+Proof.
+  inv LC_MAP1. inv GL_MAP1. inv STEP.
+  - inv LOCAL. ss.
+  - inv LOCAL. ss.
+    exploit memory_map_reserve; eauto. i. des.
+    esplits; ss.
+  - inv LOCAL. ss.
+    exploit memory_map_cancel; eauto; try apply LC_WF1; try apply GL_WF1. i. des.
+    esplits; ss.
+Qed.
+
 Lemma map_program_step
       f1 lc1 gl1 flc1 fgl1
       e lc2 gl2

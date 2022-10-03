@@ -172,10 +172,10 @@ Module Thread.
 
     Lemma cap_wf
           th
-          (WF_LC: Local.wf (local th) (global th))
-          (WF_GL: Global.wf (global th)):
-      (<<WF_LC_CAP: Local.wf (local (cap_of th)) (global (cap_of th))>>) /\
-      (<<WF_GL_CAP: Global.wf (global (cap_of th))>>).
+          (LC_WF: Local.wf (local th) (global th))
+          (GL_WF: Global.wf (global th)):
+      (<<LC_WF_CAP: Local.wf (local (cap_of th)) (global (cap_of th))>>) /\
+      (<<GL_WF_CAP: Global.wf (global (cap_of th))>>).
     Proof.
       exploit Local.cap_wf; eauto.
       exploit Global.cap_wf; eauto.

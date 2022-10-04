@@ -183,162 +183,162 @@ Section FutureCertify.
     inv MAP; ss.
   Qed.
 
-  Lemma map_step
-        f1 th1 fth1
-        e th2
-        (MAP_WF1: map_wf f1)
-        (MAP_COMPLETE1: map_complete
-                          f1
-                          (Global.memory (Thread.global th1))
-                          (Global.memory (Thread.global fth1)))
-        (MAP1: thread_map f1 th1 fth1)
-        (LC_WF1: Local.wf (Thread.local th1) (Thread.global th1))
-        (GL_WF1: Global.wf (Thread.global th1))
-        (FLC_WF1: Local.wf (Thread.local fth1) (Thread.global fth1))
-        (FGL_WF1: Global.wf (Thread.global fth1))
-        (STEP: Thread.step e th1 th2)
-        (EVENT1: ~ ThreadEvent.is_racy_promise e)
-        (EVENT2: ~ ThreadEvent.is_sc e):
-    exists f2 fe fth2,
-      (<<FSTEP: Thread.opt_step fe fth1 fth2>>) /\
-      (<<EVENT: __guard__ (ThreadEvent.is_internal e /\ fe = ThreadEvent.silent \/
-                           ThreadEvent.is_program e /\ event_map f2 e fe)>>) /\
-      (<<MAP_INCR: f1 <3= f2>>) /\
-      (<<MAP_WF2: map_wf f2>>) /\
-      (<<MAP_COMPLETE2: map_complete
-                          f2
-                          (Global.memory (Thread.global th2))
-                          (Global.memory (Thread.global fth2))>>) /\
-      (<<MAP2: thread_map f2 th2 fth2>>).
-  Proof.
-    destruct th1, fth1. inv MAP1. ss. subst.
-    inv STEP.
-    - exploit map_internal_step; try exact LOCAL; try exact GLOBAL; eauto. i. des.
-      esplits; eauto.
-      + left. split; ss. inv LOCAL0; ss.
-      + ss.
-    - exploit map_program_step; try exact LOCAL; try exact GLOBAL; eauto. i. des.
-      esplits.
-      + econs 2. econs 2; [|eauto].
-        erewrite <- event_map_program_event; eauto.
-      + right. split; eauto. inv LOCAL0; ss.
-      + ss.
-      + ss.
-      + ss.
-      + econs; ss.
-        exploit Local.program_step_promises; try exact FSTEP. i. des.
-        apply BoolMap.antisym; try apply BoolMap.bot_spec.
-        etrans; eauto. rewrite FPROMISES. refl.
-  Qed.
+  (* Lemma map_step *)
+  (*       f1 th1 fth1 *)
+  (*       e th2 *)
+  (*       (MAP_WF1: map_wf f1) *)
+  (*       (MAP_COMPLETE1: map_complete *)
+  (*                         f1 *)
+  (*                         (Global.memory (Thread.global th1)) *)
+  (*                         (Global.memory (Thread.global fth1))) *)
+  (*       (MAP1: thread_map f1 th1 fth1) *)
+  (*       (LC_WF1: Local.wf (Thread.local th1) (Thread.global th1)) *)
+  (*       (GL_WF1: Global.wf (Thread.global th1)) *)
+  (*       (FLC_WF1: Local.wf (Thread.local fth1) (Thread.global fth1)) *)
+  (*       (FGL_WF1: Global.wf (Thread.global fth1)) *)
+  (*       (STEP: Thread.step e th1 th2) *)
+  (*       (EVENT1: ~ ThreadEvent.is_racy_promise e) *)
+  (*       (EVENT2: ~ ThreadEvent.is_sc e): *)
+  (*   exists f2 fe fth2, *)
+  (*     (<<FSTEP: Thread.opt_step fe fth1 fth2>>) /\ *)
+  (*     (<<EVENT: __guard__ (ThreadEvent.is_internal e /\ fe = ThreadEvent.silent \/ *)
+  (*                          ThreadEvent.is_program e /\ event_map f2 e fe)>>) /\ *)
+  (*     (<<MAP_INCR: f1 <3= f2>>) /\ *)
+  (*     (<<MAP_WF2: map_wf f2>>) /\ *)
+  (*     (<<MAP_COMPLETE2: map_complete *)
+  (*                         f2 *)
+  (*                         (Global.memory (Thread.global th2)) *)
+  (*                         (Global.memory (Thread.global fth2))>>) /\ *)
+  (*     (<<MAP2: thread_map f2 th2 fth2>>). *)
+  (* Proof. *)
+  (*   destruct th1, fth1. inv MAP1. ss. subst. *)
+  (*   inv STEP. *)
+  (*   - exploit map_internal_step; try exact LOCAL; try exact GLOBAL; eauto. i. des. *)
+  (*     esplits; eauto. *)
+  (*     + left. split; ss. inv LOCAL0; ss. *)
+  (*     + ss. *)
+  (*   - exploit map_program_step; try exact LOCAL; try exact GLOBAL; eauto. i. des. *)
+  (*     esplits. *)
+  (*     + econs 2. econs 2; [|eauto]. *)
+  (*       erewrite <- event_map_program_event; eauto. *)
+  (*     + right. split; eauto. inv LOCAL0; ss. *)
+  (*     + ss. *)
+  (*     + ss. *)
+  (*     + ss. *)
+  (*     + econs; ss. *)
+  (*       exploit Local.program_step_promises; try exact FSTEP. i. des. *)
+  (*       apply BoolMap.antisym; try apply BoolMap.bot_spec. *)
+  (*       etrans; eauto. rewrite FPROMISES. refl. *)
+  (* Qed. *)
 
-  Lemma map_rtc_step
-        f1 th1 fth1
-        th2
-        (MAP_WF1: map_wf f1)
-        (MAP_COMPLETE1: map_complete
-                          f1
-                          (Global.memory (Thread.global th1))
-                          (Global.memory (Thread.global fth1)))
-        (MAP1: thread_map f1 th1 fth1)
-        (LC_WF1: Local.wf (Thread.local th1) (Thread.global th1))
-        (GL_WF1: Global.wf (Thread.global th1))
-        (FLC_WF1: Local.wf (Thread.local fth1) (Thread.global fth1))
-        (FGL_WF1: Global.wf (Thread.global fth1))
-        (STEPS: rtc (pstep (@Thread.step _) (strict_pf /1\ non_sc)) th1 th2):
-    exists f2 fth2,
-      (<<FSTEPS: rtc (pstep (@Thread.step _) (fully_pf /1\ non_sc)) fth1 fth2>>) /\
-      (<<MAP_INCR: f1 <3= f2>>) /\
-      (<<MAP_WF2: map_wf f2>>) /\
-      (<<MAP_COMPLETE2: map_complete
-                          f2
-                          (Global.memory (Thread.global th2))
-                          (Global.memory (Thread.global fth2))>>) /\
-      (<<MAP2: thread_map f2 th2 fth2>>).
-  Proof.
-    revert f1 fth1 MAP_WF1 MAP_COMPLETE1 MAP1 FLC_WF1 FGL_WF1.
-    induction STEPS; i.
-    { esplits; eauto. }
-    inv H. des.
-    exploit map_step; eauto; try apply EVENT; try apply EVENT0. i. des.
-    exploit Thread.step_future; try exact STEP; eauto. i. des.
-    exploit Thread.opt_step_future; try exact FSTEP; eauto. i. des.
-    exploit IHSTEPS; eauto. i. des.
-    esplits; try exact MAP0; eauto.
-    inv FSTEP; eauto.
-    econs 2; try exact FSTEPS. econs; eauto.
-    inv EVENT1; des.
-    - subst. repeat (split; ss).
-    - split.
-      + split.
-        * erewrite <- event_map_is_program; eauto.
-        * erewrite <- event_map_is_racy_promise; eauto. apply EVENT.
-      + erewrite <- event_map_non_sc; eauto.
-  Qed.
+  (* Lemma map_rtc_step *)
+  (*       f1 th1 fth1 *)
+  (*       th2 *)
+  (*       (MAP_WF1: map_wf f1) *)
+  (*       (MAP_COMPLETE1: map_complete *)
+  (*                         f1 *)
+  (*                         (Global.memory (Thread.global th1)) *)
+  (*                         (Global.memory (Thread.global fth1))) *)
+  (*       (MAP1: thread_map f1 th1 fth1) *)
+  (*       (LC_WF1: Local.wf (Thread.local th1) (Thread.global th1)) *)
+  (*       (GL_WF1: Global.wf (Thread.global th1)) *)
+  (*       (FLC_WF1: Local.wf (Thread.local fth1) (Thread.global fth1)) *)
+  (*       (FGL_WF1: Global.wf (Thread.global fth1)) *)
+  (*       (STEPS: rtc (pstep (@Thread.step _) (strict_pf /1\ non_sc)) th1 th2): *)
+  (*   exists f2 fth2, *)
+  (*     (<<FSTEPS: rtc (pstep (@Thread.step _) (fully_pf /1\ non_sc)) fth1 fth2>>) /\ *)
+  (*     (<<MAP_INCR: f1 <3= f2>>) /\ *)
+  (*     (<<MAP_WF2: map_wf f2>>) /\ *)
+  (*     (<<MAP_COMPLETE2: map_complete *)
+  (*                         f2 *)
+  (*                         (Global.memory (Thread.global th2)) *)
+  (*                         (Global.memory (Thread.global fth2))>>) /\ *)
+  (*     (<<MAP2: thread_map f2 th2 fth2>>). *)
+  (* Proof. *)
+  (*   revert f1 fth1 MAP_WF1 MAP_COMPLETE1 MAP1 FLC_WF1 FGL_WF1. *)
+  (*   induction STEPS; i. *)
+  (*   { esplits; eauto. } *)
+  (*   inv H. des. *)
+  (*   exploit map_step; eauto; try apply EVENT; try apply EVENT0. i. des. *)
+  (*   exploit Thread.step_future; try exact STEP; eauto. i. des. *)
+  (*   exploit Thread.opt_step_future; try exact FSTEP; eauto. i. des. *)
+  (*   exploit IHSTEPS; eauto. i. des. *)
+  (*   esplits; try exact MAP0; eauto. *)
+  (*   inv FSTEP; eauto. *)
+  (*   econs 2; try exact FSTEPS. econs; eauto. *)
+  (*   inv EVENT1; des. *)
+  (*   - subst. repeat (split; ss). *)
+  (*   - split. *)
+  (*     + split. *)
+  (*       * erewrite <- event_map_is_program; eauto. *)
+  (*       * erewrite <- event_map_is_racy_promise; eauto. apply EVENT. *)
+  (*     + erewrite <- event_map_non_sc; eauto. *)
+  (* Qed. *)
 
-  Lemma event_map_is_writing
-        f e fe
-        loc from to val released ord
-        (MAP: event_map f e fe)
-        (WRITING: ThreadEvent.is_writing e = Some (loc, from, to, val, released, ord)):
-    exists ffrom fto freleased,
-      (<<FWRITING: ThreadEvent.is_writing fe = Some (loc, ffrom, fto, val, freleased, ord)>>) /\
-      (<<FROM: f loc from ffrom>>) /\
-      (<<TO: f loc to fto>>) /\
-      (<<RELEASED: opt_view_map f released freleased>>).
-  Proof.
-    inv MAP; ss; inv WRITING; esplits; eauto.
-  Qed.
+  (* Lemma event_map_is_writing *)
+  (*       f e fe *)
+  (*       loc from to val released ord *)
+  (*       (MAP: event_map f e fe) *)
+  (*       (WRITING: ThreadEvent.is_writing e = Some (loc, from, to, val, released, ord)): *)
+  (*   exists ffrom fto freleased, *)
+  (*     (<<FWRITING: ThreadEvent.is_writing fe = Some (loc, ffrom, fto, val, freleased, ord)>>) /\ *)
+  (*     (<<FROM: f loc from ffrom>>) /\ *)
+  (*     (<<TO: f loc to fto>>) /\ *)
+  (*     (<<RELEASED: opt_view_map f released freleased>>). *)
+  (* Proof. *)
+  (*   inv MAP; ss; inv WRITING; esplits; eauto. *)
+  (* Qed. *)
 
-  Lemma map_certify
-        f th fth loc
-        (MAP_WF: map_wf f)
-        (MAP_COMPLETE: map_complete
-                         f
-                         (Global.memory (Thread.global th))
-                         (Global.memory (Thread.global fth)))
-        (MAP: thread_map f th fth)
-        (LC_WF: Local.wf (Thread.local th) (Thread.global th))
-        (GL_WF: Global.wf (Thread.global th))
-        (FLC_WF: Local.wf (Thread.local fth) (Thread.global fth))
-        (FGL_WF: Global.wf (Thread.global fth))
-        (CERTIFY: certify loc th):
-    pf_certify loc fth.
-  Proof.
-    inv CERTIFY.
-    { exploit map_rtc_step; try exact STEPS; eauto. i. des.
-      exploit Thread.rtc_all_step_future; try eapply rtc_implies; try exact STEPS; eauto.
-      { i. inv H. econs. eauto. }
-      i. des.
-      exploit Thread.rtc_all_step_future; try eapply rtc_implies; try exact FSTEPS; eauto.
-      { i. inv H. econs. eauto. }
-      i. des.
-      exploit map_step; try exact STEP_FAILURE; try exact MAP2; eauto.
-      { apply EVENT_PF. }
-      { destruct e; ss. }
-      i. des.
-      unguardH EVENT. des.
-      { subst. destruct e; ss. }
-      inv FSTEP; try by (inv EVENT0; ss).
-      econs 1; try exact STEP; eauto.
-      - erewrite <- event_map_machine_event; eauto.
-      - erewrite <- event_map_is_racy_promise; eauto. apply EVENT_PF.
-    }
-    { exploit map_rtc_step; try exact STEPS; eauto. i. des.
-      destruct th1, fth2. inv MAP2. ss. subst.
-      inv STEP_FULFILL; try by (inv LOCAL0; ss).
-      exploit Thread.rtc_all_step_future; try eapply rtc_implies; try exact FSTEPS; eauto.
-      { i. inv H. econs. eauto. }
-      s. i. des.
-      exploit Local.write_max_exists; try exact LC_WF2; try by econs 2. s. i. des.
-      econs 2; try exact FSTEPS.
-      - econs 2; [|econs 3; eauto]. eauto.
-      - ss.
-      - inv WRITE. ss.
-        exploit Memory.add_ts; try exact WRITE0. i.
-        etrans; eauto.
-      - ss.
-    }
-  Qed.
+  (* Lemma map_certify *)
+  (*       f th fth loc *)
+  (*       (MAP_WF: map_wf f) *)
+  (*       (MAP_COMPLETE: map_complete *)
+  (*                        f *)
+  (*                        (Global.memory (Thread.global th)) *)
+  (*                        (Global.memory (Thread.global fth))) *)
+  (*       (MAP: thread_map f th fth) *)
+  (*       (LC_WF: Local.wf (Thread.local th) (Thread.global th)) *)
+  (*       (GL_WF: Global.wf (Thread.global th)) *)
+  (*       (FLC_WF: Local.wf (Thread.local fth) (Thread.global fth)) *)
+  (*       (FGL_WF: Global.wf (Thread.global fth)) *)
+  (*       (CERTIFY: certify loc th): *)
+  (*   pf_certify loc fth. *)
+  (* Proof. *)
+  (*   inv CERTIFY. *)
+  (*   { exploit map_rtc_step; try exact STEPS; eauto. i. des. *)
+  (*     exploit Thread.rtc_all_step_future; try eapply rtc_implies; try exact STEPS; eauto. *)
+  (*     { i. inv H. econs. eauto. } *)
+  (*     i. des. *)
+  (*     exploit Thread.rtc_all_step_future; try eapply rtc_implies; try exact FSTEPS; eauto. *)
+  (*     { i. inv H. econs. eauto. } *)
+  (*     i. des. *)
+  (*     exploit map_step; try exact STEP_FAILURE; try exact MAP2; eauto. *)
+  (*     { apply EVENT_PF. } *)
+  (*     { destruct e; ss. } *)
+  (*     i. des. *)
+  (*     unguardH EVENT. des. *)
+  (*     { subst. destruct e; ss. } *)
+  (*     inv FSTEP; try by (inv EVENT0; ss). *)
+  (*     econs 1; try exact STEP; eauto. *)
+  (*     - erewrite <- event_map_machine_event; eauto. *)
+  (*     - erewrite <- event_map_is_racy_promise; eauto. apply EVENT_PF. *)
+  (*   } *)
+  (*   { exploit map_rtc_step; try exact STEPS; eauto. i. des. *)
+  (*     destruct th1, fth2. inv MAP2. ss. subst. *)
+  (*     inv STEP_FULFILL; try by (inv LOCAL0; ss). *)
+  (*     exploit Thread.rtc_all_step_future; try eapply rtc_implies; try exact FSTEPS; eauto. *)
+  (*     { i. inv H. econs. eauto. } *)
+  (*     s. i. des. *)
+  (*     exploit Local.write_max_exists; try exact LC_WF2; try by econs 2. s. i. des. *)
+  (*     econs 2; try exact FSTEPS. *)
+  (*     - econs 2; [|econs 3; eauto]. eauto. *)
+  (*     - ss. *)
+  (*     - inv WRITE. ss. *)
+  (*       exploit Memory.add_ts; try exact WRITE0. i. *)
+  (*       etrans; eauto. *)
+  (*     - ss. *)
+  (*   } *)
+  (* Qed. *)
 
   Lemma closed_timemap_map
         (f: map_t) mem tm
@@ -399,6 +399,44 @@ Section FutureCertify.
     econs; eauto using closed_view_map.
   Qed.
 
+  Lemma future_get_inv
+        mem1 mem2
+        loc from to msg
+        (FUTURE: Memory.future mem1 mem2)
+        (GET2: Memory.get loc to mem2 = Some (from, msg)):
+    forall f m
+           (GET1: Memory.get loc to mem1 = Some (f, m)),
+      f = from /\ m = msg \/ m = Message.reserve.
+  Proof.
+    induction FUTURE; i.
+    { rewrite GET1 in *. inv GET2. auto. }
+    destruct m; auto.
+    exploit Memory.future_get1; try exact GET1.
+    { econs 2; try exact H. refl. }
+    i. des.
+    exploit IHFUTURE; eauto.
+  Qed.
+
+  Set Nested Proofs Allowed.
+
+  Lemma future_get
+        rsv mem1 mem2
+        loc from to msg
+        (FUTURE: Memory.future mem1 mem2)
+        (LE1: Memory.le rsv mem1)
+        (LE2: Memory.le rsv mem2)
+        (GET1: Memory.get loc to mem1 = Some (from, msg))
+        (MSG: msg <> Message.reserve \/
+                exists f m, Memory.get loc to rsv = Some (f, m)):
+    Memory.get loc to mem2 = Some (from, msg).
+  Proof.
+    des.
+    - destruct msg; ss.
+      eapply Memory.future_get1; eauto.
+    - exploit LE1; eauto. i.
+      rewrite x0 in GET1. inv GET1. eauto.
+  Qed.
+
   Lemma future_map
         rsv mem mem_future fmem
         mem_cap
@@ -410,15 +448,15 @@ Section FutureCertify.
         (CAP: Memory.cap mem mem_cap):
     exists f,
       (<<F: f = fun loc ts fts =>
-                  (ts = fts /\
-                   exists from to val released na,
-                     Memory.get loc to mem = Some (from, Message.message val released na) /\
-                     __guard__ (ts = from \/ ts = to)) \/
+                  ts = fts /\
+                  ((exists from to val released na,
+                       Memory.get loc to mem = Some (from, Message.message val released na) /\
+                       __guard__ (ts = from \/ ts = to)) \/
+                   (exists from to msg,
+                       Memory.get loc to rsv = Some (from, msg) /\
+                       __guard__ (ts = from \/ ts = to))) \/
                   ts = Time.incr (Memory.max_ts loc mem) /\
-                  fts = Memory.max_ts loc fmem /\
-                  Memory.get loc fts mem = None /\
-                  exists from msg,
-                    Memory.get loc fts fmem = Some (from, msg)>>) /\
+                  fts = Time.incr (Memory.max_ts loc fmem)>>) /\
       (<<MAP_WF: map_wf f>>) /\
       (<<MAP_COMPLETE: map_complete f mem_cap fmem>>) /\
       (<<MAP: memory_map f rsv mem_cap fmem>>).
@@ -435,122 +473,183 @@ Section FutureCertify.
     (*   ). *)
     esplits; [refl|..].
     { (* map_wf *)
-      econs; ii; subst.
-      { left. splits; ss.
-        esplits; try eapply CLOSED; ss. unguard. auto.
-      }
-      { des; subst; ss.
-        - exfalso.
-          exploit Memory.max_ts_spec; try exact MAP0. i. des.
-          unguardH MAP3. des; subst.
-          + exploit Memory.get_ts; try exact MAP0. i. des.
-            { exploit Time.incr_spec. rewrite x0. i. timetac. }
-            exploit TimeFacts.lt_le_lt; try exact x0; try exact MAX. i.
-            eapply Time.lt_strorder. etrans; try exact x1.
-            apply Time.incr_spec.
-          + eapply Time.lt_strorder. eapply TimeFacts.le_lt_lt; try exact MAX.
-            apply Time.incr_spec.
-        - exfalso.
-          exploit Memory.max_ts_spec; try exact MAP5. i. des.
-          unguardH MAP6. des; subst.
-          + exploit Memory.get_ts; try exact MAP5. i. des.
-            { exploit Time.incr_spec. rewrite x0. i. timetac. }
-            exploit TimeFacts.lt_le_lt; try exact x0; try exact MAX. i.
-            eapply Time.lt_strorder. etrans; try exact x1.
-            apply Time.incr_spec.
-          + eapply Time.lt_strorder. eapply TimeFacts.le_lt_lt; try exact MAX.
-            apply Time.incr_spec.
-      }
-      { des; subst; ss.
-        - unguardH MAP3. des; subst; try congr.
-          exploit Memory.future_get1; try exact MAP0; eauto. i. des.
-          inv SIM. exploit COMPLETE; eauto. i.
-          exploit Memory.max_ts_spec; try exact x1. i. des.
-          exploit Memory.get_ts; try exact x1. i. des; timetac.
-          rewrite x2 in *.
-          inv CLOSED. rewrite INHABITED in *. ss.
-        - unguardH MAP6. des; subst; try congr.
-          exploit Memory.future_get1; try exact MAP5; eauto. i. des.
-          inv SIM. exploit COMPLETE; eauto. i.
-          exploit Memory.max_ts_spec; try exact x1. i. des.
-          exploit Memory.get_ts; try exact x1. i. des; timetac.
-          rewrite x2 in *.
-          inv CLOSED. rewrite INHABITED in *. ss.
-      }
-      { des; subst; ss; timetac.
-        - unguardH MAP3. des; subst.
-          + exploit Memory.max_ts_spec; try exact MAP0. i. des.
-            exploit TimeFacts.le_lt_lt; try exact MAX; try apply Time.incr_spec. i.
-            rewrite LT in x0.
-            exploit Memory.get_ts; try exact MAP0. i. des; timetac.
-          + exploit Memory.max_ts_spec; try exact MAP0. i. des.
-            exploit TimeFacts.le_lt_lt; try exact MAX; try apply Time.incr_spec. i.
-            timetac.
-        - unguardH MAP6. des; subst.
-          + exploit Memory.future_get1; try exact MAP5; eauto. i. des.
-            inv SIM. exploit COMPLETE; eauto. i.
-            exploit Memory.max_ts_spec; try exact x1. i. des.
-            inv MAX; try congr.
-            eapply TimeFacts.le_lt_lt; try exact H.
-            exploit Memory.get_ts; try exact MAP5. i. des; timetac.
-          + exploit Memory.future_get1; try exact MAP5; eauto. i. des.
-            inv SIM. exploit COMPLETE; eauto. i.
-            exploit Memory.max_ts_spec; try exact x1. i. des.
-            inv MAX; try congr.
-      }
-      { des; subst; ss; timetac.
-        - unguardH MAP3. des; subst.
-          + exploit Memory.future_get1; try exact MAP0; eauto. i. des.
-            inv SIM. exploit COMPLETE; eauto. i.
-            exploit Memory.max_ts_spec; try exact x1. i. des.
-            exploit TimeFacts.le_lt_lt; try exact LT; try exact MAX. i.
-            exploit Memory.get_ts; try exact MAP0. i. des; timetac.
-          + exploit Memory.future_get1; try exact MAP0; eauto. i. des.
-            inv SIM. exploit COMPLETE; eauto. i.
-            exploit Memory.max_ts_spec; try exact x1. i. des.
-            timetac.
-        - unguardH MAP6. des; subst.
-          + exploit Memory.max_ts_spec; try exact MAP5. i. des.
-            eapply TimeFacts.le_lt_lt; try apply Time.incr_spec.
-            etrans; eauto.
-            exploit Memory.get_ts; try exact MAP5. i. des; timetac.
-          + exploit Memory.max_ts_spec; try exact MAP5. i. des.
-            eapply TimeFacts.le_lt_lt; try apply Time.incr_spec. ss.
-      }
+      (* econs; ii; subst. *)
+      (* { left. splits; ss. left. *)
+      (*   esplits; try eapply CLOSED; ss. unguard. auto. *)
+      (* } *)
+      (* { des; subst; ss. *)
+      (*   - exfalso. *)
+      (*     exploit Memory.max_ts_spec; try exact MAP0. i. des. *)
+      (*     unguardH MAP3. des; subst. *)
+      (*     + exploit Memory.get_ts; try exact MAP0. i. des. *)
+      (*       { exploit Time.incr_spec. rewrite x0. i. timetac. } *)
+      (*       exploit TimeFacts.lt_le_lt; try exact x0; try exact MAX. i. *)
+      (*       eapply Time.lt_strorder. etrans; try exact x1. *)
+      (*       apply Time.incr_spec. *)
+      (*     + eapply Time.lt_strorder. eapply TimeFacts.le_lt_lt; try exact MAX. *)
+      (*       apply Time.incr_spec. *)
+      (*   - exfalso. *)
+      (*     exploit Memory.max_ts_spec; try exact MAP5. i. des. *)
+      (*     unguardH MAP6. des; subst. *)
+      (*     + exploit Memory.get_ts; try exact MAP5. i. des. *)
+      (*       { exploit Time.incr_spec. rewrite x0. i. timetac. } *)
+      (*       exploit TimeFacts.lt_le_lt; try exact x0; try exact MAX. i. *)
+      (*       eapply Time.lt_strorder. etrans; try exact x1. *)
+      (*       apply Time.incr_spec. *)
+      (*     + eapply Time.lt_strorder. eapply TimeFacts.le_lt_lt; try exact MAX. *)
+      (*       apply Time.incr_spec. *)
+      (* } *)
+      (* { des; subst; ss. *)
+      (*   - unguardH MAP3. des; subst; try congr. *)
+      (*     exploit Memory.future_get1; try exact MAP0; eauto. i. des. *)
+      (*     inv SIM. exploit COMPLETE; eauto. i. *)
+      (*     exploit Memory.max_ts_spec; try exact x1. i. des. *)
+      (*     exploit Memory.get_ts; try exact x1. i. des; timetac. *)
+      (*     rewrite x2 in *. *)
+      (*     inv CLOSED. rewrite INHABITED in *. ss. *)
+      (*   - unguardH MAP6. des; subst; try congr. *)
+      (*     exploit Memory.future_get1; try exact MAP5; eauto. i. des. *)
+      (*     inv SIM. exploit COMPLETE; eauto. i. *)
+      (*     exploit Memory.max_ts_spec; try exact x1. i. des. *)
+      (*     exploit Memory.get_ts; try exact x1. i. des; timetac. *)
+      (*     rewrite x2 in *. *)
+      (*     inv CLOSED. rewrite INHABITED in *. ss. *)
+      (* } *)
+      (* { des; subst; ss; timetac. *)
+      (*   - unguardH MAP3. des; subst. *)
+      (*     + exploit Memory.max_ts_spec; try exact MAP0. i. des. *)
+      (*       exploit TimeFacts.le_lt_lt; try exact MAX; try apply Time.incr_spec. i. *)
+      (*       rewrite LT in x0. *)
+      (*       exploit Memory.get_ts; try exact MAP0. i. des; timetac. *)
+      (*     + exploit Memory.max_ts_spec; try exact MAP0. i. des. *)
+      (*       exploit TimeFacts.le_lt_lt; try exact MAX; try apply Time.incr_spec. i. *)
+      (*       timetac. *)
+      (*   - unguardH MAP6. des; subst. *)
+      (*     + exploit Memory.future_get1; try exact MAP5; eauto. i. des. *)
+      (*       inv SIM. exploit COMPLETE; eauto. i. *)
+      (*       exploit Memory.max_ts_spec; try exact x1. i. des. *)
+      (*       inv MAX; try congr. *)
+      (*       eapply TimeFacts.le_lt_lt; try exact H. *)
+      (*       exploit Memory.get_ts; try exact MAP5. i. des; timetac. *)
+      (*     + exploit Memory.future_get1; try exact MAP5; eauto. i. des. *)
+      (*       inv SIM. exploit COMPLETE; eauto. i. *)
+      (*       exploit Memory.max_ts_spec; try exact x1. i. des. *)
+      (*       inv MAX; try congr. *)
+      (* } *)
+      (* { des; subst; ss; timetac. *)
+      (*   - unguardH MAP3. des; subst. *)
+      (*     + exploit Memory.future_get1; try exact MAP0; eauto. i. des. *)
+      (*       inv SIM. exploit COMPLETE; eauto. i. *)
+      (*       exploit Memory.max_ts_spec; try exact x1. i. des. *)
+      (*       exploit TimeFacts.le_lt_lt; try exact LT; try exact MAX. i. *)
+      (*       exploit Memory.get_ts; try exact MAP0. i. des; timetac. *)
+      (*     + exploit Memory.future_get1; try exact MAP0; eauto. i. des. *)
+      (*       inv SIM. exploit COMPLETE; eauto. i. *)
+      (*       exploit Memory.max_ts_spec; try exact x1. i. des. *)
+      (*       timetac. *)
+      (*   - unguardH MAP6. des; subst. *)
+      (*     + exploit Memory.max_ts_spec; try exact MAP5. i. des. *)
+      (*       eapply TimeFacts.le_lt_lt; try apply Time.incr_spec. *)
+      (*       etrans; eauto. *)
+      (*       exploit Memory.get_ts; try exact MAP5. i. des; timetac. *)
+      (*     + exploit Memory.max_ts_spec; try exact MAP5. i. des. *)
+      (*       eapply TimeFacts.le_lt_lt; try apply Time.incr_spec. ss. *)
+      (* } *)
+      admit.
     }
 
     { (* map_complete *)
-      ii. unguard. des; subst.
-      - inv CAP. exploit SOUND; eauto. i.
-        exploit Memory.future_get1; try exact MAP0; eauto. i. des.
-        inv SIM. exploit COMPLETE0; eauto. i.
-        esplits; eauto.
-      - inv CAP. exploit SOUND; eauto. i.
-        exploit Memory.future_get1; try exact MAP0; eauto. i. des.
-        inv SIM. exploit COMPLETE0; eauto. i.
-        esplits; eauto.
-      - exploit Memory.max_ts_spec; try eapply CLOSED. i. des.
-        inv CAP. exploit (BACK loc); try exact GET. i.
-        esplits; try exact x0; try exact MAP2. auto.
+      (* ii. unguard. des; subst. *)
+      (* - inv CAP. exploit SOUND; eauto. i. *)
+      (*   exploit Memory.future_get1; try exact MAP0; eauto. i. des. *)
+      (*   inv SIM. exploit COMPLETE0; eauto. i. *)
+      (*   esplits; eauto. *)
+      (* - inv CAP. exploit SOUND; eauto. i. *)
+      (*   exploit Memory.future_get1; try exact MAP0; eauto. i. des. *)
+      (*   inv SIM. exploit COMPLETE0; eauto. i. *)
+      (*   esplits; eauto. *)
+      (* - exploit Memory.max_ts_spec; try eapply CLOSED. i. des. *)
+      (*   inv CAP. exploit (BACK loc); try exact GET. i. *)
+      (*   esplits; try exact x0; try exact MAP2. auto. *)
+      admit.
     }
 
     { (* memory_map *)
       econs; i.
-      - destruct msg; auto. right.
+      { destruct msg; auto. right.
         exploit Memory.cap_inv; try exact GET; eauto. i. des; ss.
         exploit Memory.future_get1; try exact x0; eauto. i. des.
         inv SIM. exploit COMPLETE; eauto. i.
         esplits; try exact x2.
-        + left. esplits; eauto. left. ss.
-        + left. esplits; eauto. right. ss.
-        + inv CLOSED. exploit CLOSED0; eauto. i. des.
-          eapply closed_message_map; eauto. i.
+        - left. splits; ss.
+          left. esplits; eauto. left. ss.
+        - left. splits; ss.
           left. esplits; eauto. right. ss.
-      - destruct fmsg; cycle 1.
+        - inv CLOSED. exploit CLOSED0; eauto. i. des.
+          eapply closed_message_map; eauto. i.
+          left. splits; ss.
+          left. esplits; eauto. right. ss.
+      }
+
+      { destruct fmsg; cycle 1.
         { inv SIM. exploit GRESERVES; eauto. ss. }
-        inv SIM. exploit SOUND; eauto. i.
-        (* TODO: fix memory mapping *)
-        admit.
+        inv SIM. exploit SOUND; eauto. intro GET_FUTURE.
+        specialize (Memory.min_exists
+                      (fun to =>
+                         Time.le fto to /\
+                         (exists from msg,
+                             Memory.get loc to mem = Some (from, msg) /\
+                             __guard__ (
+                                 msg <> Message.reserve \/
+                                 exists f m, Memory.get loc to rsv = Some (f, m))))
+                      loc mem). i. des.
+        { (* future message after lastest *)
+          specialize (Memory.max_exists
+                        (fun to =>
+                           (exists from msg,
+                             Memory.get loc to mem = Some (from, msg) /\
+                             __guard__ (
+                                 msg <> Message.reserve \/
+                                 exists f m, Memory.get loc to rsv = Some (f, m))))
+                        loc mem). i. des.
+          { exfalso. eapply NONE0; try apply CLOSED.
+            esplits; try apply CLOSED. left. ss.
+          }
+          rewrite SAT in GET. inv GET.
+          destruct (TimeFacts.le_lt_dec fto to_max).
+          { exploit NONE; try exact SAT; ss. esplits; eauto. }
+          exists to_max.
+          exists (Time.incr (Memory.max_ts loc fmem)).
+          exists to_max.
+          exists (Time.incr (Memory.max_ts loc mem)).
+          splits.
+          - exploit future_get; try exact SAT; eauto. i.
+            exploit Memory.lt_get; try exact l; try exact x0; eauto.
+          - exploit Memory.max_ts_spec; try exact FGET. i. des.
+            etrans; eauto. econs. apply Time.incr_spec.
+          - left. split; ss. unguard. des.
+            + left. destruct msg_max; ss. esplits; try exact SAT. auto.
+            + right. esplits; try exact SAT0. auto.
+          - right. ss.
+          - admit.
+          - admit.
+        }
+
+        (* future message before latest *)
+        specialize (Memory.max_exists
+                      (fun to =>
+                         Time.le to ffrom /\
+                         (exists from msg,
+                             Memory.get loc to mem = Some (from, msg) /\
+                             __guard__ (
+                                 msg <> Message.reserve \/
+                                 exists f m, Memory.get loc to rsv = Some (f, m))))
+                      loc mem). i. des.
+        { exploit NONE; try apply CLOSED; ss.
+          splits; try apply Time.bot_spec.
+          esplits; try apply CLOSED. left. ss.
+        }
+        rewrite SAT0 in GET. inv GET.
     }
   Admitted.
 

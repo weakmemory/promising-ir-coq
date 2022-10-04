@@ -73,3 +73,47 @@ Proof.
     + subst. econs; eauto. erewrite Memory.add_o; eauto. condtac; ss.
       des; congr.
 Qed.
+
+Lemma cap_covered
+      mem cap
+      loc ts
+      (CLOSED: Memory.closed mem)
+      (CAP: Memory.cap mem cap)
+      (ITV: Interval.mem (Time.bot, Time.incr (Memory.max_ts loc mem)) ts):
+  covered loc ts cap.
+Proof.
+  specialize (Memory.max_exists (fun to => Time.le to ts) loc mem). i. des.
+  { exfalso. eapply NONE; try apply CLOSED. apply Time.bot_spec. }
+  inv SAT; cycle 1.
+  { inv H. inv CAP. exploit SOUND; eauto. i.
+    econs; eauto. econs; s; try refl.
+    exploit Memory.get_ts; try exact GET. i. des; ss.
+    subst. inv ITV. timetac.
+  }
+  specialize (Memory.min_exists (Time.le ts) loc mem). i. des.
+  { exploit Memory.max_ts_spec; try apply CLOSED. i. des. clear MAX0.
+    hexploit NONE; try exact GET0. i.
+    inv CAP. exploit BACK; try exact GET0. i.
+    econs; try exact x0.
+    inv ITV. ss. econs; ss.
+    destruct (TimeFacts.le_lt_dec ts (Memory.max_ts loc mem)); ss.
+  }
+  destruct (TimeFacts.le_lt_dec ts from_min); cycle 1.
+  { inv CAP. exploit SOUND; try exact GET0. i.
+    econs; try exact x0. econs; ss.
+  }
+  inv CAP. exploit MIDDLE.
+  { econs; [exact GET|exact GET0|..].
+    - eapply TimeFacts.lt_le_lt; try exact H. etrans; eauto.
+      exploit Memory.get_ts; try exact GET0. i. des; timetac.
+    - i. destruct (Memory.get loc ts0 mem) as [[]|] eqn:GET'; ss.
+      destruct (TimeFacts.le_lt_dec ts0 ts).
+      + exploit MAX; try exact GET'; ss. i. timetac.
+      + exploit MIN; try exact GET'; timetac. i.
+        rewrite TS2 in x0.
+        exploit Memory.get_ts; try exact GET0. i. des; timetac.
+        exploit TimeFacts.lt_le_lt; try exact TS1; try exact TS2. i. timetac.
+  }
+  { timetac. }
+  i. econs; try exact x0. econs; ss.
+Qed.

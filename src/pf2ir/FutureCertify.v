@@ -23,6 +23,8 @@ Require Import Global.
 Require Import Local.
 Require Import Thread.
 
+Require Import Cover.
+
 Require Import Mapping.
 Require Import PFConsistent.
 Require Import PFtoIRThread.
@@ -631,8 +633,14 @@ Section FutureCertify.
             + left. destruct msg_max; ss. esplits; try exact SAT. auto.
             + right. esplits; try exact SAT0. auto.
           - right. ss.
-          - admit.
-          - admit.
+          - i. eapply cap_covered; eauto.
+            eapply Interval.le_mem; try exact ITV.
+            econs; s; try refl. apply Time.bot_spec.
+          - i. exploit LE; try exact GET. i.
+            exploit MAX; try exact x0.
+            { esplits; try exact x0. right. eauto. }
+            ii. inv LHS. inv RHS. ss.
+            exploit TimeFacts.lt_le_lt; try exact FROM0; try exact TO. i. timetac.
         }
 
         (* future message before latest *)

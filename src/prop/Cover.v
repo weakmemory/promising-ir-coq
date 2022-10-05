@@ -74,6 +74,28 @@ Proof.
       des; congr.
 Qed.
 
+Lemma remove_covered
+      mem2 mem1 loc from to msg
+      l t
+      (REMOVE: Memory.remove mem1 loc from to msg mem2):
+  covered l t mem2 <->
+  covered l t mem1 /\ (l <> loc \/ ~ Interval.mem (from, to) t).
+Proof.
+  split; i.
+  - inv H. revert GET. erewrite Memory.remove_o; eauto.
+    condtac; ss; eauto. i.
+    split; try by (econs; eauto).
+    destruct (Loc.eq_dec l loc); auto. subst.
+    des; ss. right. ii.
+    exploit Memory.remove_get0; eauto. i. des.
+    exploit Memory.get_disjoint; [exact GET|exact GET0|]. i. des; ss.
+    eapply x0; eauto.
+  - inv H. inv H0. guardH H1.
+    exploit Memory.remove_get1; try exact GET; eauto. i. des.
+    + subst. inv H1; ss.
+    + econs; eauto.
+Qed.
+
 Lemma cap_covered
       mem cap
       loc ts

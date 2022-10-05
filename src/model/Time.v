@@ -50,6 +50,9 @@ Ltac timetac :=
          end;
      ss; subst; auto).
 
+Ltac ett := eapply TimeFacts.le_lt_lt.
+Ltac tet := eapply TimeFacts.lt_le_lt.
+
 Module TimeSet := UsualSet Time.
 Module TimeFun := UsualFun Time.
 

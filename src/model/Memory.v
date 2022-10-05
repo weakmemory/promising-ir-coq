@@ -52,6 +52,14 @@ Module Memory.
     apply Cell.get_ts in GET. auto.
   Qed.
 
+  Lemma get_ts_le
+        loc to mem from msg
+        (GET: get loc to mem = Some (from, msg)):
+    Time.le from to.
+  Proof.
+    exploit get_ts; eauto. i. des; timetac.
+  Qed.
+
   Lemma lt_get
         loc mem
         to1 from1 msg1

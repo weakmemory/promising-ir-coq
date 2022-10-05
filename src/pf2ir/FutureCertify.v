@@ -439,9 +439,26 @@ Section FutureCertify.
       rewrite x0 in GET1. inv GET1. eauto.
   Qed.
 
+  Lemma map_get_merge
+        rsv mem loc ts
+        (LE: Memory.le rsv mem)
+        (GET: (exists from to val released na,
+                  Memory.get loc to mem = Some (from, Message.message val released na) /\
+                  __guard__ (ts = from \/ ts = to)) \/
+              (exists from to msg,
+                  Memory.get loc to rsv = Some (from, msg) /\
+                   __guard__ (ts = from \/ ts = to))):
+    exists from to msg,
+      Memory.get loc to mem = Some (from, msg) /\
+      __guard__ (ts = from \/ ts = to).
+  Proof.
+    des; eauto. exploit LE; eauto.
+  Qed.
+
   Lemma future_map
         rsv mem mem_future fmem
         mem_cap
+        (ONLY: Memory.reserve_only rsv)
         (LE: Memory.le rsv mem)
         (CLOSED: Memory.closed mem)
         (FUTURE: Memory.future mem mem_future)
@@ -458,122 +475,157 @@ Section FutureCertify.
                        Memory.get loc to rsv = Some (from, msg) /\
                        __guard__ (ts = from \/ ts = to))) \/
                   ts = Time.incr (Memory.max_ts loc mem) /\
-                  fts = Time.incr (Memory.max_ts loc fmem)>>) /\
+                  fts = Time.join
+                          (Time.incr (Memory.max_ts loc mem))
+                          (Time.incr (Memory.max_ts loc fmem))>>) /\
       (<<MAP_WF: map_wf f>>) /\
-      (<<MAP_COMPLETE: map_complete f mem_cap fmem>>) /\
       (<<MAP: memory_map f rsv mem_cap fmem>>).
   Proof.
-    (* exists (fun loc ts fts => *)
-    (*      (ts = fts /\ *)
-    (*       exists from to msg, *)
-    (*         Memory.get loc to mem = Some (from, msg) /\ (ts = from \/ ts = to)) \/ *)
-    (*      ts = Time.incr (Memory.max_ts loc mem) /\ *)
-    (*      fts = Memory.max_ts loc fmem /\ *)
-    (*      Memory.get loc fts mem = None /\ *)
-    (*      exists from msg, *)
-    (*        Memory.get loc fts fmem = Some (from, msg) *)
-    (*   ). *)
     esplits; [refl|..].
     { (* map_wf *)
-      (* econs; ii; subst. *)
-      (* { left. splits; ss. left. *)
-      (*   esplits; try eapply CLOSED; ss. unguard. auto. *)
-      (* } *)
-      (* { des; subst; ss. *)
-      (*   - exfalso. *)
-      (*     exploit Memory.max_ts_spec; try exact MAP0. i. des. *)
-      (*     unguardH MAP3. des; subst. *)
-      (*     + exploit Memory.get_ts; try exact MAP0. i. des. *)
-      (*       { exploit Time.incr_spec. rewrite x0. i. timetac. } *)
-      (*       exploit TimeFacts.lt_le_lt; try exact x0; try exact MAX. i. *)
-      (*       eapply Time.lt_strorder. etrans; try exact x1. *)
-      (*       apply Time.incr_spec. *)
-      (*     + eapply Time.lt_strorder. eapply TimeFacts.le_lt_lt; try exact MAX. *)
-      (*       apply Time.incr_spec. *)
-      (*   - exfalso. *)
-      (*     exploit Memory.max_ts_spec; try exact MAP5. i. des. *)
-      (*     unguardH MAP6. des; subst. *)
-      (*     + exploit Memory.get_ts; try exact MAP5. i. des. *)
-      (*       { exploit Time.incr_spec. rewrite x0. i. timetac. } *)
-      (*       exploit TimeFacts.lt_le_lt; try exact x0; try exact MAX. i. *)
-      (*       eapply Time.lt_strorder. etrans; try exact x1. *)
-      (*       apply Time.incr_spec. *)
-      (*     + eapply Time.lt_strorder. eapply TimeFacts.le_lt_lt; try exact MAX. *)
-      (*       apply Time.incr_spec. *)
-      (* } *)
-      (* { des; subst; ss. *)
-      (*   - unguardH MAP3. des; subst; try congr. *)
-      (*     exploit Memory.future_get1; try exact MAP0; eauto. i. des. *)
-      (*     inv SIM. exploit COMPLETE; eauto. i. *)
-      (*     exploit Memory.max_ts_spec; try exact x1. i. des. *)
-      (*     exploit Memory.get_ts; try exact x1. i. des; timetac. *)
-      (*     rewrite x2 in *. *)
-      (*     inv CLOSED. rewrite INHABITED in *. ss. *)
-      (*   - unguardH MAP6. des; subst; try congr. *)
-      (*     exploit Memory.future_get1; try exact MAP5; eauto. i. des. *)
-      (*     inv SIM. exploit COMPLETE; eauto. i. *)
-      (*     exploit Memory.max_ts_spec; try exact x1. i. des. *)
-      (*     exploit Memory.get_ts; try exact x1. i. des; timetac. *)
-      (*     rewrite x2 in *. *)
-      (*     inv CLOSED. rewrite INHABITED in *. ss. *)
-      (* } *)
-      (* { des; subst; ss; timetac. *)
-      (*   - unguardH MAP3. des; subst. *)
-      (*     + exploit Memory.max_ts_spec; try exact MAP0. i. des. *)
-      (*       exploit TimeFacts.le_lt_lt; try exact MAX; try apply Time.incr_spec. i. *)
-      (*       rewrite LT in x0. *)
-      (*       exploit Memory.get_ts; try exact MAP0. i. des; timetac. *)
-      (*     + exploit Memory.max_ts_spec; try exact MAP0. i. des. *)
-      (*       exploit TimeFacts.le_lt_lt; try exact MAX; try apply Time.incr_spec. i. *)
-      (*       timetac. *)
-      (*   - unguardH MAP6. des; subst. *)
-      (*     + exploit Memory.future_get1; try exact MAP5; eauto. i. des. *)
-      (*       inv SIM. exploit COMPLETE; eauto. i. *)
-      (*       exploit Memory.max_ts_spec; try exact x1. i. des. *)
-      (*       inv MAX; try congr. *)
-      (*       eapply TimeFacts.le_lt_lt; try exact H. *)
-      (*       exploit Memory.get_ts; try exact MAP5. i. des; timetac. *)
-      (*     + exploit Memory.future_get1; try exact MAP5; eauto. i. des. *)
-      (*       inv SIM. exploit COMPLETE; eauto. i. *)
-      (*       exploit Memory.max_ts_spec; try exact x1. i. des. *)
-      (*       inv MAX; try congr. *)
-      (* } *)
-      (* { des; subst; ss; timetac. *)
-      (*   - unguardH MAP3. des; subst. *)
-      (*     + exploit Memory.future_get1; try exact MAP0; eauto. i. des. *)
-      (*       inv SIM. exploit COMPLETE; eauto. i. *)
-      (*       exploit Memory.max_ts_spec; try exact x1. i. des. *)
-      (*       exploit TimeFacts.le_lt_lt; try exact LT; try exact MAX. i. *)
-      (*       exploit Memory.get_ts; try exact MAP0. i. des; timetac. *)
-      (*     + exploit Memory.future_get1; try exact MAP0; eauto. i. des. *)
-      (*       inv SIM. exploit COMPLETE; eauto. i. *)
-      (*       exploit Memory.max_ts_spec; try exact x1. i. des. *)
-      (*       timetac. *)
-      (*   - unguardH MAP6. des; subst. *)
-      (*     + exploit Memory.max_ts_spec; try exact MAP5. i. des. *)
-      (*       eapply TimeFacts.le_lt_lt; try apply Time.incr_spec. *)
-      (*       etrans; eauto. *)
-      (*       exploit Memory.get_ts; try exact MAP5. i. des; timetac. *)
-      (*     + exploit Memory.max_ts_spec; try exact MAP5. i. des. *)
-      (*       eapply TimeFacts.le_lt_lt; try apply Time.incr_spec. ss. *)
-      (* } *)
-      admit.
-    }
-
-    { (* map_complete *)
-      (* ii. unguard. des; subst. *)
-      (* - inv CAP. exploit SOUND; eauto. i. *)
-      (*   exploit Memory.future_get1; try exact MAP0; eauto. i. des. *)
-      (*   inv SIM. exploit COMPLETE0; eauto. i. *)
-      (*   esplits; eauto. *)
-      (* - inv CAP. exploit SOUND; eauto. i. *)
-      (*   exploit Memory.future_get1; try exact MAP0; eauto. i. des. *)
-      (*   inv SIM. exploit COMPLETE0; eauto. i. *)
-      (*   esplits; eauto. *)
-      (* - exploit Memory.max_ts_spec; try eapply CLOSED. i. des. *)
-      (*   inv CAP. exploit (BACK loc); try exact GET. i. *)
-      (*   esplits; try exact x0; try exact MAP2. auto. *)
-      admit.
+      econs; ii; subst.
+      { left. splits; ss. left.
+        esplits; try eapply CLOSED; ss. left. ss.
+      }
+      { exists ((Time.incr (Memory.max_ts loc mem)) ::
+                (List.concat
+                   (List.map (fun e => [fst e; fst (snd e)]) (DOMap.elements (Cell.raw (mem loc)))))).
+        i. des.
+        - right. exploit DOMap.elements_correct; eauto. i.
+          remember (DOMap.elements (Cell.raw (mem loc))) as l.
+          clear - l x0 MAP1.
+          revert ts from to val released na MAP1 x0.
+          induction l; ss; i. des; eauto.
+          subst. ss. unguard. des; auto.
+        - right. exploit LE; eauto. i. clear MAP0.
+          exploit DOMap.elements_correct; eauto. i.
+          remember (DOMap.elements (Cell.raw (mem loc))) as l.
+          clear - l x1 MAP1.
+          revert ts from to msg MAP1 x1.
+          induction l; ss; i. des; eauto.
+          subst. ss. unguard. des; auto.
+        - left. subst. ss.
+      }
+      { inv MAP1; inv MAP2; try by (des; subst; ss).
+        - exfalso.
+          inv H. exploit map_get_merge; try exact H2; ss. i. clear H2. des. subst.
+          exploit Memory.max_ts_spec; eauto. i. des. clear GET.
+          unguard. des; subst.
+          + exploit Memory.get_ts; eauto. i. des.
+            { exploit Time.incr_spec. rewrite x1. i. timetac. }
+            eapply Time.lt_strorder.
+            etrans; [|exact x1].
+            eapply TimeFacts.le_lt_lt; [|apply Time.incr_spec]. ss.
+          + eapply Time.lt_strorder.
+            eapply TimeFacts.le_lt_lt; eauto. apply Time.incr_spec.
+        - exfalso.
+          inv H0. exploit map_get_merge; try exact H2; ss. i. clear H2. des. subst.
+          exploit Memory.max_ts_spec; eauto. i. des. clear GET.
+          unguard. des; subst.
+          + exploit Memory.get_ts; eauto. i. des.
+            { exploit Time.incr_spec. rewrite x1. i. timetac. }
+            eapply Time.lt_strorder.
+            etrans; [|exact x1].
+            eapply TimeFacts.le_lt_lt; [|apply Time.incr_spec]. ss.
+          + eapply Time.lt_strorder.
+            eapply TimeFacts.le_lt_lt; eauto. apply Time.incr_spec.
+      }
+      { inv MAP1; inv MAP2; try by (des; subst; ss).
+        - exfalso. inv H. inv H0.
+          exploit map_get_merge; try exact H2; ss. i. clear H2. des.
+          exploit Memory.max_ts_spec; eauto. i. des.
+          unguard. des; subst.
+          + eapply Time.lt_strorder.
+            eapply TimeFacts.le_lt_lt; try exact MAX.
+            exploit Memory.get_ts; try exact x0. i. des.
+            { rewrite x2, <- x1.
+              eapply TimeFacts.lt_le_lt; [|apply Time.join_l].
+              apply Time.incr_spec.
+            }
+            etrans; eauto.
+            eapply TimeFacts.lt_le_lt; [|apply Time.join_l].
+            apply Time.incr_spec.
+          + eapply Time.lt_strorder.
+            eapply TimeFacts.le_lt_lt; try exact MAX.
+            eapply TimeFacts.lt_le_lt; [|apply Time.join_l].
+            apply Time.incr_spec.
+        - exfalso. inv H. inv H0.
+          exploit map_get_merge; try exact H1; ss. i. clear H1. des.
+          exploit Memory.max_ts_spec; eauto. i. des.
+          unguard. des; subst.
+          + eapply Time.lt_strorder.
+            eapply TimeFacts.le_lt_lt; try exact MAX.
+            exploit Memory.get_ts; try exact x0. i. des.
+            { rewrite x2, <- x1.
+              eapply TimeFacts.lt_le_lt; [|apply Time.join_l].
+              apply Time.incr_spec.
+            }
+            etrans; eauto.
+            eapply TimeFacts.lt_le_lt; [|apply Time.join_l].
+            apply Time.incr_spec.
+          + eapply Time.lt_strorder.
+            eapply TimeFacts.le_lt_lt; try exact MAX.
+            eapply TimeFacts.lt_le_lt; [|apply Time.join_l].
+            apply Time.incr_spec.
+      }
+      { inv MAP1; inv MAP2; try by (des; subst; ss).
+        - inv H. inv H0.
+          exploit map_get_merge; try exact H2; ss. i. clear H2. des.
+          exploit Memory.max_ts_spec; eauto. i. des. clear GET.
+          unguard. des; subst.
+          + exploit Memory.get_ts_le; eauto. i.
+            ett; try exact x1.
+            ett; try exact MAX.
+            tet; try apply Time.join_l.
+            apply Time.incr_spec.
+          + ett; try exact MAX.
+            tet; try apply Time.join_l.
+            apply Time.incr_spec.
+        - exfalso. inv H. inv H0.
+          exploit map_get_merge; try exact H1; ss. i. clear H1. des.
+          exploit Memory.max_ts_spec; eauto. i. des. clear GET.
+          unguard. des; subst.
+          + exploit Memory.get_ts_le; eauto. i.
+            eapply Time.lt_strorder.
+            ett; try exact x1.
+            ett; try exact MAX.
+            etrans; eauto.
+            apply Time.incr_spec.
+          + eapply Time.lt_strorder.
+            ett; try exact MAX.
+            etrans; eauto.
+            apply Time.incr_spec.
+        - des. subst. timetac.
+      }
+      { inv MAP1; inv MAP2; try by (des; subst; ss).
+        - inv H. inv H0.
+          exploit map_get_merge; try exact H2; ss. i. clear H2. des.
+          exploit Memory.max_ts_spec; eauto. i. des. clear GET.
+          unguard. des; subst.
+          + exploit Memory.get_ts_le; eauto. i.
+            ett; try exact x1.
+            ett; try exact MAX.
+            apply Time.incr_spec.
+          + ett; try exact MAX.
+            apply Time.incr_spec.
+        - exfalso. inv H. inv H0.
+          exploit map_get_merge; try exact H1; ss. i. clear H1. des.
+          exploit Memory.max_ts_spec; eauto. i. des. clear GET.
+          unguard. des; subst.
+          + exploit Memory.get_ts_le; eauto. i.
+            eapply Time.lt_strorder.
+            ett; try exact x1.
+            ett; try exact MAX.
+            etrans; eauto.
+            tet; try apply Time.incr_spec.
+            apply Time.join_l.
+          + eapply Time.lt_strorder.
+            ett; try exact MAX.
+            etrans; eauto.
+            tet; try apply Time.incr_spec.
+            apply Time.join_l.
+        - des. subst. timetac.
+      }
     }
 
     { (* memory_map *)
@@ -621,14 +673,17 @@ Section FutureCertify.
           destruct (TimeFacts.le_lt_dec fto to_max).
           { exploit NONE; try exact SAT; ss. esplits; eauto. }
           exists to_max.
-          exists (Time.incr (Memory.max_ts loc fmem)).
+          exists (Time.join
+                    (Time.incr (Memory.max_ts loc mem))
+                    (Time.incr (Memory.max_ts loc fmem))).
           exists to_max.
           exists (Time.incr (Memory.max_ts loc mem)).
           splits.
           - exploit future_get; try exact SAT; eauto. i.
             exploit Memory.lt_get; try exact l; try exact x0; eauto.
           - exploit Memory.max_ts_spec; try exact FGET. i. des.
-            etrans; eauto. econs. apply Time.incr_spec.
+            etrans; eauto. etrans; [|apply Time.join_r].
+            econs. apply Time.incr_spec.
           - left. split; ss. unguard. des.
             + left. destruct msg_max; ss. esplits; try exact SAT. auto.
             + right. esplits; try exact SAT0. auto.
@@ -644,22 +699,83 @@ Section FutureCertify.
         }
 
         (* future message before latest *)
+        rewrite SAT0 in GET. inv GET. inv SAT; cycle 1.
+        { inv H. exploit future_get; try exact SAT0; eauto. i.
+          exploit SOUND; eauto. i.
+          rewrite x0 in *. inv x1.
+          unguard. des; cycle 1.
+          { exploit ONLY; eauto. i. subst.
+            exploit LE; eauto. i. congr.
+          }
+          esplits; [refl|refl|..].
+          - left. split; try refl. left. esplits; eauto.
+          - left. split; try refl. left. esplits; eauto.
+          - inv CAP. exploit SOUND0; eauto. i. econs; eauto.
+          - i. exploit ONLY; eauto. i. subst.
+            exploit LE; eauto. i.
+            exploit Memory.get_disjoint; [exact x1|exact SAT0|]. i. des; ss.
+        }
+        exploit Memory.lt_get; try apply H; i.
+        { eapply SOUND; eauto. }
+        { eapply future_get; eauto. }
         specialize (Memory.max_exists
                       (fun to =>
-                         Time.le to ffrom /\
+                         Time.lt to fto /\
                          (exists from msg,
                              Memory.get loc to mem = Some (from, msg) /\
                              __guard__ (
                                  msg <> Message.reserve \/
                                  exists f m, Memory.get loc to rsv = Some (f, m))))
                       loc mem). i. des.
-        { exploit NONE; try apply CLOSED; ss.
-          splits; try apply Time.bot_spec.
-          esplits; try apply CLOSED. left. ss.
+        { exfalso.
+          destruct (Time.eq_dec fto Time.bot); subst.
+          - exploit MIN; try apply CLOSED.
+            { esplits; try refl; try apply CLOSED. left. ss. }
+            i. exploit TimeFacts.lt_le_lt; try exact H; try exact x1. timetac.
+          - eapply NONE; try apply CLOSED.
+            esplits; try apply CLOSED; try (left; ss).
+            specialize (Time.bot_spec fto). i. inv H0; ss. congr.
         }
-        rewrite SAT0 in GET. inv GET.
+        rewrite SAT2 in GET. inv GET; i.
+        exploit Memory.lt_get; try exact SAT.
+        { eapply future_get; eauto. }
+        { eapply SOUND; eauto. }
+        exists to_max, from_min, to_max, from_min.
+        splits; ss.
+        - left. split; ss. unguardH SAT3. des.
+          + left. destruct msg_max; ss.
+            esplits; try exact SAT2. right. ss.
+          + right. esplits; try exact SAT3. right. ss.
+        - left. split; ss. unguardH SAT1. des.
+          + left. destruct msg_min; ss.
+            esplits; try exact SAT0. left. ss.
+          + exploit LE; eauto. i.
+            rewrite x2 in *. inv SAT0.
+            right. esplits; try exact SAT1. left. ss.
+        - i. eapply cap_covered; eauto.
+          eapply Interval.le_mem; try exact ITV.
+          econs; s; try apply Time.bot_spec.
+          exploit Memory.max_ts_spec; try exact SAT0. i. des.
+          etrans; [|econs; apply Time.incr_spec].
+          etrans; try exact MAX0.
+          exploit Memory.get_ts; try exact SAT0. i. des; timetac.
+        - ii. inv LHS. inv RHS. ss.
+          exploit LE; eauto. i.
+          destruct (TimeFacts.le_lt_dec fto t).
+          + exploit MIN; try exact x3.
+            { split; ss. esplits; eauto. right. eauto. }
+            i. inv x4.
+            * exploit Memory.lt_get; try exact H0; eauto. i.
+              exploit TimeFacts.lt_le_lt; try exact FROM; try exact TO0. i.
+              exploit Memory.get_ts; try exact SAT0. i. des; timetac.
+              rewrite x6 in x5. timetac.
+            * inv H0. rewrite x3 in *. inv SAT0. timetac.
+          + exploit MAX; try exact x3.
+            { split; ss. esplits; eauto. right. eauto. }
+            i. exploit TimeFacts.lt_le_lt; try exact FROM0; try exact TO. i. timetac.
+      }
     }
-  Admitted.
+  Qed.
 
   Lemma future_certify
         fth

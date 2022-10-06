@@ -369,33 +369,6 @@ Module PFConsistent.
           * eapply equal_f in GPROMISES. rewrite GPROMISES. ss.
     Qed.
 
-    (* Lemma sim_thread_non_pf_step *)
-    (*       th1_src *)
-    (*       e th1_tgt th2_tgt *)
-    (*       (SIM1: sim_thread th1_src th1_tgt) *)
-    (*       (WF1_SRC: Local.wf (Thread.local th1_src) (Thread.global th1_src)) *)
-    (*       (STEP_TGT: Thread.step e th1_tgt th2_tgt) *)
-    (*       (EVENT: ~ ThreadEvent.is_pf e): *)
-    (*   sim_thread th1_src th2_tgt. *)
-    (* Proof. *)
-    (*   inv SIM1. inv STEP_TGT; inv LOCAL; ss. *)
-    (*   - inv LOCAL0. econs; ss. *)
-    (*     + etrans; eauto. *)
-    (*       inv PROMISE. eauto using BoolMap.add_le. *)
-    (*     + rewrite GPROMISES. *)
-    (*       eauto using Promises.promise_minus. *)
-    (*     + rewrite GPROMISES_INV. *)
-    (*       eauto using Promises.promise_minus_inv. *)
-    (*   - inv LOCAL0. inv RESERVE. econs; ss. *)
-    (*     + hexploit Memory.add_le; try exact RSV. i. etrans; eauto. *)
-    (*     + inv MEMORY. *)
-    (*       hexploit Memory.add_le; try exact MEM. i. *)
-    (*       hexploit Memory.le_messages_le; try exact H. i. *)
-    (*       econs; try by (etrans; eauto). *)
-    (*       ii. revert LHS. erewrite Memory.add_o; eauto. *)
-    (*       condtac; ss; eauto. *)
-    (* Qed. *)
-
     Lemma sim_thread_step
           th1_src
           e_tgt th1_tgt th2_tgt

@@ -185,162 +185,141 @@ Section FutureCertify.
     inv MAP; ss.
   Qed.
 
-  (* Lemma map_step *)
-  (*       f1 th1 fth1 *)
-  (*       e th2 *)
-  (*       (MAP_WF1: map_wf f1) *)
-  (*       (MAP_COMPLETE1: map_complete *)
-  (*                         f1 *)
-  (*                         (Global.memory (Thread.global th1)) *)
-  (*                         (Global.memory (Thread.global fth1))) *)
-  (*       (MAP1: thread_map f1 th1 fth1) *)
-  (*       (LC_WF1: Local.wf (Thread.local th1) (Thread.global th1)) *)
-  (*       (GL_WF1: Global.wf (Thread.global th1)) *)
-  (*       (FLC_WF1: Local.wf (Thread.local fth1) (Thread.global fth1)) *)
-  (*       (FGL_WF1: Global.wf (Thread.global fth1)) *)
-  (*       (STEP: Thread.step e th1 th2) *)
-  (*       (EVENT1: ~ ThreadEvent.is_racy_promise e) *)
-  (*       (EVENT2: ~ ThreadEvent.is_sc e): *)
-  (*   exists f2 fe fth2, *)
-  (*     (<<FSTEP: Thread.opt_step fe fth1 fth2>>) /\ *)
-  (*     (<<EVENT: __guard__ (ThreadEvent.is_internal e /\ fe = ThreadEvent.silent \/ *)
-  (*                          ThreadEvent.is_program e /\ event_map f2 e fe)>>) /\ *)
-  (*     (<<MAP_INCR: f1 <3= f2>>) /\ *)
-  (*     (<<MAP_WF2: map_wf f2>>) /\ *)
-  (*     (<<MAP_COMPLETE2: map_complete *)
-  (*                         f2 *)
-  (*                         (Global.memory (Thread.global th2)) *)
-  (*                         (Global.memory (Thread.global fth2))>>) /\ *)
-  (*     (<<MAP2: thread_map f2 th2 fth2>>). *)
-  (* Proof. *)
-  (*   destruct th1, fth1. inv MAP1. ss. subst. *)
-  (*   inv STEP. *)
-  (*   - exploit map_internal_step; try exact LOCAL; try exact GLOBAL; eauto. i. des. *)
-  (*     esplits; eauto. *)
-  (*     + left. split; ss. inv LOCAL0; ss. *)
-  (*     + ss. *)
-  (*   - exploit map_program_step; try exact LOCAL; try exact GLOBAL; eauto. i. des. *)
-  (*     esplits. *)
-  (*     + econs 2. econs 2; [|eauto]. *)
-  (*       erewrite <- event_map_program_event; eauto. *)
-  (*     + right. split; eauto. inv LOCAL0; ss. *)
-  (*     + ss. *)
-  (*     + ss. *)
-  (*     + ss. *)
-  (*     + econs; ss. *)
-  (*       exploit Local.program_step_promises; try exact FSTEP. i. des. *)
-  (*       apply BoolMap.antisym; try apply BoolMap.bot_spec. *)
-  (*       etrans; eauto. rewrite FPROMISES. refl. *)
-  (* Qed. *)
+  Lemma map_step
+        f1 th1 fth1
+        e th2
+        (MAP_WF1: map_wf f1)
+        (MAP1: thread_map f1 th1 fth1)
+        (LC_WF1: Local.wf (Thread.local th1) (Thread.global th1))
+        (GL_WF1: Global.wf (Thread.global th1))
+        (FLC_WF1: Local.wf (Thread.local fth1) (Thread.global fth1))
+        (FGL_WF1: Global.wf (Thread.global fth1))
+        (STEP: Thread.step e th1 th2)
+        (EVENT1: ~ ThreadEvent.is_racy_promise e)
+        (EVENT2: ~ ThreadEvent.is_sc e):
+    exists f2 fe fth2,
+      (<<FSTEP: Thread.opt_step fe fth1 fth2>>) /\
+      (<<EVENT: __guard__ (ThreadEvent.is_internal e /\ fe = ThreadEvent.silent \/
+                           ThreadEvent.is_program e /\ event_map f2 e fe)>>) /\
+      (<<MAP_INCR: f1 <3= f2>>) /\
+      (<<MAP_WF2: map_wf f2>>) /\
+      (<<MAP2: thread_map f2 th2 fth2>>).
+  Proof.
+    destruct th1, fth1. inv MAP1. ss. subst.
+    inv STEP.
+    - exploit map_internal_step; try exact LOCAL; try exact GLOBAL; eauto. i. des.
+      esplits; eauto.
+      + left. split; ss. inv LOCAL0; ss.
+      + ss.
+    - exploit map_program_step; try exact LOCAL; try exact GLOBAL; eauto. i. des.
+      esplits.
+      + econs 2. econs 2; [|eauto].
+        erewrite <- event_map_program_event; eauto.
+      + right. split; eauto. inv LOCAL0; ss.
+      + ss.
+      + ss.
+      + econs; ss.
+        exploit Local.program_step_promises; try exact FSTEP. i. des.
+        apply BoolMap.antisym; try apply BoolMap.bot_spec.
+        etrans; eauto. rewrite FPROMISES. refl.
+  Qed.
 
-  (* Lemma map_rtc_step *)
-  (*       f1 th1 fth1 *)
-  (*       th2 *)
-  (*       (MAP_WF1: map_wf f1) *)
-  (*       (MAP_COMPLETE1: map_complete *)
-  (*                         f1 *)
-  (*                         (Global.memory (Thread.global th1)) *)
-  (*                         (Global.memory (Thread.global fth1))) *)
-  (*       (MAP1: thread_map f1 th1 fth1) *)
-  (*       (LC_WF1: Local.wf (Thread.local th1) (Thread.global th1)) *)
-  (*       (GL_WF1: Global.wf (Thread.global th1)) *)
-  (*       (FLC_WF1: Local.wf (Thread.local fth1) (Thread.global fth1)) *)
-  (*       (FGL_WF1: Global.wf (Thread.global fth1)) *)
-  (*       (STEPS: rtc (pstep (@Thread.step _) (strict_pf /1\ non_sc)) th1 th2): *)
-  (*   exists f2 fth2, *)
-  (*     (<<FSTEPS: rtc (pstep (@Thread.step _) (fully_pf /1\ non_sc)) fth1 fth2>>) /\ *)
-  (*     (<<MAP_INCR: f1 <3= f2>>) /\ *)
-  (*     (<<MAP_WF2: map_wf f2>>) /\ *)
-  (*     (<<MAP_COMPLETE2: map_complete *)
-  (*                         f2 *)
-  (*                         (Global.memory (Thread.global th2)) *)
-  (*                         (Global.memory (Thread.global fth2))>>) /\ *)
-  (*     (<<MAP2: thread_map f2 th2 fth2>>). *)
-  (* Proof. *)
-  (*   revert f1 fth1 MAP_WF1 MAP_COMPLETE1 MAP1 FLC_WF1 FGL_WF1. *)
-  (*   induction STEPS; i. *)
-  (*   { esplits; eauto. } *)
-  (*   inv H. des. *)
-  (*   exploit map_step; eauto; try apply EVENT; try apply EVENT0. i. des. *)
-  (*   exploit Thread.step_future; try exact STEP; eauto. i. des. *)
-  (*   exploit Thread.opt_step_future; try exact FSTEP; eauto. i. des. *)
-  (*   exploit IHSTEPS; eauto. i. des. *)
-  (*   esplits; try exact MAP0; eauto. *)
-  (*   inv FSTEP; eauto. *)
-  (*   econs 2; try exact FSTEPS. econs; eauto. *)
-  (*   inv EVENT1; des. *)
-  (*   - subst. repeat (split; ss). *)
-  (*   - split. *)
-  (*     + split. *)
-  (*       * erewrite <- event_map_is_program; eauto. *)
-  (*       * erewrite <- event_map_is_racy_promise; eauto. apply EVENT. *)
-  (*     + erewrite <- event_map_non_sc; eauto. *)
-  (* Qed. *)
+  Lemma map_rtc_step
+        f1 th1 fth1
+        th2
+        (MAP_WF1: map_wf f1)
+        (MAP1: thread_map f1 th1 fth1)
+        (LC_WF1: Local.wf (Thread.local th1) (Thread.global th1))
+        (GL_WF1: Global.wf (Thread.global th1))
+        (FLC_WF1: Local.wf (Thread.local fth1) (Thread.global fth1))
+        (FGL_WF1: Global.wf (Thread.global fth1))
+        (STEPS: rtc (pstep (@Thread.step _) (strict_pf /1\ non_sc)) th1 th2):
+    exists f2 fth2,
+      (<<FSTEPS: rtc (pstep (@Thread.step _) (fully_pf /1\ non_sc)) fth1 fth2>>) /\
+      (<<MAP_INCR: f1 <3= f2>>) /\
+      (<<MAP_WF2: map_wf f2>>) /\
+      (<<MAP2: thread_map f2 th2 fth2>>).
+  Proof.
+    revert f1 fth1 MAP_WF1 MAP1 FLC_WF1 FGL_WF1.
+    induction STEPS; i.
+    { esplits; eauto. }
+    inv H. des.
+    exploit map_step; eauto; try apply EVENT; try apply EVENT0. i. des.
+    exploit Thread.step_future; try exact STEP; eauto. i. des.
+    exploit Thread.opt_step_future; try exact FSTEP; eauto. i. des.
+    exploit IHSTEPS; eauto. i. des.
+    esplits; try exact MAP0; eauto.
+    inv FSTEP; eauto.
+    econs 2; try exact FSTEPS. econs; eauto.
+    inv EVENT1; des.
+    - subst. repeat (split; ss).
+    - split.
+      + split.
+        * erewrite <- event_map_is_program; eauto.
+        * erewrite <- event_map_is_racy_promise; eauto. apply EVENT.
+      + erewrite <- event_map_non_sc; eauto.
+  Qed.
 
-  (* Lemma event_map_is_writing *)
-  (*       f e fe *)
-  (*       loc from to val released ord *)
-  (*       (MAP: event_map f e fe) *)
-  (*       (WRITING: ThreadEvent.is_writing e = Some (loc, from, to, val, released, ord)): *)
-  (*   exists ffrom fto freleased, *)
-  (*     (<<FWRITING: ThreadEvent.is_writing fe = Some (loc, ffrom, fto, val, freleased, ord)>>) /\ *)
-  (*     (<<FROM: f loc from ffrom>>) /\ *)
-  (*     (<<TO: f loc to fto>>) /\ *)
-  (*     (<<RELEASED: opt_view_map f released freleased>>). *)
-  (* Proof. *)
-  (*   inv MAP; ss; inv WRITING; esplits; eauto. *)
-  (* Qed. *)
+  Lemma event_map_is_writing
+        f e fe
+        loc from to val released ord
+        (MAP: event_map f e fe)
+        (WRITING: ThreadEvent.is_writing e = Some (loc, from, to, val, released, ord)):
+    exists ffrom fto freleased,
+      (<<FWRITING: ThreadEvent.is_writing fe = Some (loc, ffrom, fto, val, freleased, ord)>>) /\
+      (<<FROM: f loc from ffrom>>) /\
+      (<<TO: f loc to fto>>) /\
+      (<<RELEASED: opt_view_map f released freleased>>).
+  Proof.
+    inv MAP; ss; inv WRITING; esplits; eauto.
+  Qed.
 
-  (* Lemma map_certify *)
-  (*       f th fth loc *)
-  (*       (MAP_WF: map_wf f) *)
-  (*       (MAP_COMPLETE: map_complete *)
-  (*                        f *)
-  (*                        (Global.memory (Thread.global th)) *)
-  (*                        (Global.memory (Thread.global fth))) *)
-  (*       (MAP: thread_map f th fth) *)
-  (*       (LC_WF: Local.wf (Thread.local th) (Thread.global th)) *)
-  (*       (GL_WF: Global.wf (Thread.global th)) *)
-  (*       (FLC_WF: Local.wf (Thread.local fth) (Thread.global fth)) *)
-  (*       (FGL_WF: Global.wf (Thread.global fth)) *)
-  (*       (CERTIFY: certify loc th): *)
-  (*   pf_certify loc fth. *)
-  (* Proof. *)
-  (*   inv CERTIFY. *)
-  (*   { exploit map_rtc_step; try exact STEPS; eauto. i. des. *)
-  (*     exploit Thread.rtc_all_step_future; try eapply rtc_implies; try exact STEPS; eauto. *)
-  (*     { i. inv H. econs. eauto. } *)
-  (*     i. des. *)
-  (*     exploit Thread.rtc_all_step_future; try eapply rtc_implies; try exact FSTEPS; eauto. *)
-  (*     { i. inv H. econs. eauto. } *)
-  (*     i. des. *)
-  (*     exploit map_step; try exact STEP_FAILURE; try exact MAP2; eauto. *)
-  (*     { apply EVENT_PF. } *)
-  (*     { destruct e; ss. } *)
-  (*     i. des. *)
-  (*     unguardH EVENT. des. *)
-  (*     { subst. destruct e; ss. } *)
-  (*     inv FSTEP; try by (inv EVENT0; ss). *)
-  (*     econs 1; try exact STEP; eauto. *)
-  (*     - erewrite <- event_map_machine_event; eauto. *)
-  (*     - erewrite <- event_map_is_racy_promise; eauto. apply EVENT_PF. *)
-  (*   } *)
-  (*   { exploit map_rtc_step; try exact STEPS; eauto. i. des. *)
-  (*     destruct th1, fth2. inv MAP2. ss. subst. *)
-  (*     inv STEP_FULFILL; try by (inv LOCAL0; ss). *)
-  (*     exploit Thread.rtc_all_step_future; try eapply rtc_implies; try exact FSTEPS; eauto. *)
-  (*     { i. inv H. econs. eauto. } *)
-  (*     s. i. des. *)
-  (*     exploit Local.write_max_exists; try exact LC_WF2; try by econs 2. s. i. des. *)
-  (*     econs 2; try exact FSTEPS. *)
-  (*     - econs 2; [|econs 3; eauto]. eauto. *)
-  (*     - ss. *)
-  (*     - inv WRITE. ss. *)
-  (*       exploit Memory.add_ts; try exact WRITE0. i. *)
-  (*       etrans; eauto. *)
-  (*     - ss. *)
-  (*   } *)
-  (* Qed. *)
+  Lemma map_certify
+        f th fth loc
+        (MAP_WF: map_wf f)
+        (MAP: thread_map f th fth)
+        (LC_WF: Local.wf (Thread.local th) (Thread.global th))
+        (GL_WF: Global.wf (Thread.global th))
+        (FLC_WF: Local.wf (Thread.local fth) (Thread.global fth))
+        (FGL_WF: Global.wf (Thread.global fth))
+        (CERTIFY: certify loc th):
+    pf_certify loc fth.
+  Proof.
+    inv CERTIFY.
+    { exploit map_rtc_step; try exact STEPS; eauto. i. des.
+      exploit Thread.rtc_all_step_future; try eapply rtc_implies; try exact STEPS; eauto.
+      { i. inv H. econs. eauto. }
+      i. des.
+      exploit Thread.rtc_all_step_future; try eapply rtc_implies; try exact FSTEPS; eauto.
+      { i. inv H. econs. eauto. }
+      i. des.
+      exploit map_step; try exact STEP_FAILURE; try exact MAP2; eauto.
+      { apply EVENT_PF. }
+      { destruct e; ss. }
+      i. des.
+      unguardH EVENT. des.
+      { subst. destruct e; ss. }
+      inv FSTEP; try by (inv EVENT0; ss).
+      econs 1; try exact STEP; eauto.
+      - erewrite <- event_map_machine_event; eauto.
+      - erewrite <- event_map_is_racy_promise; eauto. apply EVENT_PF.
+    }
+    { exploit map_rtc_step; try exact STEPS; eauto. i. des.
+      destruct th1, fth2. inv MAP2. ss. subst.
+      inv STEP_FULFILL; try by (inv LOCAL0; ss).
+      exploit Thread.rtc_all_step_future; try eapply rtc_implies; try exact FSTEPS; eauto.
+      { i. inv H. econs. eauto. }
+      s. i. des.
+      exploit Local.write_max_exists; try exact LC_WF2; try by econs 2. s. i. des.
+      econs 2; try exact FSTEPS.
+      - econs 2; [|econs 3; eauto]. eauto.
+      - ss.
+      - inv WRITE. ss.
+        exploit Memory.add_ts; try exact WRITE0. i.
+        etrans; eauto.
+      - ss.
+    }
+  Qed.
 
   Lemma closed_timemap_map
         (f: map_t) mem tm
@@ -419,12 +398,10 @@ Section FutureCertify.
     exploit IHFUTURE; eauto.
   Qed.
 
-  Set Nested Proofs Allowed.
-
   Lemma future_get
         rsv mem1 mem2
         loc from to msg
-        (FUTURE: Memory.future mem1 mem2)
+        (FUTURE: Memory.messages_le mem1 mem2)
         (LE1: Memory.le rsv mem1)
         (LE2: Memory.le rsv mem2)
         (GET1: Memory.get loc to mem1 = Some (from, msg))
@@ -433,8 +410,7 @@ Section FutureCertify.
     Memory.get loc to mem2 = Some (from, msg).
   Proof.
     des.
-    - destruct msg; ss.
-      eapply Memory.future_get1; eauto.
+    - destruct msg; ss. eauto.
     - exploit LE1; eauto. i.
       rewrite x0 in GET1. inv GET1. eauto.
   Qed.
@@ -461,7 +437,7 @@ Section FutureCertify.
         (ONLY: Memory.reserve_only rsv)
         (LE: Memory.le rsv mem)
         (CLOSED: Memory.closed mem)
-        (FUTURE: Memory.future mem mem_future)
+        (FUTURE: Memory.messages_le mem mem_future)
         (FUTURE_LE: Memory.le rsv mem_future)
         (SIM: PFtoIRThread.sim_memory fmem mem_future)
         (CAP: Memory.cap mem mem_cap):
@@ -738,7 +714,7 @@ Section FutureCertify.
         }
         rewrite SAT2 in GET. inv GET; i.
         exploit Memory.lt_get; try exact SAT.
-        { eapply future_get; eauto. }
+        { eapply future_get; try exact SAT2; eauto. }
         { eapply SOUND; eauto. }
         exists to_max, from_min, to_max, from_min.
         splits; ss.
@@ -783,7 +759,7 @@ Section FutureCertify.
         (STATE: Thread.state th = Thread.state fth)
         (TVIEW: Local.tview (Thread.local th) = Local.tview (Thread.local fth))
         (FPROMISES: Local.promises (Thread.local fth) = BoolMap.bot)
-        (FUTURE: Memory.future (Global.memory (Thread.global th)) mem_future)
+        (FUTURE: Memory.messages_le (Global.memory (Thread.global th)) mem_future)
         (SIM: PFtoIRThread.sim_memory (Global.memory (Thread.global fth)) mem_future)
         (LC_WF: Local.wf (Thread.local th) (Thread.global th))
         (GL_WF: Global.wf (Thread.global th))
@@ -802,7 +778,8 @@ Section FutureCertify.
     econs; ss.
     econs. rewrite <- TVIEW.
     eapply closed_tview_map; try apply LC_WF; eauto.
-    i. subst. left. esplits; eauto. right. ss.
+    i. subst. left. split; ss.
+    left. esplits; eauto. right. ss.
   Qed.
 End FutureCertify.
 End FutureCertify.

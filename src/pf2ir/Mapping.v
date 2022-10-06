@@ -26,7 +26,6 @@ Require Import Thread.
 Require Import Cover.
 
 Set Implicit Arguments.
-Set Nested Proofs Allowed.
 
 
 Definition map_t: Type := Loc.t -> Time.t -> Time.t -> Prop.
@@ -232,27 +231,6 @@ Section Mapping.
     | message_map_reserve:
       message_map Message.reserve Message.reserve
   .
-
-  (* Variant memory_map (rsv: Memory.t) (mem fmem: Memory.t): Prop := *)
-  (*   | memory_map_intro *)
-  (*       (SOUND: forall loc from to msg *)
-  (*                      (GET: Memory.get loc to mem = Some (from, msg)), *)
-  (*           (<<RESERVE: msg = Message.reserve>>) \/ *)
-  (*           exists ffrom fto fmsg, *)
-  (*             (<<FGET: Memory.get loc fto fmem = Some (ffrom, fmsg)>>) /\ *)
-  (*             (<<FROM: f loc from ffrom>>) /\ *)
-  (*             (<<TO: f loc to fto>>) /\ *)
-  (*             (<<MSG: message_map msg fmsg>>)) *)
-  (*       (COMPLETE: forall loc ffrom fto fmsg *)
-  (*                         (FGET: Memory.get loc fto fmem = Some (ffrom, fmsg)), *)
-  (*           exists ffrom' fto' from to msg, *)
-  (*             (<<RSV: Memory.get loc to rsv = None>>) /\ *)
-  (*             (<<GET: Memory.get loc to mem = Some (from, msg)>>) /\ *)
-  (*             (<<FFROM: Time.le ffrom' ffrom>>) /\ *)
-  (*             (<<FTO: Time.le fto fto'>>) /\ *)
-  (*             (<<FROM: f loc from ffrom'>>) /\ *)
-  (*             (<<TO: f loc to fto'>>)) *)
-  (* . *)
 
   Variant memory_map (rsv: Memory.t) (mem fmem: Memory.t): Prop :=
     | memory_map_intro
@@ -798,8 +776,6 @@ Lemma memory_map_add
 Proof.
   inv WF1. inv MAP1.
   exploit Memory.add_ts; eauto. intro TS.
-  (* exploit add_cases; eauto. i. unguard. des. *)
-
   exploit (@map_ts_add_exists f1 loc to); ss. i. des.
   exploit (@map_ts_add_exists f2 loc from); ss. i. des.
   subst. clear WF2.

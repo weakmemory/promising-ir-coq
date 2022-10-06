@@ -200,6 +200,16 @@ Module Memory.
 
   Definition init: t := fun _ => Cell.init.
 
+  Lemma init_get
+        loc from to msg
+        (GET: get loc to Memory.init = Some (from, msg)):
+    to = Time.bot /\ from = Time.bot /\ msg = Message.elt.
+  Proof.
+    unfold get, init, Cell.get, Cell.init in GET. ss.
+    apply DOMap.singleton_find_inv in GET. des. inv GET0.
+    auto.
+  Qed.
+
   Variant message_to: forall (msg:Message.t) (loc:Loc.t) (to:Time.t), Prop :=
     | message_to_message
         val released na loc to

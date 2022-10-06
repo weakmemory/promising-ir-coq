@@ -199,16 +199,6 @@ Section Mapping.
       eapply map_le; eauto.
   Qed.
 
-  (* TODO: remove *)
-  Definition map_complete (mem fmem: Memory.t): Prop :=
-    forall loc ts fts (MAP: f loc ts fts),
-    exists from to msg ffrom fto fmsg,
-      (<<GET: Memory.get loc to mem = Some (from, msg)>>) /\
-      (<<FGET: Memory.get loc fto fmem = Some (ffrom, fmsg)>>) /\
-      (__guard__ ((<<TS: ts = from>>) /\ (<<FTS: fts = ffrom>>) \/
-                  (<<TS: ts = to>>) /\ (<<FTS: fts = fto>>)))
-  .
-
   Definition timemap_map (tm ftm: TimeMap.t): Prop :=
     forall loc, f loc (tm loc) (ftm loc).
 
@@ -788,33 +778,6 @@ Proof.
       right. right. split; tet; eauto. refl.
 Qed.
 
-Lemma map_add_interval_wf_inv
-      f1 loc from to ffrom fto
-      f2
-      (F2: f2 = map_add loc from ffrom (map_add loc to fto f1))
-      (WF2: map_wf f2):
-  (<<FTS: Time.lt ffrom fto>>) /\
-  (<<FROM_EQ: forall ts fts (MAP: f1 loc ts fts) (EQ: ts = from), fts = ffrom>>) /\
-  (<<FROM_EQ_INV: forall ts fts (MAP: f1 loc ts fts) (EQ: fts = ffrom), ts = from>>) /\
-  (<<FROM_LT1: forall ts fts (MAP: f1 loc ts fts) (LT: Time.lt ts from),
-      Time.lt fts ffrom>>) /\
-  (<<FROM_LT1_INV: forall ts fts (MAP: f1 loc ts fts) (LT: Time.lt fts ffrom),
-      Time.lt ts from>>) /\
-  (<<FROM_LT2: forall ts fts (MAP: f1 loc ts fts) (LT: Time.lt from ts),
-      Time.lt ffrom fts>>) /\
-  (<<FROM_LT2_INV: forall ts fts (MAP: f1 loc ts fts) (LT: Time.lt ffrom fts),
-      Time.lt from ts>>) /\
-  (<<TO_EQ: forall ts fts (MAP: f1 loc ts fts) (EQ: ts = to), fts = fto>>) /\
-  (<<TO_EQ_INV: forall ts fts (MAP: f1 loc ts fts) (EQ: fts = fto), ts = to>>) /\
-  (<<TO_LT1: forall ts fts (MAP: f1 loc ts fts) (LT: Time.lt ts to),
-      Time.lt fts fto>>) /\
-  (<<TO_LT1_INV: forall ts fts (MAP: f1 loc ts fts) (LT: Time.lt fts fto),
-      Time.lt ts to>>) /\
-  (<<TO_LT2_INV: forall ts fts (MAP: f1 loc ts fts) (LT: Time.lt fto fts),
-      Time.lt to ts>>).
-Proof.
-Admitted.
-
 Lemma memory_map_add
       f1 rsv mem1 fmem1
       loc from to msg mem2
@@ -992,7 +955,6 @@ Lemma map_read_step
       f1 lc1 gl1 flc1 fgl1
       loc to val released ord lc2
       (MAP_WF1: map_wf f1)
-      (MAP_COMPLETE1: map_complete f1 (Global.memory gl1) (Global.memory fgl1))
       (LC_MAP1: local_map f1 lc1 flc1)
       (GL_MAP1: global_map f1 rsv gl1 fgl1)
       (STEP: Local.read_step lc1 gl1 loc to val released ord lc2):
@@ -1068,7 +1030,6 @@ Lemma map_write_step
       loc from to val releasedm released ord lc2 gl2
       freleasedm
       (MAP_WF1: map_wf f1)
-      (MAP_COMPLETE1: map_complete f1 (Global.memory gl1) (Global.memory fgl1))
       (LC_MAP1: local_map f1 lc1 flc1)
       (GL_MAP1: global_map f1 (Local.reserves lc1) gl1 fgl1)
       (LC_WF1: Local.wf lc1 gl1)
@@ -1081,7 +1042,6 @@ Lemma map_write_step
     (<<FSTEP: Local.write_step flc1 fgl1 loc ffrom fto val freleasedm freleased ord flc2 fgl2>>) /\
     (<<F2: f2 = map_add loc from ffrom (map_add loc to fto f1)>>) /\
     (<<MAP_WF2: map_wf f2>>) /\
-    (<<MAP_COMPLETE2: map_complete f2 (Global.memory gl2) (Global.memory fgl2)>>) /\
     (<<FROM_MAP: f2 loc from ffrom>>) /\
     (<<TO_MAP: f2 loc to fto>>) /\
     (<<RELEASED_MAP: opt_view_map f2 released freleased>>) /\
@@ -1115,7 +1075,6 @@ Proof.
     eapply map_writable; try exact WRITABLE; try exact WF2; auto 6.
     eapply tview_map_incr; try exact TVIEW.
     i. repeat apply map_add_incr. ss.
-  - ss.
   - econs; ss.
     apply write_tview_map; ss; auto 6.
     eapply tview_map_incr; try apply TVIEW.
@@ -1152,21 +1111,18 @@ Lemma map_fence_step
       f1 lc1 gl1 flc1 fgl1
       ordr ordw lc2 gl2
       (MAP_WF1: map_wf f1)
-      (MAP_COMPLETE1: map_complete f1 (Global.memory gl1) (Global.memory fgl1))
       (LC_MAP1: local_map f1 lc1 flc1)
       (GL_MAP1: global_map f1 rsv gl1 fgl1)
       (ORD: Ordering.le ordw Ordering.acqrel)
       (STEP: Local.fence_step lc1 gl1 ordr ordw lc2 gl2):
   exists flc2 fgl2,
     (<<FSTEP: Local.fence_step flc1 fgl1 ordr ordw flc2 fgl2>>) /\
-    (<<MAP_COMPLETE2: map_complete f1 (Global.memory gl2) (Global.memory fgl2)>>) /\
     (<<LC_MAP2: local_map f1 lc2 flc2>>) /\
     (<<GL_MAP2: global_map f1 rsv gl2 fgl2>>).
 Proof.
   inv STEP.
   esplits.
   - econs; eauto. destruct ordw; ss.
-  - ss.
   - econs; try apply LC_MAP1. s.
     apply write_fence_tview_map; ss; try apply GL_MAP1.
     apply read_fence_tview_map; ss. apply LC_MAP1.
@@ -1265,13 +1221,11 @@ Lemma map_internal_step
       f1 lc1 gl1 flc1 fgl1
       e lc2 gl2
       (MAP_WF1: map_wf f1)
-      (MAP_COMPLETE1: map_complete f1 (Global.memory gl1) (Global.memory fgl1))
       (LC_MAP1: local_map f1 lc1 flc1)
       (GL_MAP1: global_map f1 (Local.reserves lc1) gl1 fgl1)
       (LC_WF1: Local.wf lc1 gl1)
       (GL_WF1: Global.wf gl1)
       (STEP: Local.internal_step e lc1 gl1 lc2 gl2):
-  (<<MAP_COMPLETE2: map_complete f1 (Global.memory gl2) (Global.memory fgl1)>>) /\
   (<<LC_MAP2: local_map f1 lc2 flc1>>) /\
   (<<GL_MAP2: global_map f1 (Local.reserves lc2) gl2 fgl1>>).
 Proof.
@@ -1289,7 +1243,6 @@ Lemma map_program_step
       f1 lc1 gl1 flc1 fgl1
       e lc2 gl2
       (MAP_WF1: map_wf f1)
-      (MAP_COMPLETE1: map_complete f1 (Global.memory gl1) (Global.memory fgl1))
       (LC_MAP1: local_map f1 lc1 flc1)
       (GL_MAP1: global_map f1 (Local.reserves lc1) gl1 fgl1)
       (LC_WF1: Local.wf lc1 gl1)
@@ -1304,7 +1257,6 @@ Lemma map_program_step
     (<<EVENT: event_map f2 e fe>>) /\
     (<<MAP_INCR: f1 <3= f2>>) /\
     (<<MAP_WF2: map_wf f2>>) /\
-    (<<MAP_COMPLETE2: map_complete f2 (Global.memory gl2) (Global.memory fgl2)>>) /\
     (<<LC_MAP2: local_map f2 lc2 flc2>>) /\
     (<<GL_MAP2: global_map f2 (Local.reserves lc2) gl2 fgl2>>).
 Proof.

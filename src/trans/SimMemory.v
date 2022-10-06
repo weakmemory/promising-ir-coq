@@ -32,6 +32,9 @@ Variant sim_memory (mem_src mem_tgt:Memory.t): Prop :=
         exists from_src msg_src,
           <<GET: Memory.get loc to mem_src = Some (from_src, msg_src)>> /\
           <<MSG: Message.le msg_src msg_tgt>>)
+    (RSV: forall loc from to,
+        Memory.get loc to mem_src = Some (from, Message.reserve) <->
+        Memory.get loc to mem_tgt = Some (from, Message.reserve))
 .
 #[export] Hint Constructors sim_memory: core.
 
@@ -175,6 +178,11 @@ Proof.
     + des. subst. i. inv GET. esplits; eauto.
       erewrite Memory.add_o; eauto. condtac; ss.
     + erewrite (@Memory.add_o mem2_src); eauto. condtac; ss. eauto.
+  - erewrite (@Memory.add_o mem2_src); try exact SRC.
+    erewrite (@Memory.add_o mem2_tgt); try exact TGT.
+    condtac; ss. des. subst. split; i.
+    + inv H. inv MSG. ss.
+    + inv H. inv MSG. ss.
 Qed.
 
 Lemma sim_memory_closed_timemap
@@ -219,19 +227,4 @@ Lemma sim_memory_closed_message
   Memory.closed_message msg mem_src.
 Proof.
   inv TGT; ss. econs. eapply sim_memory_closed_opt_view; eauto.
-Qed.
-
-Lemma sim_memory_max_opt_timemap
-      mem_src mem_tgt
-      rsv_src rsv_tgt
-      (SIM: sim_memory mem_src mem_tgt)
-      (RSV: rsv_src = rsv_tgt)
-      (CLOSED_SRC: Memory.closed mem_src)
-      (CLOSED_TGT: Memory.closed mem_tgt):
-  Memory.max_opt_timemap rsv_src mem_src =
-  Memory.max_opt_timemap rsv_tgt mem_tgt.
-Proof.
-  subst. extensionality x.
-  unfold Memory.max_opt_timemap. condtac; ss. f_equal.
-  apply sim_memory_max_ts; eauto.
 Qed.

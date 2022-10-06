@@ -32,7 +32,6 @@ Variant sim_global (gl_src gl_tgt: Global.t): Prop :=
 | sim_global_intro
     (SC: TimeMap.le (Global.sc gl_src) (Global.sc gl_tgt))
     (PROMISES: Global.promises gl_src = Global.promises gl_tgt)
-    (RESERVES: Global.reserves gl_src = Global.reserves gl_tgt)
     (MEMORY: sim_memory (Global.memory gl_src) (Global.memory gl_tgt))
 .
 #[export] Hint Constructors sim_global: core.
@@ -48,11 +47,3 @@ Qed.
 
 Lemma init_sim_global: sim_global Global.init Global.init.
 Proof. refl. Qed.
-
-Lemma sim_global_fully_reserved
-      gl_src gl_tgt
-      (SIM: sim_global gl_src gl_tgt):
-  sim_global (Global.fully_reserved gl_src) (Global.fully_reserved gl_tgt).
-Proof.
-  inv SIM. econs; eauto.
-Qed.

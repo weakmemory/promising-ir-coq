@@ -3,7 +3,6 @@ COQTHEORIES  := \
 	src/model/*.v \
 	src/itree/*.v \
 	src/prop/*.v \
-	src/trans/*.v \
 	src/pf2ir/*.v \
 
 .PHONY: all theories clean
@@ -20,7 +19,6 @@ Makefile.coq: Makefile $(COQTHEORIES)
 	(echo "-R src/model $(COQMODULE)"; \
 	 echo "-R src/itree $(COQMODULE)"; \
 	 echo "-R src/prop $(COQMODULE)"; \
-	 echo "-R src/trans $(COQMODULE)"; \
 	 echo "-R src/pf2ir $(COQMODULE)"; \
    \
    echo $(COQTHEORIES)) > _CoqProject

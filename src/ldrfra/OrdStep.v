@@ -213,6 +213,20 @@ Module OrdLocal.
       - esplits; eauto.
     Qed.
 
+    Lemma program_step_promises
+          e lc1 gl1 lc2 gl2
+          (STEP: program_step e lc1 gl1 lc2 gl2):
+      BoolMap.le (Local.promises lc2) (Local.promises lc1) /\
+      BoolMap.le (Global.promises gl2) (Global.promises gl1).
+    Proof.
+      inv STEP; ss; try by (inv LOCAL; ss).
+      - inv LOCAL. inv STEP. ss.
+      - inv LOCAL. inv STEP. inv FULFILL; ss.
+        split; eauto using BoolMap.remove_le.
+      - inv LOCAL1. inv LOCAL2. inv STEP. inv STEP0. inv FULFILL; ss.
+        split; eauto using BoolMap.remove_le.
+    Qed.
+
     Lemma program_step_promises_minus
           e lc1 gl1 lc2 gl2
           (STEP: program_step e lc1 gl1 lc2 gl2):
@@ -377,6 +391,16 @@ Module OrdThread.
 
 
     (* promises *)
+
+    Lemma step_promises
+          e th1 th2
+          (STEP: step e th1 th2):
+      BoolMap.le (Local.promises (Thread.local th2)) (Local.promises (Thread.local th1)) /\
+      BoolMap.le (Global.promises (Thread.global th2)) (Global.promises (Thread.global th1)).
+    Proof.
+      inv STEP. s.
+      eapply OrdLocal.program_step_promises; eauto.
+    Qed.
 
     Lemma step_promises_minus
           e th1 th2

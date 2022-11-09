@@ -4,6 +4,8 @@ COQTHEORIES  := \
 	src/itree/*.v \
 	src/prop/*.v \
 	src/pf2ir/*.v \
+	src/sequential/*.v \
+	src/optimizer/*.v \
 
 .PHONY: all theories clean
 
@@ -20,6 +22,8 @@ Makefile.coq: Makefile $(COQTHEORIES)
 	 echo "-R src/itree $(COQMODULE)"; \
 	 echo "-R src/prop $(COQMODULE)"; \
 	 echo "-R src/pf2ir $(COQMODULE)"; \
+	 echo "-R src/sequential $(COQMODULE)"; \
+	 echo "-R src/optimizer $(COQMODULE)"; \
    \
    echo $(COQTHEORIES)) > _CoqProject
 	coq_makefile -f _CoqProject -o Makefile.coq

@@ -498,18 +498,18 @@ Module RARaceW.
           (<<WWRACE: ww_race rels tview loc ord>>)).
 
     Definition ra_race_steps (rels: Writes.t) (c: Configuration.t): Prop :=
-      exists tid rels2 rels3 c2 lang st2 lc2 e st3,
+      exists tid rels2 c2 lang st2 lc2 e st3,
         (<<STEPS: WConfiguration.steps L ordcr ordcw rels rels2 c c2>>) /\
         (<<TID: IdentMap.find tid (Configuration.threads c2) = Some (existT _ lang st2, lc2)>>) /\
         (<<THREAD_STEP: lang.(Language.step) e st2 st3>>) /\
-        (<<RARACE: ra_race rels3 (Local.tview lc2) e>>).
+        (<<RARACE: ra_race rels2 (Local.tview lc2) e>>).
 
     Definition racefree (rels: Writes.t) (c: Configuration.t): Prop :=
-      forall tid rels2 rels3 c2 lang st2 lc2 e st3
+      forall tid rels2 c2 lang st2 lc2 e st3
         (STEPS: WConfiguration.steps L ordcr ordcw rels rels2 c c2)
         (TID: IdentMap.find tid (Configuration.threads c2) = Some (existT _ lang st2, lc2))
         (THREAD_STEP: lang.(Language.step) e st2 st3)
-        (RARACE: ra_race rels3 (Local.tview lc2) e),
+        (RARACE: ra_race rels2 (Local.tview lc2) e),
         False.
 
     Definition racefree_syn (syn: Threads.syntax): Prop :=

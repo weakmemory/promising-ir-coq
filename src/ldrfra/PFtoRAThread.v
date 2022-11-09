@@ -119,7 +119,7 @@ Module PFtoRAThread.
 
     (* sim_thread *)
 
-    Inductive sim_thread (rels: Writes.t) (e_pf e_ra: Thread.t lang): Prop :=
+    Variant sim_thread (rels: Writes.t) (e_pf e_ra: Thread.t lang): Prop :=
     | sim_thread_intro
         (SIM_RA: PFtoRASim.sim_thread L rels e_ra e_pf)
         (NORMAL_PF: Normal.normal_thread L e_pf)

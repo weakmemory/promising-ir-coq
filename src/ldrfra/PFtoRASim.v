@@ -89,6 +89,7 @@ Module PFtoRASim.
               <<GET_TGT: Memory.get loc to mem_tgt = Some (from, Message.message val (Some released) false)>>)
         (NA_WRITES: forall loc from to val released
                       (LOC: L loc)
+                      (TO: to <> Time.bot)
                       (GET_TGT: Memory.get loc to mem_tgt = Some (from, Message.message val released true)),
             List.In (loc, to, Ordering.na) rels)
     .
@@ -1090,8 +1091,9 @@ Module PFtoRASim.
       exploit COMPLETE; eauto. i. des. inv MSG0.
       destruct (L loc) eqn:LOC.
       { right. destruct na.
-        - exploit NA_WRITES; try exact GET; ss. i.
-          esplits; try exact x0; eauto.
+        - exploit NA_WRITES; try exact GET; ss.
+          { ii. subst. inv RACE. }
+          i. esplits; try exact x0; eauto.
           rewrite CUR.
           inv NORMAL_TVIEW1_TGT. rewrite CUR0; ss.
         - destruct (Ordering.le Ordering.plain ord) eqn:ORD.

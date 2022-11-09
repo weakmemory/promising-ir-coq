@@ -749,7 +749,6 @@ Section PARTIAL.
   Proof.
     hexploit (ord_inv2 ord). i; des.
     - destruct ord; ss.
-    - rewrite update_store_ord2f; auto. ii. unfold to_deferred. des_ifs. refl.
     - rewrite update_store_ord3f; auto. ii. unfold to_deferred. des_ifs. apply to_deferred0_mon. apply rel_flag_le.
   Qed.
 
@@ -953,50 +952,12 @@ Section PARTIAL.
         i. unfold sim_seq_partial_case in H1. hexploit H1; clear H1.
         { eapply ORACLE0. }
         i. des.
-        { hexploit red_rlx_full. 5,6: eauto. 1,2,3,4: ss. 1,2: destruct ord; ss.
+        { hexploit red_rel_full. 5,6: eauto. 1,2,3,4: ss.
           i; des.
           exists th. eexists (List.cons _ tr). eexists. splits; ss.
           - rewrite bind_trigger. econs 3. 2: eapply STEPS. econs; eauto.
             { econs; eauto. }
-            { ss. destruct ord; ss. }
-            refl. refl.
-          - econs; eauto.
-          - left. rewrite <- flags_join_assoc. etrans.
-            2:{ eapply Flags.join_mon_r. eauto. }
-            destruct m1, mem; ss. subst value_map flags i; ss.
-            unfold to_deferred, SeqEvent.written. ss. unfold_flags.
-            ii. rewrite update_store_ord2; auto.
-            rewrite Loc.eqb_sym. rewrite loc_eqb_is_dec.
-            clear. des_ifs; ss. all: refl.
-        }
-        { hexploit red_rlx_full. 5,6: eauto. 1,2,3,4: ss. 1,2: destruct ord; ss.
-          i; des.
-          exists th. eexists (List.cons _ tr). eexists. splits; ss.
-          - rewrite bind_trigger. econs 3. 2: eapply STEPS. econs; eauto.
-            { econs; eauto. }
-            { ss. destruct ord; ss. }
-            refl. refl.
-          - econs; eauto.
-          - right; auto.
-        }
-
-      + hexploit STORE; clear STORE; eauto. i. des.
-        instantiate (1:=ord) in H0. instantiate (1:=(denote_expr le rhs)) in H0.
-        instantiate (1:=lhs) in H0.
-        hexploit exists_input_no_acq.
-        match goal with | [H: Oracle.progress ?a _ |- _] => instantiate (1:=a); ss end.
-        i. des. unfold Oracle.progress in H0. eapply H0 in H2; clear H0. des.
-        hexploit H1; clear H1; eauto. i; des. hexploit WF0; clear WF0; eauto. i; des. clear WF. pclearbot.
-        hexploit IHMD; clear IHMD.
-        i. unfold sim_seq_partial_case in H1. hexploit H1; clear H1.
-        { eapply ORACLE0. }
-        i. des.
-        { hexploit red_rel_full. 5,6: eauto. 1,2,3,4: ss. destruct ord; ss.
-          i; des.
-          exists th. eexists (List.cons _ tr). eexists. splits; ss.
-          - rewrite bind_trigger. econs 3. 2: eapply STEPS. econs; eauto.
-            { econs; eauto. }
-            { ss. destruct ord; ss. }
+            { ss. }
             refl. refl.
           - econs; eauto.
           - left. rewrite <- flags_join_assoc. etrans.
@@ -1009,12 +970,12 @@ Section PARTIAL.
             destruct (Opt2.block_d DSE_opt2 b_src loc (datai loc)), (flags0 loc); ss.
             destruct (Opt2.block_d DSE_opt2 b_src loc (datai loc)), (flags0 loc); ss.
         }
-        { hexploit red_rel_full. 5,6: eauto. 1,2,3,4: ss. destruct ord; ss.
+        { hexploit red_rel_full. 5,6: eauto. 1,2,3,4: ss.
           i; des.
           exists th. eexists (List.cons _ tr). eexists. splits; ss.
           - rewrite bind_trigger. econs 3. 2: eapply STEPS. econs; eauto.
             { econs; eauto. }
-            { ss. destruct ord; ss. }
+            { ss. }
             refl. refl.
           - econs; eauto.
           - right; auto.

@@ -59,7 +59,7 @@ Definition is_release (e: ProgramEvent.t): bool :=
   match e with
   | ProgramEvent.syscall _ => true
   | ProgramEvent.silent | ProgramEvent.failure | ProgramEvent.read _ _ _ => false
-  | ProgramEvent.fence _ ord | ProgramEvent.write _ _ ord | ProgramEvent.update _ _ _ _ ord => Ordering.le Ordering.strong_relaxed ord
+  | ProgramEvent.fence _ ord | ProgramEvent.write _ _ ord | ProgramEvent.update _ _ _ _ ord => Ordering.le Ordering.plain ord
   end.
 
 Definition is_acquire (e: ProgramEvent.t): bool :=

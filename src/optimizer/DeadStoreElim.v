@@ -171,7 +171,7 @@ Section ANALYSIS.
       if (Ordering.le o Ordering.na)
       then distl ul l full t
       else
-        if (Ordering.le o Ordering.relaxed)
+        if (Ordering.le o Ordering.na)
         then distl ul l none t
         else distl ul l none (rel_flag t).
 
@@ -183,7 +183,7 @@ Section ANALYSIS.
 
   Definition update_fence_w o : Loc.t -> (local_update Three) :=
     fun _ t =>
-      if (Ordering.le o Ordering.relaxed)
+      if (Ordering.le o Ordering.na)
       then t
       else
         if (Ordering.le o Ordering.acqrel)

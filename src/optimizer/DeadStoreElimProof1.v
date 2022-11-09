@@ -26,7 +26,7 @@ Require Import DeadStoreElim.
 Global Program Instance le_PreOrder: PreOrder le.
 Next Obligation.
 Proof.
-  eapply PreOrder_Reflexive. Unshelve.    
+  eapply PreOrder_Reflexive. Unshelve.
   apply (@MLattice.le_PreOrder ThreeML).
 Qed.
 Next Obligation.
@@ -115,8 +115,7 @@ Section ANALYSIS.
 
   Lemma ord_inv2:
     forall o, (Ordering.le o Ordering.na) \/
-         (Ordering.le Ordering.plain o && Ordering.le o Ordering.relaxed)%bool \/
-         (Ordering.le Ordering.strong_relaxed o).
+         (Ordering.le Ordering.plain o)%bool.
   Proof. i. destruct o; auto. Qed.
 
   Lemma update_store_ord1:
@@ -133,25 +132,25 @@ Section ANALYSIS.
 
   Lemma update_store_ord2:
     forall ul o l t
-      (ORD: (Ordering.le Ordering.plain o && Ordering.le o Ordering.relaxed)%bool),
+      (ORD: (Ordering.le Ordering.plain o && Ordering.le o Ordering.na)%bool),
       update_store ul o l t = (if (Loc.eqb ul l) then none else t).
   Proof. i. destruct o; ss; clarify. Qed.
 
   Lemma update_store_ord2f:
     forall ul o mp
-      (ORD: (Ordering.le Ordering.plain o && Ordering.le o Ordering.relaxed)%bool),
+      (ORD: (Ordering.le Ordering.plain o && Ordering.le o Ordering.na)%bool),
       (fun p0: Loc.t => update_store ul o p0 (mp p0)) = fun p0 => (if (Loc.eqb ul p0) then none else (mp p0)).
   Proof. i. extensionality p0. apply update_store_ord2; auto. Qed.
 
   Lemma update_store_ord3:
     forall ul o l t
-      (ORD: Ordering.le Ordering.strong_relaxed o),
+      (ORD: Ordering.le Ordering.plain o),
       update_store ul o l t = (if (Loc.eqb ul l) then none else (rel_flag t)).
   Proof. i. destruct o; ss; clarify. Qed.
 
   Lemma update_store_ord3f:
     forall ul o mp
-      (ORD: Ordering.le Ordering.strong_relaxed o),
+      (ORD: Ordering.le Ordering.plain o),
       (fun p0: Loc.t => update_store ul o p0 (mp p0)) = fun p0 => (if (Loc.eqb ul p0) then none else (rel_flag (mp p0))).
   Proof. i. extensionality p0. apply update_store_ord3; auto. Qed.
 
@@ -188,32 +187,32 @@ Section ANALYSIS.
 
 
   Lemma ord_inv3':
-    forall o, (Ordering.le o Ordering.relaxed) \/
-         (Ordering.le Ordering.strong_relaxed o && Ordering.le o Ordering.acqrel)%bool \/
+    forall o, (Ordering.le o Ordering.na) \/
+         (Ordering.le Ordering.plain o && Ordering.le o Ordering.acqrel)%bool \/
          (Ordering.le Ordering.seqcst o).
   Proof. i. destruct o; auto. Qed.
 
   Lemma update_fence_w_ord1:
     forall o l t
-      (ORD: Ordering.le o Ordering.relaxed),
+      (ORD: Ordering.le o Ordering.na),
       update_fence_w o l t = t.
   Proof. i. destruct o; ss; clarify. Qed.
 
   Lemma update_fence_w_ord1f:
     forall o mp
-      (ORD: Ordering.le o Ordering.relaxed),
+      (ORD: Ordering.le o Ordering.na),
       (fun p0: Loc.t => update_fence_w o p0 (mp p0)) = fun p0 => mp p0.
   Proof. i. extensionality p0. apply update_fence_w_ord1; auto. Qed.
 
   Lemma update_fence_w_ord2:
     forall o l t
-      (ORD: (Ordering.le Ordering.strong_relaxed o && Ordering.le o Ordering.acqrel)%bool),
+      (ORD: (Ordering.le Ordering.plain o && Ordering.le o Ordering.acqrel)%bool),
       update_fence_w o l t = (rel_flag t).
   Proof. i. destruct o; ss; clarify. Qed.
 
   Lemma update_fence_w_ord2f:
     forall o mp
-      (ORD: (Ordering.le Ordering.strong_relaxed o && Ordering.le o Ordering.acqrel)%bool),
+      (ORD: (Ordering.le Ordering.plain o && Ordering.le o Ordering.acqrel)%bool),
       (fun p0: Loc.t => update_fence_w o p0 (mp p0)) = fun p0 => (rel_flag (mp p0)).
   Proof. i. extensionality p0. apply update_fence_w_ord2; auto. Qed.
 
@@ -287,10 +286,6 @@ Section ANALYSIS.
     - unfold knowledge_spec. split; red; i.
       + rewrite ! update_store_ord1; auto. des_ifs.
       + rewrite ! update_store_ord1; auto. des_ifs.
-        right; refl. left; refl.
-    - unfold knowledge_spec. split; red; i.
-      + rewrite ! update_store_ord2; auto. des_ifs.
-      + rewrite ! update_store_ord2; auto. des_ifs.
         right; refl. left; refl.
     - unfold knowledge_spec. split; red; i.
       + rewrite ! update_store_ord3; auto. des_ifs.

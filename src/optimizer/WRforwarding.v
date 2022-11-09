@@ -156,7 +156,7 @@ Section ANALYSIS.
 
   Definition WRfwd_write (ul: Loc.t) o : Loc.t -> (local_update Two) :=
     fun l t =>
-      if (Ordering.le o Ordering.relaxed)
+      if (Ordering.le o Ordering.na)
       then (distl ul l None t)
       else
         (distl ul l None (Two_set_flag t)).
@@ -181,7 +181,7 @@ Section ANALYSIS.
 
   Definition WRfwd_fence_w o : Loc.t -> (local_update Two) :=
     fun _ t =>
-      if (Ordering.le o Ordering.relaxed)
+      if (Ordering.le o Ordering.na)
       then t
       else
         if (Ordering.le o Ordering.acqrel)

@@ -24,7 +24,7 @@ Require Import WRforwarding.
 Global Program Instance le_PreOrder: PreOrder le.
 Next Obligation.
 Proof.
-  eapply PreOrder_Reflexive. Unshelve.    
+  eapply PreOrder_Reflexive. Unshelve.
   set (ML:= MLattice.mk_mlattice
               eq_Equiv eq_leibniz
               meet meet_comm meet_assoc meet_idem
@@ -106,39 +106,38 @@ Section ALGAUX.
 
 
   Lemma ord_inv2:
-    forall o, (Ordering.le o Ordering.relaxed) \/
-         (Ordering.le Ordering.strong_relaxed o).
+    forall o, (Ordering.le o Ordering.na) \/
+         (Ordering.le Ordering.plain o).
   Proof. i. destruct o; auto. Qed.
 
   Lemma WRfwd_write_ord1:
     forall ul o l t
-      (ORD: Ordering.le o Ordering.relaxed),
+      (ORD: Ordering.le o Ordering.na),
       WRfwd_write ul o l t = (if (Loc.eqb ul l) then None else t).
   Proof. i. unfold WRfwd_write. des_ifs. Qed.
 
   Lemma WRfwd_write_ord1f:
     forall ul o mp
-      (ORD: Ordering.le o Ordering.relaxed),
+      (ORD: Ordering.le o Ordering.na),
       (fun p0: Loc.t => WRfwd_write ul o p0 (mp p0)) = fun p0 => (if (Loc.eqb ul p0) then None else (mp p0)).
   Proof. i. extensionality p0. apply WRfwd_write_ord1; auto. Qed.
 
   Lemma WRfwd_write_ord2:
     forall ul o l t
-      (ORD: Ordering.le Ordering.strong_relaxed o),
+      (ORD: Ordering.le Ordering.plain o),
       WRfwd_write ul o l t = (if (Loc.eqb ul l) then None else (Two_set_flag t)).
   Proof. i. unfold WRfwd_write. destruct o; ss; clarify. Qed.
 
   Lemma WRfwd_write_ord2f:
     forall ul o mp
-      (ORD: Ordering.le Ordering.strong_relaxed o),
+      (ORD: Ordering.le Ordering.plain o),
       (fun p0: Loc.t => WRfwd_write ul o p0 (mp p0)) = fun p0 => (if (Loc.eqb ul p0) then None else (Two_set_flag (mp p0))).
   Proof. i. extensionality p0. apply WRfwd_write_ord2; auto. Qed.
 
 
   Lemma ord_inv2':
     forall o, (Ordering.le o Ordering.na) \/
-         (Ordering.le Ordering.plain o && Ordering.le o Ordering.relaxed)%bool \/
-         (Ordering.le Ordering.strong_relaxed o).
+         (Ordering.le Ordering.plain o).
   Proof. i. destruct o; auto. Qed.
 
   Lemma WRfwd_store_ord1:
@@ -207,32 +206,32 @@ Section ALGAUX.
 
 
   Lemma ord_inv4:
-    forall o, (Ordering.le o Ordering.relaxed) \/
-         (Ordering.le Ordering.strong_relaxed o && Ordering.le o Ordering.acqrel)%bool \/
+    forall o, (Ordering.le o Ordering.na) \/
+         (Ordering.le Ordering.plain o && Ordering.le o Ordering.acqrel)%bool \/
          (Ordering.le Ordering.seqcst o).
   Proof. i. destruct o; auto. Qed.
 
   Lemma WRfwd_fence_w_ord1:
     forall o l t
-      (ORD: Ordering.le o Ordering.relaxed),
+      (ORD: Ordering.le o Ordering.na),
       WRfwd_fence_w o l t = t.
   Proof. i. destruct o; ss; clarify. Qed.
 
   Lemma WRfwd_fence_w_ord1f:
     forall o mp
-      (ORD: Ordering.le o Ordering.relaxed),
+      (ORD: Ordering.le o Ordering.na),
       (fun p0: Loc.t => WRfwd_fence_w o p0 (mp p0)) = fun p0 => mp p0.
   Proof. i. extensionality p0. apply WRfwd_fence_w_ord1; auto. Qed.
 
   Lemma WRfwd_fence_w_ord2:
     forall o l t
-      (ORD: (Ordering.le Ordering.strong_relaxed o && Ordering.le o Ordering.acqrel)%bool),
+      (ORD: (Ordering.le Ordering.plain o && Ordering.le o Ordering.acqrel)%bool),
       WRfwd_fence_w o l t = (Two_set_flag t).
   Proof. i. destruct o; ss; clarify. Qed.
 
   Lemma WRfwd_fence_w_ord2f:
     forall o mp
-      (ORD: (Ordering.le Ordering.strong_relaxed o && Ordering.le o Ordering.acqrel)%bool),
+      (ORD: (Ordering.le Ordering.plain o && Ordering.le o Ordering.acqrel)%bool),
       (fun p0: Loc.t => WRfwd_fence_w o p0 (mp p0)) = fun p0 => (Two_set_flag (mp p0)).
   Proof. i. extensionality p0. apply WRfwd_fence_w_ord2; auto. Qed.
 

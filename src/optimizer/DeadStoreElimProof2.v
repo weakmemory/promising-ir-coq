@@ -88,7 +88,6 @@ Section MATCH.
       + rewrite update_read_ord1; auto. dest_loc loc0 loc.
         hexploit (ord_inv2 ordw); i; des.
         * rewrite update_store_ord1; auto. rewrite Loc.eqb_sym; rewrite LOC. apply Flag.join_ge_l.
-        * rewrite update_store_ord2; auto. rewrite Loc.eqb_sym; rewrite LOC. apply Flag.join_ge_l.
         * rewrite update_store_ord3; auto. rewrite Loc.eqb_sym; rewrite LOC.
           etrans. 2: apply Flag.join_ge_l. apply to_deferred0_mon. apply rel_flag_le.
       + rewrite update_store_ord1; auto. hexploit (ord_inv1' ordr); i; des.
@@ -173,7 +172,7 @@ Section MATCH.
       rewrite update_load_ord1f in MM; auto.
       eapply mm_mon. 2: eapply MM. ii. dest_loc rhs p. refl.
     - hexploit (ord_inv2 ord); i. des.
-      2,3: destruct ord; ss.
+      2: destruct ord; ss.
       rewrite update_store_ord1f in MM; auto.
       ii. ss. unfold ValueMap.write, Flags.update. dest_loc lhs l.
       + rewrite ! Loc.eq_dec_eq. apply mcell_refl.
@@ -186,7 +185,6 @@ Section MATCH.
         eapply mm_mon. 2: eapply MM. ii. dest_loc loc p. rewrite Loc.eqb_sym in LOC.
         hexploit (ord_inv2 ordw); i. des.
         * rewrite update_store_ord1; auto. rewrite LOC. refl.
-        * rewrite update_store_ord2; auto. rewrite LOC. refl.
         * rewrite update_store_ord3; auto. rewrite LOC. apply rel_flag_le.
       + hexploit (ord_inv1' ordr); i. des.
         * rewrite update_read_ord1f in MM; auto. ii. unfold match_mem in MM. specialize MM with l.
@@ -318,26 +316,6 @@ Section MATCH.
   Proof.
     i. subst ev. hexploit (ord_inv2 ord). i; des.
     { destruct ord; ss. }
-    { hexploit step_rlx; eauto. ss. destruct ord; ss. i; des.
-      do 2 eexists. split; eauto.
-      hexploit red_rlx_full. 6: eapply STEP_TGT. 2: eapply ATOMIC. 1,2,3,4: ss. destruct ord; ss. i; des.
-      hexploit red_rlx_full. 6: eapply STEP_SRC. 2: eapply ATOMIC. 1,2,3,4: ss. destruct ord; ss. i; des.
-      clear PERM0. subst i_src i_tgt p1. rewrite OO in OO0. inv OO0. inv EVACC; inv EVACC0.
-      unfold inst_gd, Opt2.inst_gd, mk_global in *. ss.
-      rewrite update_store_ord2f in *; auto. splits; ss.
-      - econs; ss; eauto.
-        { unfold match_mem in MM; specialize MM with lhs. rewrite Loc.eqb_refl in MM. ss; des. rewrite MM; rewrite MM0.
-          econs; ss; eauto; try refl.
-          unfold to_deferred. rewrite Loc.eqb_refl. ss. rewrite flag_join_bot_r. refl.
-        }
-        { econs; eauto. refl. }
-        { econs; eauto. ii. unfold to_deferred. destruct (Loc.eqb lhs loc); ss. refl. }
-      - destruct mem_src, mem_tgt. ss. rewrite MEMV, MEMF, MEMV0, MEMF0; clear MEMV MEMF MEMV0 MEMF0.
-        unfold_many.
-        ii. ss. unfold match_mem in MM; specialize MM with l. depgen MM. clear.
-        rewrite Loc.eqb_sym. rewrite loc_eqb_is_dec. des_ifs.
-        i. ss. des. apply mcell_refl.
-    }
     { hexploit step_rel; eauto. ss. i; des.
       do 2 eexists. split; eauto.
       hexploit red_rel_full. 6: eapply STEP_TGT. 2: eapply ATOMIC. 1,2,3,4: ss. i; des.
@@ -411,7 +389,6 @@ Section MATCH.
           destruct (Loc.eqb loc loc0) eqn:LOC; ss.
           hexploit (ord_inv2 ordw). i; des.
           - rewrite update_store_ord1 in *; auto. rewrite LOC in *. apply to_deferred0_mon. apply acq_flag_le.
-          - rewrite update_store_ord2 in *; auto. rewrite LOC in *. apply to_deferred0_mon. apply acq_flag_le.
           - rewrite update_store_ord3 in *; auto. rewrite LOC in *. apply to_deferred0_mon.
             etrans. eapply acq_flag_le. apply rel_flag_le.
         }
@@ -422,7 +399,6 @@ Section MATCH.
         + apply mcell_refl.
         + eapply mcell_mon; eauto. apply Loc.eqb_neq in n. rewrite Loc.eqb_sym in n. hexploit (ord_inv2 ordw). i; des.
           * rewrite update_store_ord1; auto. rewrite n. apply acq_flag_le.
-          * rewrite update_store_ord2; auto. rewrite n. apply acq_flag_le.
           * rewrite update_store_ord3; auto. rewrite n. etrans. eapply acq_flag_le. apply rel_flag_le.
     }
     { hexploit step_acq; eauto. ss. i; des.
@@ -446,10 +422,6 @@ Section MATCH.
             + rewrite flag_join_bot_r. rewrite MM0. refl.
             + rewrite flag_join_bot_r. match goal with | [|- _ (Flag.le ?a ?b)] => destruct a; destruct b; ss end. hexploit MM; auto; i; des; clarify.
             + rewrite flag_join_bot_r. match goal with | [|- _ (Flag.le ?a ?b)] => destruct a; destruct b; ss end. hexploit MM; auto; i; des; clarify.
-          - rewrite update_store_ord2 in *; auto. rewrite LOC in *. destruct (mp loc0) eqn:MPL; ss; des.
-            + rewrite flag_join_bot_r. rewrite MM0. refl.
-            + rewrite flag_join_bot_r. match goal with | [|- _ (Flag.le ?a ?b)] => destruct a; destruct b; ss end. hexploit MM; auto; i; des; clarify.
-            + rewrite flag_join_bot_r. match goal with | [|- _ (Flag.le ?a ?b)] => destruct a; destruct b; ss end. hexploit MM; auto; i; des; clarify.
           - rewrite update_store_ord3 in *; auto. rewrite LOC in *. destruct (mp loc0) eqn:MPL; ss; des.
             + rewrite flag_join_bot_r. rewrite MM0. refl.
             + rewrite flag_join_bot_r. rewrite MM0. refl.
@@ -462,11 +434,9 @@ Section MATCH.
         1,2: apply mcell_refl.
         + eapply mcell_mon; eauto. apply Loc.eqb_neq in n. rewrite Loc.eqb_sym in n. hexploit (ord_inv2 ordw). i; des.
           * rewrite update_store_ord1; auto. rewrite n. apply acq_flag_le.
-          * rewrite update_store_ord2; auto. rewrite n. apply acq_flag_le.
           * rewrite update_store_ord3; auto. rewrite n. etrans. eapply acq_flag_le. apply rel_flag_le.
         + apply Loc.eqb_neq in n. rewrite Loc.eqb_sym in n. hexploit (ord_inv2 ordw). i; des.
           * rewrite update_store_ord1 in *; auto. rewrite n in *. destruct (mp l) eqn:MPL; ss; i; des; auto. apply MM in H0; des; auto.
-          * rewrite update_store_ord2 in *; auto. rewrite n in *. destruct (mp l) eqn:MPL; ss; i; des; auto. apply MM in H0; des; auto.
           * rewrite update_store_ord3 in *; auto. rewrite n in *. destruct (mp l) eqn:MPL; ss; i; des; auto.
     }
   Qed.
@@ -493,31 +463,6 @@ Section MATCH.
     hexploit (ord_inv1 ordr). i; des.
     { hexploit (ord_inv2 ordw). i; des.
       { apply andb_prop in ATOMIC. des. destruct ordw; ss. }
-      { hexploit step_rlx; eauto. ss. destruct ordr; ss. destruct ordw; ss. i; des.
-        do 2 eexists. split; eauto.
-        hexploit red_rlx_full. 6: eapply STEP_TGT. 2: eapply ATOMIC. 1,2,3,4: ss. destruct ordr; ss. destruct ordw; ss. i; des.
-        hexploit red_rlx_full. 6: eapply STEP_SRC. 2: eapply ATOMIC. 1,2,3,4: ss. destruct ordr; ss. destruct ordw; ss. i; des.
-        clear PERM0. subst i_src i_tgt p1. rewrite OO in OO0. inv OO0. inv EVACC; inv EVACC0.
-        unfold inst_gd, Opt2.inst_gd, mk_global in *. ss.
-        rewrite update_read_ord2f in *; auto. splits; ss.
-        - econs; ss; eauto.
-          { unfold match_mem in MM; specialize MM with loc. rewrite Loc.eqb_refl in MM. ss; des. rewrite MM; rewrite MM0.
-            econs; ss; eauto; try refl.
-            unfold to_deferred. rewrite Loc.eqb_refl. ss. rewrite flag_join_bot_r. refl.
-          }
-          2:{ econs; eauto. refl. }
-          { econs; eauto. ii. unfold to_deferred. unfold match_mem in MM. specialize MM with loc0.
-            destruct (Loc.eqb loc loc0) eqn:LOC; ss.
-            rewrite update_store_ord2 in *; auto. rewrite LOC in *; ss.
-            apply to_deferred0_mon. apply acq_flag_le.
-          }
-        - destruct mem_src, mem_tgt. ss. rewrite MEMV, MEMF, MEMV0, MEMF0; clear MEMV MEMF MEMV0 MEMF0.
-          unfold_many.
-          ii. ss. unfold match_mem in MM; specialize MM with l. rewrite update_store_ord2 in *; auto. depgen MM. clear.
-          rewrite Loc.eqb_sym. rewrite ! loc_eqb_is_dec. des_ifs; i; ss; des.
-          + apply mcell_refl.
-          + eapply mcell_mon; eauto. apply acq_flag_le.
-      }
       { hexploit step_rel; eauto. ss. destruct ordr; ss. i; des.
         do 2 eexists. split; eauto.
         hexploit red_rel_full. 6: eapply STEP_TGT. 2: eapply ATOMIC. 1,2,3,4: ss. destruct ordr; ss. i; des.
@@ -558,35 +503,6 @@ Section MATCH.
     }
     { hexploit (ord_inv2 ordw). i; des.
       { apply andb_prop in ATOMIC. des. destruct ordw; ss. }
-      { hexploit step_acq; eauto. ss. destruct ordw; ss. i; des.
-        do 2 eexists. split; eauto.
-        hexploit red_acq_full. 6: eapply STEP_TGT. 2: eapply ATOMIC. 1,2,3,4: ss. destruct ordw; ss. i; des.
-        hexploit red_acq_full. 6: eapply STEP_SRC. 2: eapply ATOMIC. 1,2,3,4: ss. destruct ordw; ss. i; des.
-        clear PERM0. subst i_src i_tgt p1. rewrite OO in OO0. inv OO0. inv EVACC; inv EVACC0.
-        unfold inst_gd, Opt2.inst_gd, mk_global in *. ss.
-        rewrite update_read_ord2f in *; auto. splits; ss.
-        - econs; ss; eauto.
-          { unfold match_mem in MM; specialize MM with loc. rewrite Loc.eqb_refl in MM. ss; des. rewrite MM; rewrite MM0.
-            econs; ss; eauto; try refl.
-            unfold to_deferred. rewrite Loc.eqb_refl. ss. rewrite flag_join_bot_r. refl.
-          }
-          2:{ econs; eauto. refl. }
-          { econs; eauto. ii. unfold to_deferred. unfold match_mem in MM. specialize MM with loc0.
-            unfold_flags. rewrite update_store_ord2 in *; auto.
-            rewrite Loc.eqb_sym in *. rewrite loc_eqb_is_dec in *. depgen MM. clear; i.
-            des_ifs. ss. destruct (mp loc0) eqn:MPL; ss; des; auto.
-            all: rewrite flag_join_bot_r.
-            1: rewrite MM0; refl.
-            all: match goal with | [|- _ (_ ?a ?b)] => destruct a; destruct b; ss; auto end; hexploit MM; auto; i; des; auto.
-          }
-        - destruct mem_src, mem_tgt. ss. rewrite MEMV, MEMF, MEMV0, MEMF0; clear MEMV MEMF MEMV0 MEMF0.
-          unfold_many.
-          ii. ss. unfold match_mem in MM; specialize MM with l. rewrite update_store_ord2 in *; auto.
-          depgen MM. clear. rewrite Loc.eqb_sym. rewrite loc_eqb_is_dec. des_ifs; i; ss; des.
-          1,2: apply mcell_refl.
-          + eapply mcell_mon; eauto. apply acq_flag_le.
-          + destruct (mp l) eqn:MPL; ss; i; des; auto. apply MM in H; des; auto.
-      }
       { hexploit step_acq_rel; eauto. ss. i; des.
         do 2 eexists. split; eauto.
         hexploit red_acq_rel_full. 6: eapply STEP_TGT. 2: eapply ATOMIC. 1,2,3,4: ss. i; des.

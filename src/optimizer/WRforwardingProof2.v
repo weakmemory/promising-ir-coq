@@ -185,14 +185,6 @@ Section MATCH.
     hexploit (ord_inv2' ord). i. des.
     { destruct ord; ss. }
     - rewrite WRfwd_store_ord2f; auto.
-      rewrite WRfwd_write_ord1f; auto.
-      2:{ destruct ord; ss. }
-      unfold match_data in *. i; ss.
-      dest_loc l x. specialize MD with l.
-      hexploit red_rlx. 5,6: eauto. all: ss; auto.
-      { destruct ord; ss. }
-      eauto. i; des. rewrite <- ! MEMV. rewrite <- ! PERM. auto.
-    - rewrite WRfwd_store_ord2f; auto.
       rewrite WRfwd_write_ord2f; auto.
       unfold match_data in *. i; ss.
       dest_loc l x. specialize MD with l.
@@ -229,7 +221,6 @@ Section MATCH.
         unfold Two_set_flag. specialize MD with l0. destruct (mp l0) eqn:MPL; ss.
         destruct p0. destruct b; ss. des. eauto.
     - rewrite WRfwd_write_ord1f; auto.
-      2:{ destruct ordw; ss. }
       hexploit (ord_inv1 ordr). i. des.
       + unfold match_data in *. i.
         dest_loc l l0.

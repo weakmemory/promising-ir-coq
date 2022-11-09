@@ -206,14 +206,13 @@ Section MATCH.
     dup EVENT. unfold SeqEvent.wf_input in EVENT. des. ss.
     dup STEP. inv STEP. inv REL.
     - hexploit red_rlx. 5,6: eauto. all: ss.
-      { destruct (Ordering.le Ordering.strong_relaxed ord) eqn:RLX.
+      { destruct (Ordering.le Ordering.plain ord) eqn:RLX.
         { hexploit RELEASE0; auto. i. rewrite <- H2 in H1. ss. }
         destruct ord; ss.
       }
       eauto.
       i; des. rewrite <- MEMV. eapply MD; auto. rewrite PERM; auto.
     - hexploit red_rel. 5,6: eauto. all: ss; auto.
-      { hexploit RELEASE. rewrite <- H2; auto. auto. }
       rename H into IN; depgen IN. depgen MD. rename H0 into PERM; depgen PERM. depgen DIFFL. clear.
       i; des. specialize H with l. hexploit H; clear H; auto. i; des.
       rewrite RELMEMV. eapply MD; eauto.
@@ -288,7 +287,7 @@ Section MATCH.
       rewrite LOC in H. specialize MD with l0 id. rss.
       unfold update. destruct (Ident.eqb x id) eqn:ID.
       { rewrite Ident.eqb_eq in ID. subst x. exfalso; apply H2; auto. }
-      destruct (Ordering.le ordw Ordering.relaxed) eqn:ORDW.
+      destruct (Ordering.le ordw Ordering.na) eqn:ORDW.
       + hexploit red_rlx. 5,6: eauto. all: ss; auto.
         { apply andb_true_intro. split; auto. }
         { destruct ordr; ss. }
@@ -298,7 +297,6 @@ Section MATCH.
       + hexploit red_rel. 5,6: eauto. all: ss; auto.
         { apply andb_true_intro. split; auto. }
         { destruct ordr; ss. }
-        { destruct ordw; ss. }
         i. des. hexploit H3; clear H3; eauto. i; des.
         rewrite RELMEMV. apply MD; auto.
         rewrite H0 in RELPERM. hexploit perm_meet_high. rewrite RELPERM; auto. i; des; auto.
@@ -353,7 +351,7 @@ Section MATCH.
       specialize MD with l id.
       hexploit (ord_inv2 ordr). i. des.
       + rewrite RRfwd_fence_r_ord1 in H0; eauto.
-        destruct (Ordering.le ordw Ordering.relaxed) eqn: ORDW.
+        destruct (Ordering.le ordw Ordering.na) eqn: ORDW.
         * hexploit red_rlx2. 5,6: eauto. all: ss; auto.
           { apply Bool.orb_false_intro. destruct ordw; ss. destruct ordr; ss. }
           { destruct ordw; ss. }

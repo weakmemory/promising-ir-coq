@@ -110,18 +110,26 @@ Module OrdLocal.
     | step_racy_read
         lc1 gl1
         loc to val ord
-        (LOCAL: racy_read_step lc1 gl1 loc to val ord):
+        (LOC: ~ L loc)
+        (LOCAL: Local.racy_read_step lc1 gl1 loc to val ord):
       program_step (ThreadEvent.racy_read loc to val ord) lc1 gl1 lc1 gl1
     | step_racy_write
         lc1 gl1
         loc to val ord
-        (LOCAL: racy_write_step lc1 gl1 loc to ord):
+        (LOC: ~ L loc)
+        (LOCAL: Local.racy_write_step lc1 gl1 loc to ord):
       program_step (ThreadEvent.racy_write loc to val ord) lc1 gl1 lc1 gl1
     | step_racy_update
         lc1 gl1
         loc to valr valw ordr ordw
+        (LOC: ~ L loc)
         (LOCAL: Local.racy_update_step lc1 gl1 loc to ordr ordw):
       program_step (ThreadEvent.racy_update loc to valr valw ordr ordw) lc1 gl1 lc1 gl1
+    | step_na_update
+        lc1 gl1
+        loc valr valw ordr ordw
+        (NA: Ordering.le ordr Ordering.na \/ Ordering.le ordw Ordering.na):
+      program_step (ThreadEvent.racy_update loc None valr valw ordr ordw) lc1 gl1 lc1 gl1
     .
     Hint Constructors program_step: core.
 
@@ -157,6 +165,7 @@ Module OrdLocal.
         esplits; eauto. etrans; eauto.
       - exploit Local.fence_step_future; eauto.
       - exploit Local.fence_step_future; eauto.
+      - esplits; eauto; try refl.
       - esplits; eauto; try refl.
       - esplits; eauto; try refl.
       - esplits; eauto; try refl.
@@ -201,6 +210,21 @@ Module OrdLocal.
       - esplits; eauto.
       - esplits; eauto.
       - esplits; eauto.
+      - esplits; eauto.
+    Qed.
+
+    Lemma program_step_promises_minus
+          e lc1 gl1 lc2 gl2
+          (STEP: program_step e lc1 gl1 lc2 gl2):
+      BoolMap.minus (Global.promises gl1) (Local.promises lc1) =
+      BoolMap.minus (Global.promises gl2) (Local.promises lc2).
+    Proof.
+      inv STEP; ss; try by (inv LOCAL; ss).
+      - inv LOCAL. inv STEP. ss.
+      - inv LOCAL. inv STEP. ss.
+        eapply Promises.fulfill_minus; eauto.
+      - inv LOCAL1. inv LOCAL2. inv STEP. inv STEP0. ss.
+        eapply Promises.fulfill_minus; eauto.
     Qed.
 
     Lemma program_step_promises_bot
@@ -350,6 +374,19 @@ Module OrdThread.
       inv STEP.
       eapply OrdLocal.program_step_disjoint; eauto.
     Qed.
+
+
+    (* promises *)
+
+    Lemma step_promises_minus
+          e th1 th2
+          (STEP: step e th1 th2):
+      BoolMap.minus (Global.promises (Thread.global th1)) (Local.promises (Thread.local th1)) =
+      BoolMap.minus (Global.promises (Thread.global th2)) (Local.promises (Thread.local th2)).
+    Proof.
+      inv STEP; s.
+      eapply OrdLocal.program_step_promises_minus; eauto.
+    Qed.
   End OrdThread.
 End OrdThread.
 
@@ -411,19 +448,18 @@ Module OrdConfiguration.
         exploit THREADS; try apply TH; eauto. i.
         exploit OrdThread.step_disjoint; eauto. s. i. des.
         auto.
-      - (* i. destruct (Local.promises lc2 loc) eqn:LGET. *)
-        (* + exists tid, lang, st2, lc2. splits; ss. *)
-        (*   rewrite IdentMap.Facts.add_o. condtac; ss. *)
-        (* + exploit Thread.step_promises_minus; try exact STEP0. s. i. *)
-        (*   eapply equal_f in x1. *)
-        (*   revert x1. unfold BoolMap.minus. rewrite GET, LGET. s. i. *)
-        (*   destruct (Global.promises (Configuration.global c1) loc) eqn:GET1; ss. *)
-        (*   destruct (Local.promises lc1 loc) eqn:LGET1; ss. *)
-        (*   exploit PROMISES; eauto. i. des. *)
-        (*   exists tid0, lang0, st, lc. splits; ss. *)
-        (*   rewrite IdentMap.Facts.add_o. condtac; ss. subst. congr. *)
-        admit.
-    Admitted.
+      - i. destruct (Local.promises lc2 loc) eqn:LGET.
+        + exists tid, lang, st2, lc2. splits; ss.
+          rewrite IdentMap.Facts.add_o. condtac; ss.
+        + exploit OrdThread.step_promises_minus; try exact STEP0. s. i.
+          eapply equal_f in x1.
+          revert x1. unfold BoolMap.minus. rewrite GET, LGET. s. i.
+          destruct (Global.promises (Configuration.global c1) loc) eqn:GET1; ss.
+          destruct (Local.promises lc1 loc) eqn:LGET1; ss.
+          exploit PROMISES; eauto. i. des.
+          exists tid0, lang0, st, lc. splits; ss.
+          rewrite IdentMap.Facts.add_o. condtac; ss. subst. congr.
+    Qed.
 
     Lemma step_future
           e tid c1 c2

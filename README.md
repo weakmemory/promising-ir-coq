@@ -31,6 +31,9 @@ make -j
 - `src/model/Reserves.v`: Definition of reservations and reserve/cancel operations
 - `src/model/Configuration.v`: Definition of a machine configuration and machine steps
 
+### Soundness of mapping vRC11 to PSir (Theorem 4.2)
+- `Theorem pf_to_ir` in `src/pf2ir/PFtoIR.v`: Soundness of mapping vRC11 to PSir
+
 ### Local DRF guarantees for vRC11
 - `Theorem local_drf_ra` in `src/ldrfra/LocalDRFRA.v`: Local DRF-RA guarantee
 - TODO: Local DRF-SC guarantee

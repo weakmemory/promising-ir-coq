@@ -354,6 +354,83 @@ Module Thread.
       eapply rtc_implies; try exact STEPS.
       apply tau_union.
     Qed.
+
+
+    (* step_strong_le *)
+
+    Lemma step_strong_le
+          e th1 th2
+          (STEP: step e th1 th2)
+          (LC_WF1: Local.wf (local th1) (global th1))
+          (GL_WF1: Global.wf (global th1)):
+      <<LC_WF2: Local.wf (local th2) (global th2)>> /\
+      <<GL_WF2: Global.wf (global th2)>> /\
+      <<TVIEW_FUTURE: TView.le (Local.tview (local th1)) (Local.tview (local th2))>> /\
+      <<GL_FUTURE: Global.strong_le (global th1) (global th2)>>
+      \/
+      exists e_race th2',
+        <<STEP: step e_race th1 th2'>> /\
+        <<EVENT: ThreadEvent.get_program_event e_race = ThreadEvent.get_program_event e>> /\
+        <<RACE: ThreadEvent.get_machine_event e_race = MachineEvent.failure>>
+    .
+    Proof.
+      inv STEP; ss.
+      - eauto using Local.internal_step_strong_le.
+      - hexploit Local.program_step_strong_le; eauto. i. des.
+        { left. esplits; eauto. }
+        { right. exists e_race. esplits; eauto. econs 2; eauto.
+          rewrite EVENT. eauto.
+        }
+    Qed.
+
+    Lemma opt_step_strong_le
+          e th1 th2
+          (STEP: opt_step e th1 th2)
+          (LC_WF1: Local.wf (local th1) (global th1))
+          (GL_WF1: Global.wf (global th1)):
+      <<LC_WF2: Local.wf (local th2) (global th2)>> /\
+      <<GL_WF2: Global.wf (global th2)>> /\
+      <<TVIEW_FUTURE: TView.le (Local.tview (local th1)) (Local.tview (local th2))>> /\
+      <<GL_FUTURE: Global.strong_le (global th1) (global th2)>>
+      \/
+      exists e_race th2',
+        <<STEP: step e_race th1 th2'>> /\
+        <<EVENT: ThreadEvent.get_program_event e_race = ThreadEvent.get_program_event e>> /\
+        <<RACE: ThreadEvent.get_machine_event e_race = MachineEvent.failure>>
+    .
+    Proof.
+      inv STEP; eauto using step_strong_le.
+      left. esplits; eauto; refl.
+    Qed.
+
+    Lemma rtc_tau_step_strong_le
+          th1 th2
+          (STEP: rtc tau_step th1 th2)
+          (LC_WF1: Local.wf (local th1) (global th1))
+          (GL_WF1: Global.wf (global th1)):
+      <<LC_WF2: Local.wf (local th2) (global th2)>> /\
+      <<GL_WF2: Global.wf (global th2)>> /\
+      <<TVIEW_FUTURE: TView.le (Local.tview (local th1)) (Local.tview (local th2))>> /\
+      <<GL_FUTURE: Global.strong_le (global th1) (global th2)>>
+          \/
+      <<FAILURE: steps_failure th1>>
+    .
+    Proof.
+      revert LC_WF1. induction STEP; i.
+      - left. splits; ss; refl.
+      - inv H. exploit step_strong_le; eauto. i. des.
+        2:{ right. repeat red. econs; [refl| |]; eauto. }
+        exploit IHSTEP; eauto. i. des.
+        { left. splits; auto; etrans; eauto. }
+        { inv FAILURE. right. econs.
+          { econs 2.
+            { econs; eauto. }
+            { eauto. }
+          }
+          { eauto. }
+          { eauto. }
+        }
+    Qed.
   End Thread.
 End Thread.
 #[export] Hint Constructors Thread.step: core.

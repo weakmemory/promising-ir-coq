@@ -14,7 +14,6 @@ Require Import Time.
 Require Import View.
 Require Import BoolMap.
 Require Import Promises.
-Require Import Reserves.
 Require Import Cell.
 Require Import Memory.
 Require Import Global.
@@ -22,6 +21,8 @@ Require Import TView.
 Require Import Local.
 Require Import Thread.
 Require Import Configuration.
+Require Import SimMemory.
+Require Import SimGlobal.
 
 Set Implicit Arguments.
 
@@ -59,4 +60,52 @@ Lemma sim_local_is_terminal
 Proof.
   exploit sim_local_promises_bot; eauto. i. des.
   split; i; inv H; eauto.
+Qed.
+
+Lemma sim_local_internal
+      lc1_src gl1_src
+      lc1_tgt gl1_tgt
+      lc2_tgt gl2_tgt
+      e
+      (STEP_TGT: Local.internal_step e lc1_tgt gl1_tgt lc2_tgt gl2_tgt)
+      (LOCAL1: sim_local lc1_src lc1_tgt)
+      (GL1: sim_global gl1_src gl1_tgt)
+      (WF1_SRC: Local.wf lc1_src gl1_src)
+      (WF1_TGT: Local.wf lc1_tgt gl1_tgt)
+      (GL1_SRC: Global.wf gl1_src)
+      (GL1_TGT: Global.wf gl1_tgt):
+  exists lc2_src gl2_src,
+    <<STEP_SRC: Local.internal_step e lc1_src gl1_src lc2_src gl2_src >> /\
+    <<LOCAL2: sim_local lc2_src lc2_tgt>> /\
+    <<GL2: sim_global gl2_src gl2_tgt>>.
+Proof.
+  inv LOCAL1. inv STEP_TGT.
+  { inv LOCAL. inv GL1. inv PROMISE. esplits; eauto.
+    { econs 1; eauto. econs; eauto. econs; eauto.
+      { rewrite PROMISES. eauto. }
+      { rewrite PROMISES0. eauto. }
+    }
+    { econs; eauto. }
+    { econs; eauto. }
+  }
+  { inv LOCAL. inv RESERVE. inv GL1.
+    hexploit sim_memory_add_exist; eauto. i. des. esplits.
+    { econs 2. econs; eauto. econs; eauto.
+      rewrite RESERVES. eauto.
+    }
+    { econs; eauto. }
+    { econs; eauto. }
+  }
+  { inv LOCAL. inv CANCEL. inv GL1.
+    hexploit Memory.remove_exists.
+    { eapply WF1_SRC. rewrite RESERVES. eapply Memory.remove_get0. eauto. }
+    i. des.
+    hexploit sim_memory_remove; try exact MEMORY; eauto.
+    i. esplits.
+    { econs 3. econs; eauto. econs; eauto.
+      rewrite RESERVES. eauto.
+    }
+    { econs; eauto. }
+    { econs; eauto. }
+  }
 Qed.

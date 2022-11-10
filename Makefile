@@ -7,6 +7,7 @@ COQTHEORIES  := \
 	src/ldrfra/*.v \
 	src/sequential/*.v \
 	src/optimizer/*.v \
+	src/trans/*.v \
 
 .PHONY: all theories clean
 
@@ -26,6 +27,7 @@ Makefile.coq: Makefile $(COQTHEORIES)
 	 echo "-R src/ldrfra $(COQMODULE)"; \
 	 echo "-R src/sequential $(COQMODULE)"; \
 	 echo "-R src/optimizer $(COQMODULE)"; \
+	 echo "-R src/trans $(COQMODULE)"; \
    \
    echo $(COQTHEORIES)) > _CoqProject
 	coq_makefile -f _CoqProject -o Makefile.coq

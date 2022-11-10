@@ -14,7 +14,6 @@ Require Import Time.
 Require Import View.
 Require Import BoolMap.
 Require Import Promises.
-Require Import Reserves.
 Require Import Cell.
 Require Import Memory.
 Require Import Global.
@@ -44,20 +43,20 @@ Section SimulationThread.
              (sim_thread:
                forall (st1_src:(Language.state lang_src)) (lc1_src:Local.t) (gl0_src:Global.t)
                  (st1_tgt:(Language.state lang_tgt)) (lc1_tgt:Local.t) (gl0_tgt:Global.t), Prop)
-             reserved_src st1_src lc1_src gl1_src
-             reserved_tgt st1_tgt lc1_tgt gl1_tgt
+             st1_src lc1_src gl1_src
+             st1_tgt lc1_tgt gl1_tgt
     :=
-    forall pf_tgt e_tgt st3_tgt lc3_tgt gl3_tgt
-      (STEP_TGT: Thread.step reserved_tgt pf_tgt e_tgt
+    forall e_tgt st3_tgt lc3_tgt gl3_tgt
+      (STEP_TGT: Thread.step e_tgt
                              (Thread.mk _ st1_tgt lc1_tgt gl1_tgt)
                              (Thread.mk _ st3_tgt lc3_tgt gl3_tgt)),
-      (<<FAILURE: Thread.steps_failure reserved_src (Thread.mk _ st1_src lc1_src gl1_src)>>) \/
-      exists pf_src e_src st2_src lc2_src gl2_src st3_src lc3_src gl3_src,
+      (<<FAILURE: Thread.steps_failure (Thread.mk _ st1_src lc1_src gl1_src)>>) \/
+      exists e_src st2_src lc2_src gl2_src st3_src lc3_src gl3_src,
         (<<FAILURE: ThreadEvent.get_machine_event e_tgt <> MachineEvent.failure>>) /\
-        (<<STEPS: rtc (@Thread.tau_step _ reserved_src)
+        (<<STEPS: rtc (@Thread.tau_step _)
                       (Thread.mk _ st1_src lc1_src gl1_src)
                       (Thread.mk _ st2_src lc2_src gl2_src)>>) /\
-        (<<STEP_SRC: Thread.opt_step reserved_src pf_src e_src
+        (<<STEP_SRC: Thread.opt_step e_src
                                      (Thread.mk _ st2_src lc2_src gl2_src)
                                      (Thread.mk _ st3_src lc3_src gl3_src)>>) /\
         (<<EVENT: ThreadEvent.get_machine_event e_src = ThreadEvent.get_machine_event e_tgt>>) /\
@@ -70,21 +69,20 @@ Section SimulationThread.
              (sim_terminal: SIM_TERMINAL lang_src lang_tgt)
              (st1_src:(Language.state lang_src)) (lc1_src:Local.t) (gl0_src:Global.t)
              (st1_tgt:(Language.state lang_tgt)) (lc1_tgt:Local.t) (gl0_tgt:Global.t): Prop :=
-    forall reserved_src reserved_tgt
+    forall
       gl1_src gl1_tgt
-      (RESERVED: TimeMap.le reserved_src reserved_tgt)
       (GLOBAL: sim_global gl1_src gl1_tgt)
-      (GL_FUTURE_SRC: Global.future gl0_src gl1_src)
-      (GL_FUTURE_TGT: Global.future gl0_tgt gl1_tgt)
+      (GL_FUTURE_SRC: Global.strong_le gl0_src gl1_src)
+      (GL_FUTURE_TGT: Global.le gl0_tgt gl1_tgt)
       (LC_WF_SRC: Local.wf lc1_src gl1_src)
       (LC_WF_TGT: Local.wf lc1_tgt gl1_tgt)
       (GL_WF_SRC: Global.wf gl1_src)
       (GL_WF_TGT: Global.wf gl1_tgt),
       (<<TERMINAL:
         forall (TERMINAL_TGT: (Language.is_terminal lang_tgt) st1_tgt),
-          (<<FAILURE: Thread.steps_failure reserved_src (Thread.mk _ st1_src lc1_src gl1_src)>>) \/
+          (<<FAILURE: Thread.steps_failure (Thread.mk _ st1_src lc1_src gl1_src)>>) \/
           exists st2_src lc2_src gl2_src,
-            (<<STEPS: rtc (@Thread.tau_step _ reserved_src)
+            (<<STEPS: rtc (@Thread.tau_step _)
                           (Thread.mk _ st1_src lc1_src gl1_src)
                           (Thread.mk _ st2_src lc2_src gl2_src)>>) /\
             (<<GLOBAL: sim_global gl2_src gl1_tgt>>) /\
@@ -93,15 +91,15 @@ Section SimulationThread.
             (<<TERMINAL: sim_terminal st2_src st1_tgt>>)>>) /\
       (<<PROMISES:
         forall (PROMISES_TGT: Local.promises lc1_tgt = BoolMap.bot),
-          (<<FAILURE: Thread.steps_failure reserved_src (Thread.mk _ st1_src lc1_src gl1_src)>>) \/
+          (<<FAILURE: Thread.steps_failure (Thread.mk _ st1_src lc1_src gl1_src)>>) \/
           exists st2_src lc2_src gl2_src,
-            (<<STEPS: rtc (@Thread.tau_step _ reserved_src)
+            (<<STEPS: rtc (@Thread.tau_step _)
                           (Thread.mk _ st1_src lc1_src gl1_src)
                           (Thread.mk _ st2_src lc2_src gl2_src)>>) /\
             (<<PROMISES_SRC: Local.promises lc2_src = BoolMap.bot>>)>>) /\
       (<<STEP: _sim_thread_step _ _ (@sim_thread lang_src lang_tgt sim_terminal)
-                                reserved_src st1_src lc1_src gl1_src
-                                reserved_tgt st1_tgt lc1_tgt gl1_tgt>>).
+                                st1_src lc1_src gl1_src
+                                st1_tgt lc1_tgt gl1_tgt>>).
 
   Lemma _sim_thread_mon: monotone9 _sim_thread.
   Proof.
@@ -135,29 +133,27 @@ End SimulationThread.
 
 Lemma sim_thread_step
       lang_src lang_tgt
-      reserved_src reserved_tgt
       sim_terminal
-      pf_tgt e_tgt
+      e_tgt
       st1_src lc1_src gl1_src
       st1_tgt lc1_tgt gl1_tgt
       st3_tgt lc3_tgt gl3_tgt
-      (STEP: @Thread.step lang_tgt reserved_tgt pf_tgt e_tgt
+      (STEP: @Thread.step lang_tgt e_tgt
                           (Thread.mk _ st1_tgt lc1_tgt gl1_tgt)
                           (Thread.mk _ st3_tgt lc3_tgt gl3_tgt))
-      (RESERVED: TimeMap.le reserved_src reserved_tgt)
       (GLOBAL: sim_global gl1_src gl1_tgt)
       (LC_WF_SRC: Local.wf lc1_src gl1_src)
       (LC_WF_TGT: Local.wf lc1_tgt gl1_tgt)
       (GL_WF_SRC: Global.wf gl1_src)
       (GL_WF_TGT: Global.wf gl1_tgt)
       (SIM: sim_thread sim_terminal st1_src lc1_src gl1_src st1_tgt lc1_tgt gl1_tgt):
-  (<<FAILURE: Thread.steps_failure reserved_src (Thread.mk lang_src st1_src lc1_src gl1_src)>>) \/
-  exists pf_src e_src st2_src lc2_src gl2_src st3_src lc3_src gl3_src,
+  (<<FAILURE: Thread.steps_failure (Thread.mk lang_src st1_src lc1_src gl1_src)>>) \/
+  exists e_src st2_src lc2_src gl2_src st3_src lc3_src gl3_src,
     (<<FAILURE: ThreadEvent.get_machine_event e_tgt <> MachineEvent.failure>>) /\
-    (<<STEPS: rtc (@Thread.tau_step lang_src reserved_src)
+    (<<STEPS: rtc (@Thread.tau_step lang_src)
                   (Thread.mk _ st1_src lc1_src gl1_src)
                   (Thread.mk _ st2_src lc2_src gl2_src)>>) /\
-    (<<STEP: Thread.opt_step reserved_src pf_src e_src
+    (<<STEP: Thread.opt_step e_src
                              (Thread.mk _ st2_src lc2_src gl2_src)
                              (Thread.mk _ st3_src lc3_src gl3_src)>>) /\
     (<<EVENT: ThreadEvent.get_machine_event e_src = ThreadEvent.get_machine_event e_tgt>>) /\
@@ -179,29 +175,27 @@ Qed.
 
 Lemma sim_thread_opt_step
       lang_src lang_tgt
-      reserved_src reserved_tgt
       sim_terminal
-      pf_tgt e_tgt
+      e_tgt
       st1_src lc1_src gl1_src
       st1_tgt lc1_tgt gl1_tgt
       st3_tgt lc3_tgt gl3_tgt
-      (STEP: @Thread.opt_step lang_tgt reserved_tgt pf_tgt e_tgt
+      (STEP: @Thread.opt_step lang_tgt e_tgt
                               (Thread.mk _ st1_tgt lc1_tgt gl1_tgt)
                               (Thread.mk _ st3_tgt lc3_tgt gl3_tgt))
-      (RESERVED: TimeMap.le reserved_src reserved_tgt)
       (GLOBAL: sim_global gl1_src gl1_tgt)
       (LC_WF_SRC: Local.wf lc1_src gl1_src)
       (LC_WF_TGT: Local.wf lc1_tgt gl1_tgt)
       (GL_WF_SRC: Global.wf gl1_src)
       (GL_WF_TGT: Global.wf gl1_tgt)
       (SIM: sim_thread sim_terminal st1_src lc1_src gl1_src st1_tgt lc1_tgt gl1_tgt):
-  (<<FAILURE: Thread.steps_failure reserved_src (Thread.mk lang_src st1_src lc1_src gl1_src)>>) \/
-  exists pf_src e_src st2_src lc2_src gl2_src st3_src lc3_src gl3_src,
+  (<<FAILURE: Thread.steps_failure (Thread.mk lang_src st1_src lc1_src gl1_src)>>) \/
+  exists e_src st2_src lc2_src gl2_src st3_src lc3_src gl3_src,
     (<<FAILURE: ThreadEvent.get_machine_event e_tgt <> MachineEvent.failure>>) /\
-    (<<STEPS: rtc (@Thread.tau_step lang_src reserved_src)
+    (<<STEPS: rtc (@Thread.tau_step lang_src)
                   (Thread.mk _ st1_src lc1_src gl1_src)
                   (Thread.mk _ st2_src lc2_src gl2_src)>>) /\
-    (<<STEP: Thread.opt_step reserved_src pf_src e_src
+    (<<STEP: Thread.opt_step e_src
                              (Thread.mk _ st2_src lc2_src gl2_src)
                              (Thread.mk _ st3_src lc3_src gl3_src)>>) /\
     (<<EVENT: ThreadEvent.get_machine_event e_src = ThreadEvent.get_machine_event e_tgt>>) /\
@@ -219,12 +213,10 @@ Qed.
 
 Lemma sim_thread_rtc_step
       lang_src lang_tgt
-      reserved_src reserved_tgt
       sim_terminal
       st1_src lc1_src gl1_src
       th1_tgt th2_tgt
-      (STEPS: rtc (@Thread.tau_step lang_tgt reserved_tgt) th1_tgt th2_tgt)
-      (RESERVED: TimeMap.le reserved_src reserved_tgt)
+      (STEPS: rtc (@Thread.tau_step lang_tgt) th1_tgt th2_tgt)
       (GLOBAL: sim_global gl1_src (Thread.global th1_tgt))
       (LC_WF_SRC: Local.wf lc1_src gl1_src)
       (LC_WF_TGT: Local.wf (Thread.local th1_tgt) (Thread.global th1_tgt))
@@ -233,9 +225,9 @@ Lemma sim_thread_rtc_step
       (SIM: sim_thread sim_terminal
                        st1_src lc1_src gl1_src
                        (Thread.state th1_tgt) (Thread.local th1_tgt) (Thread.global th1_tgt)):
-  (<<FAILURE: Thread.steps_failure reserved_src (Thread.mk lang_src st1_src lc1_src gl1_src)>>) \/
+  (<<FAILURE: Thread.steps_failure (Thread.mk lang_src st1_src lc1_src gl1_src)>>) \/
   exists st2_src lc2_src gl2_src,
-    (<<STEPS: rtc (@Thread.tau_step lang_src reserved_src)
+    (<<STEPS: rtc (@Thread.tau_step lang_src)
                   (Thread.mk _ st1_src lc1_src gl1_src)
                   (Thread.mk _ st2_src lc2_src gl2_src)>>) /\
     (<<GLOBAL: sim_global gl2_src (Thread.global th2_tgt)>>) /\
@@ -251,34 +243,32 @@ Proof.
   revert st1_src lc1_src gl1_src.
   induction STEPS; i.
   { right. esplits; eauto. }
-  inv H. inv TSTEP. destruct x, y. ss.
+  inv H. destruct x, y. ss.
   exploit Thread.step_future; eauto. s. i. des.
   exploit sim_thread_step; eauto. i. des; eauto.
   exploit IHSTEPS; eauto. i. des.
   - left. inv FAILURE0. des.
     econs; [|eauto|eauto].
-    etrans; eauto. etrans; eauto. inv STEP0; eauto.
+    etrans; eauto. inv STEP; eauto.
     econs 2; eauto. econs.
-    + econs. eauto.
+    + eauto.
     + destruct e, e_src; ss.
   - right. destruct z. ss.
     esplits; try apply GLOBAL1; eauto.
-    etrans; [eauto|]. etrans; [|eauto]. inv STEP0; eauto.
+    etrans; [eauto|]. etrans; [|eauto]. inv STEP; eauto.
     econs 2; eauto. econs.
-    + econs. eauto.
+    + eauto.
     + destruct e, e_src; ss.
 Qed.
 
 Lemma sim_thread_plus_step
       lang_src lang_tgt
-      reserved_src reserved_tgt
       sim_terminal
-      pf_tgt e_tgt
+      e_tgt
       st1_src lc1_src gl1_src
       th1_tgt th2_tgt th3_tgt
-      (STEPS: rtc (@Thread.tau_step lang_tgt reserved_tgt) th1_tgt th2_tgt)
-      (STEP: @Thread.step lang_tgt reserved_tgt pf_tgt e_tgt th2_tgt th3_tgt)
-      (RESERVED: TimeMap.le reserved_src reserved_tgt)
+      (STEPS: rtc (@Thread.tau_step lang_tgt) th1_tgt th2_tgt)
+      (STEP: @Thread.step lang_tgt e_tgt th2_tgt th3_tgt)
       (GLOBAL: sim_global gl1_src (Thread.global th1_tgt))
       (LC_WF_SRC: Local.wf lc1_src gl1_src)
       (LC_WF_TGT: Local.wf (Thread.local th1_tgt) (Thread.global th1_tgt))
@@ -287,12 +277,12 @@ Lemma sim_thread_plus_step
       (SIM: sim_thread sim_terminal
                        st1_src lc1_src gl1_src
                        (Thread.state th1_tgt) (Thread.local th1_tgt) (Thread.global th1_tgt)):
-  (<<FAILURE: Thread.steps_failure reserved_src (Thread.mk lang_src st1_src lc1_src gl1_src)>>) \/
-  exists pf_src e_src st2_src lc2_src gl2_src st3_src lc3_src gl3_src,
-    (<<STEPS: rtc (@Thread.tau_step lang_src reserved_src)
+  (<<FAILURE: Thread.steps_failure (Thread.mk lang_src st1_src lc1_src gl1_src)>>) \/
+  exists e_src st2_src lc2_src gl2_src st3_src lc3_src gl3_src,
+    (<<STEPS: rtc (@Thread.tau_step lang_src)
                   (Thread.mk _ st1_src lc1_src gl1_src)
                   (Thread.mk _ st2_src lc2_src gl2_src)>>) /\
-    (<<STEP: Thread.opt_step reserved_src pf_src e_src
+    (<<STEP: Thread.opt_step e_src
                              (Thread.mk _ st2_src lc2_src gl2_src)
                              (Thread.mk _ st3_src lc3_src gl3_src)>>) /\
     (<<EVENT: ThreadEvent.get_machine_event e_src = ThreadEvent.get_machine_event e_tgt>>) /\
@@ -319,11 +309,9 @@ Qed.
 
 Lemma sim_thread_steps_failure
       lang_src lang_tgt
-      reserved_src reserved_tgt
       sim_terminal
       e_src e_tgt
-      (FAILURE: Thread.steps_failure reserved_tgt e_tgt)
-      (RESERVED: TimeMap.le reserved_src reserved_tgt)
+      (FAILURE: Thread.steps_failure e_tgt)
       (GLOBAL: sim_global (Thread.global e_src) (Thread.global e_tgt))
       (LC_WF_SRC: Local.wf (Thread.local e_src) (Thread.global e_src))
       (LC_WF_TGT: Local.wf (Thread.local e_tgt) (Thread.global e_tgt))
@@ -332,7 +320,7 @@ Lemma sim_thread_steps_failure
       (SIM: @sim_thread lang_src lang_tgt sim_terminal
                         (Thread.state e_src) (Thread.local e_src) (Thread.global e_src)
                         (Thread.state e_tgt) (Thread.local e_tgt) (Thread.global e_tgt)):
-  (<<FAILURE: Thread.steps_failure reserved_src e_src>>).
+  (<<FAILURE: Thread.steps_failure e_src>>).
 Proof.
   destruct e_src, e_tgt. ss. inv FAILURE.
   exploit sim_thread_plus_step; eauto. i. des; eauto.
@@ -346,27 +334,28 @@ Lemma sim_thread_future
       st_src lc_src gl1_src gl2_src
       st_tgt lc_tgt gl1_tgt gl2_tgt
       (SIM: @sim_thread lang_src lang_tgt sim_terminal st_src lc_src gl1_src st_tgt lc_tgt gl1_tgt)
-      (GL_FUTURE_SRC: Global.future gl1_src gl2_src)
-      (GL_FUTURE_TGT: Global.future gl1_tgt gl2_tgt):
+      (GL_FUTURE_SRC: Global.strong_le gl1_src gl2_src)
+      (GL_FUTURE_TGT: Global.le gl1_tgt gl2_tgt):
   sim_thread sim_terminal st_src lc_src gl2_src st_tgt lc_tgt gl2_tgt.
 Proof.
   pfold. ii.
   punfold SIM. exploit SIM; (try by etrans; eauto); eauto.
 Qed.
 
-Lemma sim_thread_fully_reserved
+Lemma sim_thread_cap
       lang_src lang_tgt
       sim_terminal
       st_src lc_src gl_src
       st_tgt lc_tgt gl_tgt
       (SIM: @sim_thread lang_src lang_tgt sim_terminal st_src lc_src gl_src st_tgt lc_tgt gl_tgt):
   sim_thread sim_terminal
-             st_src lc_src (Global.fully_reserved gl_src)
-             st_tgt lc_tgt (Global.fully_reserved gl_tgt).
+             st_src lc_src (Global.cap_of gl_src)
+             st_tgt lc_tgt (Global.cap_of gl_tgt).
 Proof.
-  eapply sim_thread_future; eauto; econs; ss; try refl.
+  eapply sim_thread_future; eauto.
+  { eapply Global.cap_strong_le; eauto. }
+  { eapply Global.cap_le; eauto. }
 Qed.
-
 
 Lemma sim_thread_consistent
       lang_src lang_tgt
@@ -384,17 +373,15 @@ Lemma sim_thread_consistent
 Proof.
   generalize SIM. intro X.
   exploit sim_memory_max_timemap; try eapply GLOBAL; try apply GL_WF_SRC; try apply GL_WF_TGT. i.
-  exploit sim_thread_fully_reserved; try exact SIM. i.
-  exploit sim_global_fully_reserved; try exact GLOBAL. i.
-  exploit Local.fully_reserved_wf; try exact LC_WF_SRC. i.
-  exploit Local.fully_reserved_wf; try exact LC_WF_TGT. i.
-  exploit Global.fully_reserved_wf; try exact GL_WF_SRC. i.
-  exploit Global.fully_reserved_wf; try exact GL_WF_TGT. i.
+  exploit Local.cap_wf; try exact LC_WF_SRC. i.
+  exploit Local.cap_wf; try exact LC_WF_TGT. i.
+  exploit Global.cap_wf; try exact GL_WF_SRC. i.
+  exploit Global.cap_wf; try exact GL_WF_TGT. i.
+  hexploit sim_thread_cap; eauto. intros CAP.
+  hexploit sim_global_cap; eauto. intros GL.
   inv CONSISTENT.
   - exploit sim_thread_steps_failure; try exact x2; eauto; s; eauto.
-    rewrite x0. refl.
   - exploit sim_thread_rtc_step; eauto.
-    { s. rewrite <- x0. refl. }
     i. des; eauto. destruct th2. ss.
     punfold SIM0. exploit SIM0; try exact x0; eauto; try refl. i. des.
     exploit PROMISES0; eauto. i. des.

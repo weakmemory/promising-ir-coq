@@ -1659,4 +1659,23 @@ Module Memory.
     destruct (cap_of_aux mem).
     ss.
   Qed.
+
+  Definition na_added_latest (loc: Loc.t) (mem1: t) (mem2: t): Prop :=
+    exists from2 ts2 val2 released2,
+      (<<GET: get loc ts2 mem2 = Some (from2, Message.message val2 released2 true)>>) /\
+        (<<LATEST: forall from1 ts1 val1 released1 na1
+                          (GET0: get loc ts1 mem1 = Some (from1, Message.message val1 released1 na1)),
+            Time.le ts1 ts2>>).
+
+  Lemma na_added_latest_le loc mem0 mem1 mem2 mem3
+        (LE0: messages_le mem0 mem1)
+        (ADDED: na_added_latest loc mem1 mem2)
+        (LE1: messages_le mem2 mem3)
+    :
+    na_added_latest loc mem0 mem3.
+  Proof.
+    unfold na_added_latest in *. des. esplits.
+    { eapply LE1. eauto. }
+    i. eapply LE0 in GET0. hexploit LATEST; eauto.
+  Qed.
 End Memory.

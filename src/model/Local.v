@@ -364,17 +364,17 @@ Module Local.
   Variant internal_step:
     forall (e: ThreadEvent.t) (lc1: t) (gl1: Global.t) (lc2: t) (gl2: Global.t), Prop :=
   | internal_step_promise
-      lc1 gl1 
+      lc1 gl1
       loc lc2 gl2
       (LOCAL: promise_step lc1 gl1 loc lc2 gl2):
     internal_step (ThreadEvent.promise loc) lc1 gl1 lc2 gl2
   | internal_step_reserve
-      lc1 gl1 
+      lc1 gl1
       loc from to lc2 gl2
       (LOCAL: reserve_step lc1 gl1 loc from to lc2 gl2):
     internal_step (ThreadEvent.reserve loc from to) lc1 gl1 lc2 gl2
   | internal_step_cancel
-      lc1 gl1 
+      lc1 gl1
       loc from to lc2 gl2
       (LOCAL: cancel_step lc1 gl1 loc from to lc2 gl2):
     internal_step (ThreadEvent.cancel loc from to) lc1 gl1 lc2 gl2
@@ -608,6 +608,176 @@ Module Local.
     - exploit fence_step_future; eauto.
     - exploit fence_step_future; eauto.
   Qed.
+
+
+  (* step_strong_le *)
+
+  Lemma promise_step_strong_le
+        lc1 gl1 loc lc2 gl2
+        (STEP: promise_step lc1 gl1 loc lc2 gl2)
+        (LC_WF1: wf lc1 gl1)
+        (GL_WF1: Global.wf gl1):
+    <<LC_WF2: wf lc2 gl2>> /\
+    <<GL_WF2: Global.wf gl2>> /\
+    <<TVIEW_FUTURE: TView.le (tview lc1) (tview lc2)>> /\
+    <<GL_FUTURE: Global.strong_le gl1 gl2>>.
+  Proof.
+    hexploit promise_step_future; eauto. i. des. esplits; eauto. econs.
+    { eapply Global.future_le; eauto. }
+    { i. left. inv STEP. ss. inv PROMISE. inv GADD.
+      change (LocFun.add loc true (Global.promises gl1) loc0) with
+        (LocFun.find loc0 (LocFun.add loc true (Global.promises gl1))).
+      rewrite LocFun.add_spec. des_ifs. rewrite Bool.implb_same. auto.
+    }
+  Qed.
+
+  Lemma reserve_step_strong_le
+        lc1 gl1 loc from to lc2 gl2
+        (STEP: reserve_step lc1 gl1 loc from to lc2 gl2)
+        (LC_WF1: wf lc1 gl1)
+        (GL_WF1: Global.wf gl1):
+    <<LC_WF2: wf lc2 gl2>> /\
+    <<GL_WF2: Global.wf gl2>> /\
+    <<TVIEW_FUTURE: TView.le (tview lc1) (tview lc2)>> /\
+    <<GL_FUTURE: Global.strong_le gl1 gl2>>.
+  Proof.
+    hexploit reserve_step_future; eauto. i. des. esplits; eauto. econs.
+    { eapply Global.future_le; eauto. }
+    { i. left. inv STEP. rewrite Bool.implb_same. auto. }
+  Qed.
+
+  Lemma cancel_step_strong_le
+        lc1 gl1 loc from to lc2 gl2
+        (STEP: cancel_step lc1 gl1 loc from to lc2 gl2)
+        (LC_WF1: wf lc1 gl1)
+        (GL_WF1: Global.wf gl1):
+    <<LC_WF2: wf lc2 gl2>> /\
+    <<GL_WF2: Global.wf gl2>> /\
+    <<TVIEW_FUTURE: TView.le (tview lc1) (tview lc2)>> /\
+    <<GL_FUTURE: Global.strong_le gl1 gl2>>.
+  Proof.
+    hexploit cancel_step_future; eauto. i. des. esplits; eauto. econs.
+    { eapply Global.future_le; eauto. }
+    { i. left. inv STEP. rewrite Bool.implb_same. auto. }
+  Qed.
+
+  Lemma write_step_strong_le
+        lc1 gl1 loc from to val releasedm released ord lc2 gl2
+        (STEP: write_step lc1 gl1 loc from to val releasedm released ord lc2 gl2)
+        (REL_WF: View.opt_wf releasedm)
+        (REL_CLOSED: Memory.closed_opt_view releasedm (Global.memory gl1))
+        (REL_TS: Time.le (View.rlx (View.unwrap releasedm) loc) to)
+        (LC_WF1: wf lc1 gl1)
+        (GL_WF1: Global.wf gl1):
+    <<LC_WF2: wf lc2 gl2>> /\
+    <<GL_WF2: Global.wf gl2>> /\
+    <<TVIEW_FUTURE: TView.le (tview lc1) (tview lc2)>> /\
+    <<GL_FUTURE: Global.strong_le gl1 gl2>> /\
+    <<REL_WF: View.opt_wf released>> /\
+    <<REL_TS: Time.le ((View.rlx (View.unwrap released)) loc) to>> /\
+    <<REL_CLOSED: Memory.closed_opt_view released (Global.memory gl2)>>
+    \/
+    exists ts, <<NA: Ordering.le ord Ordering.na>> /\ <<RACE: is_racy lc1 gl1 loc ts ord>>
+  .
+  Proof.
+    destruct (classic (exists ts, Ordering.le ord Ordering.na /\ is_racy lc1 gl1 loc ts ord)) as [RACE|SAFE]; auto.
+    left. hexploit write_step_future; eauto. i. des.
+    esplits; eauto. econs.
+    { eapply Global.future_le; eauto. }
+    { i. inv STEP. ss. inv FULFILL; ss.
+      { left. rewrite Bool.implb_same. auto. }
+      inv GREMOVE.
+      change (LocFun.add loc false (Global.promises gl1) loc0) with
+        (LocFun.find loc0 (LocFun.add loc false (Global.promises gl1))).
+      rewrite LocFun.add_spec. condtac.
+      { subst. right. repeat red. esplits.
+        { inv ORD. rewrite H0 in *. eapply Memory.add_get0; eauto. }
+        i. destruct (Time.le_lt_dec ts1 to); auto. exfalso.
+        eapply SAFE. esplits.
+        { destruct ord; ss. }
+        econs 2.
+        { eauto. }
+        { unfold TView.racy_view. etrans; eauto.
+          inv WRITABLE. eapply TimeFacts.le_lt_lt; eauto. eapply LC_WF1.
+        }
+        { destruct ord; ss. }
+      }
+      { rewrite Bool.implb_same. auto. }
+    }
+  Qed.
+
+  Lemma fence_step_strong_le
+        lc1 gl1 ordr ordw lc2 gl2
+        (STEP: fence_step lc1 gl1 ordr ordw lc2 gl2)
+        (LC_WF1: wf lc1 gl1)
+        (GL_WF1: Global.wf gl1):
+    <<LC_WF2: wf lc2 gl2>> /\
+    <<GL_WF2: Global.wf gl2>> /\
+    <<TVIEW_FUTURE: TView.le (tview lc1) (tview lc2)>> /\
+    <<GL_FUTURE: Global.strong_le gl1 gl2>>.
+  Proof.
+    hexploit fence_step_future; eauto. i. des. esplits; eauto. econs.
+    { eapply Global.future_le; eauto. }
+    { i. left. inv STEP. rewrite Bool.implb_same. auto. }
+  Qed.
+
+  Lemma internal_step_strong_le
+        e lc1 gl1 lc2 gl2
+        (STEP: internal_step e lc1 gl1 lc2 gl2)
+        (LC_WF1: wf lc1 gl1)
+        (GL_WF1: Global.wf gl1):
+    <<LC_WF2: wf lc2 gl2>> /\
+    <<GL_WF2: Global.wf gl2>> /\
+    <<TVIEW_FUTURE: TView.le (tview lc1) (tview lc2)>> /\
+    <<GL_FUTURE: Global.strong_le gl1 gl2>>.
+  Proof.
+    inv STEP.
+    - eapply promise_step_strong_le; eauto.
+    - eapply reserve_step_strong_le; eauto.
+    - eapply cancel_step_strong_le; eauto.
+  Qed.
+
+  Lemma program_step_strong_le
+        e lc1 gl1 lc2 gl2
+        (STEP: program_step e lc1 gl1 lc2 gl2)
+        (LC_WF1: wf lc1 gl1)
+        (GL_WF1: Global.wf gl1):
+    <<LC_WF2: wf lc2 gl2>> /\
+    <<GL_WF2: Global.wf gl2>> /\
+    <<TVIEW_FUTURE: TView.le (tview lc1) (tview lc2)>> /\
+    <<GL_FUTURE: Global.strong_le gl1 gl2>> \/
+    exists e_race,
+      <<STEP: program_step e_race lc1 gl1 lc1 gl1>> /\
+      <<EVENT: ThreadEvent.get_program_event e_race = ThreadEvent.get_program_event e>> /\
+      <<RACE: ThreadEvent.get_machine_event e_race = MachineEvent.failure>>
+  .
+  Proof.
+    inv STEP; try by (left; splits; eauto; try refl).
+    - left. exploit read_step_future; eauto. i. des. esplits; eauto. refl.
+    - exploit write_step_strong_le; eauto;
+        (try by econs); try apply Time.bot_spec. i. des.
+      { left. esplits; eauto; try refl. }
+      { right. esplits.
+        { eapply program_step_racy_write. econs; eauto. }
+        { ss. }
+        { ss. }
+      }
+    - exploit read_step_future; eauto. i. des.
+      exploit write_step_strong_le; eauto; try by econs.
+      { etrans; eauto. inv LOCAL2.
+        econs. eauto using Memory.add_ts.
+      }
+      i. des.
+      { left. esplits; eauto. etrans; eauto. }
+      { right. esplits.
+        { eapply program_step_racy_update; eauto. }
+        { ss. }
+        { ss. }
+      }
+    - left. exploit fence_step_strong_le; eauto.
+    - left. exploit fence_step_strong_le; eauto.
+  Qed.
+
 
 
   (* step_inhabited *)

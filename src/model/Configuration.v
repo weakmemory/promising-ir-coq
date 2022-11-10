@@ -373,4 +373,111 @@ Module Configuration.
       exploit IHSTEPS; eauto. i. des.
       splits; eauto; etrans; eauto.
   Qed.
+
+  Lemma step_strong_le
+        e tid c1 c2
+        (STEP: step e tid c1 c2)
+        (WF1: wf c1):
+    <<WF2: wf c2>> /\
+    <<GL_FUTURE: Global.strong_le (global c1) (global c2)>>
+    \/
+    <<FAILURE: steps_failure c1>>
+  .
+  Proof.
+    inv WF1. inv WF. inv STEP; s.
+    exploit THREADS; ss; eauto. i.
+    destruct (classic (Thread.steps_failure (Thread.mk _ st1 lc1 c1.(global)))).
+    { inv H. destruct th3. right. econs.
+      { refl. }
+      rewrite <- EVENT_FAILURE. econs.
+      { eauto. }
+      { eauto. }
+      { eauto. }
+      { rewrite EVENT_FAILURE. ss. }
+    }
+    left.
+    exploit Thread.rtc_tau_step_strong_le; eauto. s. i. des; ss.
+    exploit Thread.step_strong_le; eauto. s. i. des.
+    2:{ exfalso. eapply H. eapply Thread.steps_failure_intro; eauto. }
+    splits; try by etrans; eauto.
+    econs; ss. econs; i.
+    - simplify.
+      + exploit THREADS; try apply TH1; eauto. i. des.
+        exploit Thread.rtc_tau_step_disjoint; eauto. i. des.
+        exploit Thread.step_disjoint; eauto. s. i. des.
+        symmetry. auto.
+      + exploit THREADS; try apply TH2; eauto. i. des.
+        exploit Thread.rtc_tau_step_disjoint; eauto. i. des.
+        exploit Thread.step_disjoint; eauto. i. des.
+        auto.
+      + eapply DISJOINT; [|eauto|eauto]. auto.
+    - simplify.
+      exploit THREADS; try apply TH; eauto. i.
+      exploit Thread.rtc_tau_step_disjoint; eauto. i. des.
+      exploit Thread.step_disjoint; eauto. s. i. des.
+      auto.
+    - i. destruct (Local.promises lc3 loc) eqn:LGET.
+      + exists tid, lang, st3, lc3. splits; ss.
+        rewrite IdentMap.Facts.add_o. condtac; ss.
+      + exploit Thread.rtc_tau_step_promises_minus; try exact STEPS. s. i.
+        exploit Thread.step_promises_minus; try exact STEP0. s. i.
+        rewrite x2 in *. eapply equal_f in x1.
+        revert x1. unfold BoolMap.minus. rewrite GET, LGET. s. i.
+        destruct (Global.promises (global c1) loc) eqn:GET1; ss.
+        destruct (Local.promises lc1 loc) eqn:LGET1; ss.
+        exploit PROMISES; eauto. i. des.
+        exists tid0, lang0, st, lc. splits; ss.
+        rewrite IdentMap.Facts.add_o. condtac; ss. subst. congr.
+  Qed.
+
+  Lemma opt_step_strong_le
+        e tid c1 c2
+        (STEP: opt_step e tid c1 c2)
+        (WF1: wf c1):
+    <<WF2: wf c2>> /\
+    <<GL_FUTURE: Global.strong_le (global c1) (global c2)>>
+    \/
+    <<FAILURE: steps_failure c1>>
+  .
+  Proof.
+    inv STEP.
+    - left. splits; auto; refl.
+    - eapply step_strong_le; eauto.
+  Qed.
+
+  Lemma normal_step_strong_le
+        c1 c2
+        (STEP: normal_step c1 c2)
+        (WF1: wf c1):
+    <<WF2: wf c2>> /\
+    <<GL_FUTURE: Global.strong_le (global c1) (global c2)>>
+    \/
+    <<FAILURE: steps_failure c1>>
+  .
+  Proof.
+    inv STEP. eauto using step_strong_le.
+  Qed.
+
+  Lemma rtc_tau_step_strong_le
+        c1 c2
+        (STEPS: rtc tau_step c1 c2)
+        (WF1: wf c1):
+    <<WF2: wf c2>> /\
+    <<GL_FUTURE: Global.strong_le (global c1) (global c2)>>
+    \/
+    <<FAILURE: steps_failure c1>>
+  .
+  Proof.
+    induction STEPS; i.
+    - left. splits; auto; refl.
+    - inv H.
+      exploit step_strong_le; eauto. i. des.
+      2:{ right. auto. }
+      exploit IHSTEPS; eauto. i. des.
+      { left. splits; eauto; etrans; eauto. }
+      { right. inv FAILURE. econs.
+        { econs 2; eauto. econs; eauto. }
+        { eauto. }
+      }
+  Qed.
 End Configuration.

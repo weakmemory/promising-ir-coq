@@ -10,7 +10,6 @@ Require Import Time.
 Require Import View.
 Require Import BoolMap.
 Require Import Promises.
-Require Import Reserves.
 Require Import Cell.
 Require Import Memory.
 Require Import Global.
@@ -36,7 +35,7 @@ Lemma tids_find
       (TIDS_TGT: tids = Threads.tids ths_tgt):
   (exists lang_src st_src lc_src,
       IdentMap.find tid ths_src = Some (existT _ lang_src st_src, lc_src)) <->
-  (exists lang_tgt st_tgt lc_tgt, 
+  (exists lang_tgt st_tgt lc_tgt,
       IdentMap.find tid ths_tgt = Some (existT _ lang_tgt st_tgt, lc_tgt)).
 Proof.
   split; i; des.
@@ -62,7 +61,7 @@ Lemma thread_rtc_step_rtc_step
       ths1 tid lang st1 lc1 gl1 st2 lc2 gl2
       (WF: Configuration.wf (Configuration.mk ths1 gl1))
       (FIND: IdentMap.find tid ths1 = Some (existT _ lang st1, lc1))
-      (STEPS: rtc (@Thread.tau_step lang (Memory.max_timemap (Global.memory gl1)))
+      (STEPS: rtc (@Thread.tau_step lang)
                   (Thread.mk lang st1 lc1 gl1)
                   (Thread.mk lang st2 lc2 gl2))
       (CONS: Thread.consistent (Thread.mk lang st2 lc2 gl2)):
@@ -73,8 +72,7 @@ Proof.
   inv WF. inv WF0. ss. exploit THREADS; eauto. i.
   exploit Thread.rtc_tau_step_future; eauto. s. i. des.
   generalize (rtc_tail STEPS). i. des.
-  - inv H0. inv TSTEP. econs; eauto.
-    econs. rewrite <- EVENT. econs; ss; eauto.
+  - inv H0. econs; eauto. econs. rewrite <- EVENT. econs; ss; eauto.
   - inv H.
     replace (IdentMap.add tid (existT _ lang st2, lc2) ths1) with ths1; auto.
     apply IdentMap.eq_leibniz. ii.
@@ -162,7 +160,7 @@ Proof.
         inv THREAD. eapply sim_local_promises_bot; eauto.
       }
       s. i.
-      exploit Configuration.rtc_tau_step_future; try eapply x4; eauto. s. i. des.
+      exploit Configuration.rtc_tau_step_strong_le; try eapply x4; eauto. s. i. des; auto.
       exploit IHl; try exact GLOBAL0; try exact WF2; try exact WF_TGT; eauto.
       { rewrite Threads.tids_add. rewrite IdentSet.add_mem; eauto. }
       { i. rewrite IdentMap.gsspec in FIND. revert FIND. condtac; ss; i.
@@ -195,19 +193,34 @@ Proof.
     exploit SIM; eauto. i. des.
     exploit sim_memory_max_timemap; try apply GLOBAL; try apply GL_WF; try apply GL_WF0; eauto. i.
     exploit sim_thread_plus_step; try exact STEPS; try exact x0; eauto.
-    { rewrite <- x1. refl. }
     s. i. des.
     { left. inv FAILURE. destruct th3.
       econs; try refl. rewrite <- EVENT_FAILURE. econs; eauto. destruct e; ss.
     }
-    right. inv STEP0.
+    cut (exists tid_src c2_src c3_src,
+            (rtc Configuration.tau_step (Configuration.mk ths_src gl0_src) c2_src)
+            /\
+              (Configuration.opt_step (ThreadEvent.get_machine_event e0) tid_src c2_src c3_src)
+            /\
+              (Global.strong_le gl0_src c3_src.(Configuration.global) ->
+               r c3_src (Configuration.mk
+                           (IdentMap.add tid_tgt (existT _ lang st3, lc3) ths_tgt)
+                           gl3))).
+    { i. des.
+      hexploit Configuration.rtc_tau_step_strong_le; eauto. i. des.
+      2:{ left. auto. }
+      hexploit Configuration.opt_step_strong_le; eauto. i. des.
+      2:{ left. inv FAILURE. econs; [|eauto]. etrans; eauto. }
+      right. esplits; eauto. right. eapply H1. ss. etrans; eauto.
+    }
+    inv STEP0.
     { exploit thread_rtc_step_rtc_step; try exact STEPS0; eauto.
       { eapply sim_thread_consistent; eauto.
         apply CONSISTENT. destruct e0; ss.
       }
       i. rewrite <- EVENT. ss.
-      esplits; eauto; ss.
-      right. eapply CIH.
+      esplits; eauto; ss. intros STRONG.
+      eapply CIH.
       - rewrite Threads.tids_add. rewrite IdentSet.add_mem; ss.
         rewrite Threads.tids_o. rewrite FIND_SRC. ss.
       - rewrite TIDS_TGT.
@@ -220,13 +233,14 @@ Proof.
         exploit Thread.rtc_tau_step_future; try exact x2; eauto. s. i. des.
         exploit SIM; try eapply H; eauto. i. des.
         esplits.
-        eapply sim_thread_future; try exact x3; eauto. etrans; eauto.
+        eapply sim_thread_future; try exact x3; eauto.
+        eapply Global.future_le. etrans; eauto.
     }
     { esplits; eauto.
       - rewrite <- EVENT. econs 2. econs; eauto. i.
         eapply sim_thread_consistent; eauto.
         apply CONSISTENT. destruct e0, e_src; ss.
-      - ss. right. eapply CIH.
+      - ss. intros STRONG. eapply CIH.
         + rewrite Threads.tids_add. rewrite IdentSet.add_mem; ss.
           rewrite Threads.tids_o. rewrite FIND_SRC. ss.
         + rewrite TIDS_TGT.
@@ -240,7 +254,8 @@ Proof.
           exploit Thread.step_future; try exact STEP1; eauto. s. i. des.
           exploit SIM; try eapply H; eauto. i. des.
           esplits.
-          eapply sim_thread_future; try exact x2; try by (etrans; eauto).
+          eapply sim_thread_future; try exact x2; auto; try by (etrans; eauto).
+          eapply Global.future_le. etrans; eauto.
     }
   }
 Unshelve.

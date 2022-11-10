@@ -14,7 +14,6 @@ Require Import Time.
 Require Import View.
 Require Import BoolMap.
 Require Import Promises.
-Require Import Reserves.
 Require Import Cell.
 Require Import Memory.
 Require Import Global.
@@ -47,3 +46,18 @@ Qed.
 
 Lemma init_sim_global: sim_global Global.init Global.init.
 Proof. refl. Qed.
+
+Lemma sim_global_cap gl_src gl_tgt
+      (GL: sim_global gl_src gl_tgt)
+      (GL_WF_SRC: Global.wf gl_src)
+      (GL_WF_TGT: Global.wf gl_tgt)
+  :
+  sim_global (Global.cap_of gl_src) (Global.cap_of gl_tgt).
+Proof.
+  inv GL. econs; eauto. ss.
+  eapply sim_memory_cap; eauto.
+  { eapply Memory.cap_of_cap. }
+  { eapply Memory.cap_of_cap. }
+  { eapply GL_WF_SRC. }
+  { eapply GL_WF_TGT. }
+Qed.

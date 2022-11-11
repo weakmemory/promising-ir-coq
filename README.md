@@ -2,19 +2,6 @@
 
 The Coq development of the source model (vRC11) and the IR model (PSir).
 
-## Build
-
-- Requirement: opam (>=2.0.0), Coq 8.15.0
-- Install dependencies with opam
-```
-./configure
-```
-- Build the project
-```
-make -j
-```
-
-
 ## Structures
 
 ### The Source model, vRC11 (Section 2)

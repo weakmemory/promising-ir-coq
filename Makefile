@@ -5,6 +5,7 @@ COQTHEORIES  := \
 	src/prop/*.v \
 	src/pf2ir/*.v \
 	src/ldrfra/*.v \
+	src/ldrfsc/*.v \
 	src/sequential/*.v \
 	src/optimizer/*.v \
 	src/trans/*.v \
@@ -25,6 +26,7 @@ Makefile.coq: Makefile $(COQTHEORIES)
 	 echo "-R src/prop $(COQMODULE)"; \
 	 echo "-R src/pf2ir $(COQMODULE)"; \
 	 echo "-R src/ldrfra $(COQMODULE)"; \
+	 echo "-R src/ldrfsc $(COQMODULE)"; \
 	 echo "-R src/sequential $(COQMODULE)"; \
 	 echo "-R src/optimizer $(COQMODULE)"; \
 	 echo "-R src/trans $(COQMODULE)"; \

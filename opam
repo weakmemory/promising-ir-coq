@@ -1,13 +1,7 @@
 opam-version: "2.0"
 name: "coq-promising-ir"
-maintainer: "sunghwan.lee@sf.snu.ac.kr"
+maintainer: "Anonymous"
 synopsis: "Coq implementation of the Promising IR semantics"
-homepage: "https://sf.snu.ac.kr/"
-dev-repo: "git+https://github.com/snu-sf/promising-ir.git"
-bug-reports: "https://github.com/snu-sf/promising-ir/issues/"
-authors: [
-  "Sung-Hwan Lee <sunghwan.lee@sf.snu.ac.kr>"
-]
 build: [make "-j%{jobs}%" "build"]
 install: [make "-f" "Makefile.coq" "install"]
 remove: ["rm" "-rf" "%{lib}%/coq/user-contrib/PromisingIR"]

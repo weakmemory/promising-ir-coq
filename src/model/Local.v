@@ -692,12 +692,13 @@ Module Local.
       rewrite LocFun.add_spec. condtac.
       { subst. right. repeat red. esplits.
         { inv ORD. rewrite H0 in *. eapply Memory.add_get0; eauto. }
-        i. destruct (Time.le_lt_dec ts1 to); auto. exfalso.
+        i. destruct (Time.le_lt_dec to ts1); auto. exfalso.
         eapply SAFE. esplits.
         { destruct ord; ss. }
         econs 2.
         { eauto. }
-        { unfold TView.racy_view. etrans; eauto.
+        { unfold TView.racy_view.
+          eapply TimeFacts.lt_le_lt; eauto.
           inv WRITABLE. eapply TimeFacts.le_lt_lt; eauto. eapply LC_WF1.
         }
         { destruct ord; ss. }

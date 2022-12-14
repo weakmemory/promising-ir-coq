@@ -1665,7 +1665,7 @@ Module Memory.
       (<<GET: get loc ts2 mem2 = Some (from2, Message.message val2 released2 true)>>) /\
         (<<LATEST: forall from1 ts1 val1 released1 na1
                           (GET0: get loc ts1 mem1 = Some (from1, Message.message val1 released1 na1)),
-            Time.le ts1 ts2>>).
+            Time.lt ts1 ts2>>).
 
   Lemma na_added_latest_le loc mem0 mem1 mem2 mem3
         (LE0: messages_le mem0 mem1)

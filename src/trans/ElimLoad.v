@@ -71,7 +71,7 @@ Proof.
     - rewrite bind_ret_l. econs; eauto.
   }
   { i. right. esplits; eauto.
-    inv LOCAL. congr.
+    rewrite sim_local_promises_bot; eauto.
   }
   ii. right.
   inv STEP_TGT; [|inv STATE].

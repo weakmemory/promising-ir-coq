@@ -38,7 +38,9 @@ Proof.
   unfold trigger. rewrite bind_vis.
   pcofix CIH. ii. subst. pfold. ii. splits; i.
   { inv TERMINAL_TGT. eapply f_equal with (f:=observe) in H; ss. }
-  { right. esplits; eauto. inv LOCAL. congr. }
+  { right. esplits; eauto.
+    rewrite sim_local_promises_bot; eauto.
+  }
   ii. right.
   inv STEP_TGT; ss.
   - (* internal *)

@@ -126,7 +126,7 @@ Proof.
     + apply TViewFacts.read_tview_incr.
     + unfold TView.read_tview.
       econs; repeat (condtac; aggrtac; try apply LC_WF1).
-      etrans; apply LC_WF1. 
+      etrans; apply LC_WF1.
 Qed.
 
 (* Lemma progress_write_step *)

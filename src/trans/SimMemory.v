@@ -185,17 +185,17 @@ Proof.
     + inv H. inv MSG. ss.
 Qed.
 
-Lemma sim_memory_add_exist
-      mem1_src mem1_tgt msg_src
-      mem2_tgt msg_tgt
-      loc from to
-      (MSG: Message.le msg_src msg_tgt)
+Lemma sim_memory_add_exists
+      msg_src
+      mem1_src mem1_tgt
+      loc from to msg_tgt mem2_tgt
       (MWF: Message.wf msg_src)
+      (MSG: Message.le msg_src msg_tgt)
       (TGT: Memory.add mem1_tgt loc from to msg_tgt mem2_tgt)
       (SIM: sim_memory mem1_src mem1_tgt):
   exists mem2_src,
     (<<ADD: Memory.add mem1_src loc from to msg_src mem2_src>>) /\
-      (<<SIM: sim_memory mem2_src mem2_tgt>>).
+    (<<SIM: sim_memory mem2_src mem2_tgt>>).
 Proof.
   assert (exists mem2_src, <<SRC: Memory.add mem1_src loc from to msg_src mem2_src>>).
   { apply Memory.add_exists.

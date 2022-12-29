@@ -1,28 +1,34 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 
+From PromisingLib Require Import Axioms.
 From PromisingLib Require Import Basic.
+From PromisingLib Require Import Loc.
+From PromisingLib Require Import DataStructure.
+From PromisingLib Require Import DenseOrder.
 From PromisingLib Require Import Language.
-
 From PromisingLib Require Import Event.
+
 Require Import Time.
 Require Import View.
+Require Import BoolMap.
+Require Import Promises.
 Require Import Cell.
 Require Import Memory.
-Require Import MemoryFacts.
+Require Import Global.
 Require Import TView.
 Require Import Local.
 Require Import Thread.
 Require Import Configuration.
 
-Require Import SimMemory.
-Require Import SimPromises.
-Require Import SimLocal.
-Require Import SimThread.
-Require Import iCompatibility.
+Require Import MemoryReorder.
 
+Require Import SimLocal.
+Require Import SimMemory.
+Require Import SimGlobal.
+Require Import SimThread.
+Require Import Compatibility.
 Require Import MergeStep.
-Require Import ReorderStep.
 
 Require Import ITreeLang.
 
@@ -47,29 +53,26 @@ Proof.
   pcofix CIH. ii. subst. pfold. ii. splits; ii.
   { right. inv TERMINAL_TGT. apply f_equal with (f:=observe) in H; ss. }
   { right. esplits; eauto.
-    eapply sim_local_memory_bot; eauto.
+    eapply sim_local_promises_bot; eauto.
   }
   right.
-  inv STEP_TGT; [inv STEP|inv STEP; inv LOCAL0]; ss;
-    try (dependent destruction STATE); ss.
+  inv STEP_TGT; ss; [|dependent destruction STATE; inv LOCAL0; ss; clarify].
   - (* promise *)
-    exploit sim_local_promise; eauto. i. des.
-    esplits; try apply SC; eauto; ss.
-    + econs 2. econs 1. econs; eauto.
-    + auto.
+    exploit sim_local_internal; eauto. i. des.
+    esplits; try exact GL2; eauto; ss.
+    inv LOCAL0; ss.
   - (* load *)
-    exploit sim_local_read; try exact LOCAL0; eauto; try refl. i. des.
+    exploit sim_local_read; try exact LOCAL1; eauto; try refl. i. des.
     exploit merge_read_read; try exact STEP_SRC; eauto. i. des.
     esplits.
     + ss.
     + econs 2; [|econs 1]. econs.
-      * econs. econs 2. econs; [|econs 2]; eauto. econs. econs.
-      * eauto.
-    + econs 2. econs 2. econs; [|econs 2]; eauto. econs. econs.
+      * econs 2; [|econs 2]; eauto. ss. econs. refl.
+      * refl.
+    + econs 2. econs 2; [|econs 2]; eauto. econs. refl.
     + auto.
     + auto.
-    + auto.
-    + left. eapply paco11_mon.
+    + left. eapply paco9_mon.
       * eapply sim_itree_ret; eauto.
       * i. inv PR.
   - (* racy load *)
@@ -77,13 +80,12 @@ Proof.
     esplits.
     + ss.
     + econs 2; try refl. econs.
-      * econs. econs 2. econs; [|econs 9]; eauto. econs. econs.
-      * eauto.
-    + econs 2. econs 2. econs; [|econs 9]; eauto. econs. econs.
+      * econs 2; [|econs 8]; eauto. econs. refl.
+      * refl.
+    + econs 2. econs 2; [|econs 8]; eauto. econs. refl.
     + ss.
     + ss.
-    + ss.
-    + left. eapply paco11_mon.
+    + left. eapply paco9_mon.
       * apply sim_itree_ret; eauto.
       * i. inv PR.
 Qed.
@@ -106,42 +108,40 @@ Proof.
   pcofix CIH. ii. subst. pfold. ii. splits; ii.
   { right. inv TERMINAL_TGT. eapply f_equal with (f:=observe) in H; ss. }
   { right. esplits; eauto.
-    eapply sim_local_memory_bot; eauto.
+    eapply sim_local_promises_bot; eauto.
   }
-  inv STEP_TGT; [inv STEP|inv STEP; inv LOCAL0]; ss;
-    try (dependent destruction STATE); ss; clarify; try by inv RMW.
+  inv STEP_TGT; ss; [|dependent destruction STATE; inv LOCAL0; ss; clarify]; try by inv RMW.
   - (* promise *)
     right.
-    exploit sim_local_promise; eauto. i. des.
-    esplits; try apply SC; eauto; ss.
-    + econs 2. econs 1. econs; eauto.
-    + auto.
+    exploit sim_local_internal; eauto. i. des.
+    esplits; try apply GL2; eauto; ss.
+    inv LOCAL0; ss.
   - (* update *)
     right.
     inv RMW. inv VALW. rewrite Const.add_0_r in *.
-    exploit sim_local_read; try exact LOCAL; [..|refl|]; eauto. i. des.
+    exploit sim_local_read; try exact LOCAL1;
+      try match goal with
+          | [|- is_true (Ordering.le _ _)] => refl
+        end; eauto.
+    i. des.
     assert (VIEWLE: View.opt_le None releasedr) by eauto.
     exploit Local.read_step_future; try apply LOCAL1; eauto. i. des.
     exploit Local.read_step_future; try apply STEP_SRC; eauto. i. des.
-    hexploit sim_local_write; try apply VIEWLE; try exact SC; try exact LOCAL0;
+    hexploit sim_local_write; try apply VIEWLE; try exact GLOBAL; try exact LOCAL2;
       try match goal with
           | [|- is_true (Ordering.le _ _)] => refl
           end; eauto.
     i. des.
-    rewrite SimPromises.unset_bot in *.
     esplits.
     + ss.
     + econs 2; [|econs 1].
       econs.
-      * econs. econs 2. econs; [|econs 2]; eauto. econs. econs.
-      * eauto.
-    + econs 2. econs 2. econs; [|econs 3].
-      * econs. ss.
-      * ss. eauto.
+      * econs 2; [|econs 2]; eauto. econs. refl.
+      * refl.
+    + econs 2. econs 2; [|econs 3]; eauto. econs. refl.
     + ss.
     + ss.
-    + ss.
-    + left. eapply paco11_mon.
+    + left. eapply paco9_mon.
       * apply sim_itree_ret; eauto.
       * ii. inv PR.
   - (* racy update *)
@@ -151,15 +151,15 @@ Proof.
           | [|- is_true (Ordering.le _ _)] => refl
           end; eauto.
     i. des.
-    rename or into ordr. rename ow into ordw.
     inv x0; try by destruct ordr, ordw; ss.
-    unfold Thread.steps_failure. esplits.
+    econs.
     + econs 2; try refl. econs.
-      * econs. econs 2. econs; [|econs 9]; eauto. econs. econs.
-      * ss.
-    + econs 2. econs; [|econs 10].
-      * econs. econs.
-      * econs; eauto. inv RACE. econs; eauto.
+      * econs 2; [|econs 8]; eauto. econs. refl.
+      * refl.
+    + econs 2; [|econs 9].
+      * econs. refl.
+      * econs; eauto. instantiate (1:=to).
+        inv RACE; eauto.
     + ss.
   Unshelve.
   { ss. }
@@ -186,54 +186,35 @@ Proof.
   pcofix CIH. ii. subst. pfold. ii. splits; ii.
   { right. inv TERMINAL_TGT. eapply f_equal with (f:=observe) in H; ss. }
   { right. esplits; eauto.
-    eapply sim_local_memory_bot; eauto.
+    eapply sim_local_promises_bot; eauto.
   }
-  inv STEP_TGT; [inv STEP|inv STEP; inv LOCAL0]; ss;
-    try (dependent destruction STATE); ss; clarify.
+  inv STEP_TGT; ss; [|dependent destruction STATE; inv LOCAL0; ss; clarify].
   - (* promise *)
     right.
-    exploit sim_local_promise; eauto. i. des.
-    esplits; try apply SC; eauto; ss.
-    + econs 2. econs 1. econs; eauto.
-    + auto.
+    exploit sim_local_internal; eauto. i. des.
+    esplits; try apply GL2; eauto; ss.
+    inv LOCAL0; ss.
   - (* store *)
     right.
-    hexploit sim_local_write_bot; try exact LOCAL1; try exact SC; eauto; try refl; try by viewtac. i. des.
-    exploit merge_write_read; try exact STEP_SRC; eauto using View.bot_spec. i. des.
+    hexploit sim_local_write; try exact LOCAL1; try exact GLOBAL; eauto; try refl; try by viewtac. i. des.
+    exploit merge_write_read; try exact STEP_SRC; eauto using View.bot_spec. i.
     esplits.
     + ss.
     + econs 2; [|econs 1]. econs.
-      * econs. econs 2. econs; [|econs 3]; eauto. econs. econs.
-      * eauto.
-    + econs 2. econs 2. econs; [|econs 2]; eauto. econs. econs.
+      * econs 2; [|econs 3]; eauto. econs. refl.
+      * refl.
+    + econs 2. econs 2; [|econs 2]; eauto. econs. refl.
     + auto.
     + auto.
-    + auto.
-    + left. eapply paco11_mon.
+    + left. eapply paco9_mon.
       * eapply sim_itree_ret; eauto.
-      * i. inv PR.
-  - (* na store *)
-    right.
-    exploit sim_local_write_na; try exact LOCAL1; try exact SC; eauto; try refl. i. des.
-    exploit merge_write_na_read; try exact STEP_SRC; eauto. i.
-    esplits.
-    + ss.
-    + econs 2; [|econs 1]. econs.
-      * econs. econs 2. econs; [|econs 8]; eauto. econs. ss.
-      * eauto.
-    + econs 2. econs 2. econs; [|econs 2]; eauto. econs. ss.
-    + ss.
-    + ss.
-    + ss.
-    + left. eapply paco11_mon.
-      * apply sim_itree_ret; auto.
       * i. inv PR.
   - (* racy store *)
     left.
     exploit sim_local_racy_write; try exact LOCAL1; eauto; try refl. i. des.
-    unfold Thread.steps_failure. esplits.
+    econs.
     + refl.
-    + econs 2. econs; [|econs 10]; eauto. econs. econs.
+    + econs 2; [|econs 9]; eauto. econs. refl.
     + ss.
 Qed.
 
@@ -255,68 +236,41 @@ Proof.
   pcofix CIH. ii. subst. pfold. ii. splits; ii.
   { right. inv TERMINAL_TGT. apply f_equal with (f:=observe) in H; ss. }
   { right. esplits; eauto.
-    eapply sim_local_memory_bot; eauto.
+    eapply sim_local_promises_bot; eauto.
   }
-  inv STEP_TGT; [inv STEP|inv STEP; inv LOCAL0]; ss;
-    try (dependent destruction STATE); ss; clarify.
+  inv STEP_TGT; ss; [|dependent destruction STATE; inv LOCAL0; ss; clarify].
   - (* promise *)
     right.
-    exploit sim_local_promise; eauto. i. des.
-    esplits; try apply SC; eauto; ss.
-    econs 2. econs 1; eauto. econs; eauto. eauto.
+    exploit sim_local_internal; eauto. i. des.
+    esplits; try apply GL2; eauto; ss.
+    inv LOCAL0; ss.
   - (* store *)
     right.
-    exploit Time.middle_spec.
-    { inv LOCAL1. eapply MemoryFacts.write_time_lt. eauto. }
-    i. des.
-    hexploit sim_local_write_bot;
+    hexploit sim_local_write;
       try match goal with
           | [|- is_true (Ordering.le _ _)] => refl
-          end; try exact LOCAL0; try exact SC; eauto; try refl; try by viewtac. i. des.
+          end; try exact LOCAL0; try exact GLOBAL; eauto; try refl; try by viewtac. i. des.
     exploit merge_write_write_None; try exact STEP_SRC; eauto; try by viewtac. i. des.
-    + esplits.
+    esplits.
+    + ss.
+    + econs 2; try refl. econs.
+      * econs 2; [|econs 3]; eauto. econs. refl.
       * ss.
-      * econs 2; [|econs 2; eauto].
-        { econs.
-          - econs. econs 1. econs; eauto.
-          - auto.
-        }
-        { econs. econs. econs 2. econs; [|econs 3]; eauto.
-          - econs. econs.
-          - auto.
-        }
-      * econs 2. econs 2. econs; [|econs 3]; eauto. econs. econs.
-      * auto.
-      * etrans; eauto.
-      * etrans; eauto.
-      * left. eapply paco11_mon.
-        { apply sim_itree_ret; eauto. etrans; eauto. }
-        { ii. inv PR. }
-    + inv STEP1.
-      esplits.
-      * ss.
-      * econs 2; eauto. econs. econs. econs 2.
-        econs; [|econs 3]; try exact STEP2; eauto.
-        { econs. econs. }
-        { auto. }
-      * econs 2. econs 2. econs; [|econs 3]; eauto. econs. econs.
-      * auto.
-      * etrans; eauto.
-      * etrans; eauto.
-      * left. eapply paco11_mon.
-        { apply sim_itree_ret; eauto. etrans; eauto. }
-        { ii. inv PR. }
-  - (* na store *)
-    inv LOCAL1. destruct o; ss.
+    + econs 2. econs 2; [|econs 3]; eauto. econs. refl.
+    + ss.
+    + etrans; eauto.
+    + left. eapply paco9_mon.
+      * apply sim_itree_ret; eauto. etrans; eauto.
+      * ii. inv PR.
   - (* racy store *)
     left.
     exploit sim_local_racy_write;
       try match goal with
           | [|- is_true (Ordering.le _ _)] => refl
           end; try exact LOCAL1; eauto; try refl. i. des.
-    unfold Thread.steps_failure. esplits.
+    econs.
     + refl.
-    + econs 2. econs; [|econs 10]; eauto. econs. econs.
+    + econs 2; [|econs 9]; eauto. econs. refl.
     + ss.
 Qed.
 

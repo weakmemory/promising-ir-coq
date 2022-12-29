@@ -396,6 +396,14 @@ Module Memory.
     inv ADD. inv ADD0. ss.
   Qed.
 
+  Lemma add_wf
+        mem1 mem2 loc from to msg
+        (ADD: add mem1 loc from to msg mem2):
+    Message.wf msg.
+  Proof.
+    inv ADD. inv ADD0. ss.
+  Qed.
+
   Lemma add_o
         mem2 mem1 loc from to msg
         l t

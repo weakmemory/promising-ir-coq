@@ -268,4 +268,89 @@ Module BoolMap.
     unfold LocFun.add. condtac; ss. subst.
     rewrite GET, GET0. ss.
   Qed.
+
+
+  (* reorder *)
+
+  Lemma add_add
+        bm0
+        loc1 bm1
+        loc2 bm2
+        (ADD1: add bm0 loc1 bm1)
+        (ADD2: add bm1 loc2 bm2):
+    exists bm1',
+      (<<ADD1: add bm0 loc2 bm1'>>) /\
+      (<<ADD2: add bm1' loc1 bm2>>).
+  Proof.
+    inv ADD1. inv ADD2.
+    unfold LocFun.add in GET0. des_ifs.
+    esplits; eauto. econs.
+    - unfold LocFun.add. condtac; ss. congr.
+    - apply LocFun.add_add. ss.
+  Qed.
+
+  Lemma add_remove
+        bm0
+        loc1 bm1
+        loc2 bm2
+        (ADD1: add bm0 loc1 bm1)
+        (REMOVE2: remove bm1 loc2 bm2):
+    (<<LOC: loc1 = loc2>>) /\ (<<BM: bm0 = bm2>>) \/
+    (<<LOC: loc1 <> loc2>>) /\
+    exists bm1',
+      (<<REMOVE1: remove bm0 loc2 bm1'>>) /\
+      (<<ADD2: add bm1' loc1 bm2>>).
+  Proof.
+    inv ADD1. inv REMOVE2.
+    unfold LocFun.add in GET0. des_ifs.
+    - left. splits; ss.
+      extensionality loc.
+      unfold LocFun.add. condtac; subst; ss.
+      unfold LocFun.find. condtac; ss.
+    - right. splits; try congr.
+      esplits; eauto. econs.
+      + unfold LocFun.add. condtac; ss.
+      + apply LocFun.add_add. ss.
+  Qed.
+
+  Lemma remove_add
+        bm0
+        loc1 bm1
+        loc2 bm2
+        (REMOVE1: remove bm0 loc1 bm1)
+        (ADD2: add bm1 loc2 bm2):
+    (<<LOC: loc1 = loc2>>) /\ (<<BM: bm0 = bm2>>) \/
+    (<<LOC: loc1 <> loc2>>) /\
+    exists bm1',
+      (<<ADD1: add bm0 loc2 bm1'>>) /\
+      (<<REMOVE2: remove bm1' loc1 bm2>>).
+  Proof.
+    inv REMOVE1. inv ADD2.
+    unfold LocFun.add in GET0. des_ifs.
+    - left. splits; ss.
+      extensionality loc.
+      unfold LocFun.add. condtac; subst; ss.
+      unfold LocFun.find. condtac; ss.
+    - right. splits; try congr.
+      esplits; eauto. econs.
+      + unfold LocFun.add. condtac; ss.
+      + apply LocFun.add_add. ss.
+  Qed.
+
+  Lemma remove_remove
+        bm0
+        loc1 bm1
+        loc2 bm2
+        (REMOVE1: remove bm0 loc1 bm1)
+        (REMOVE2: remove bm1 loc2 bm2):
+    exists bm1',
+      (<<REMOVE1: remove bm0 loc2 bm1'>>) /\
+      (<<REMOVE2: remove bm1' loc1 bm2>>).
+  Proof.
+    inv REMOVE1. inv REMOVE2.
+    unfold LocFun.add in GET0. des_ifs.
+    esplits; eauto. econs.
+    - unfold LocFun.add. condtac; ss. congr.
+    - apply LocFun.add_add. ss.
+  Qed.
 End BoolMap.

@@ -272,7 +272,7 @@ Module BoolMap.
 
   (* reorder *)
 
-  Lemma add_add
+  Lemma reorder_add_add
         bm0
         loc1 bm1
         loc2 bm2
@@ -289,7 +289,7 @@ Module BoolMap.
     - apply LocFun.add_add. ss.
   Qed.
 
-  Lemma add_remove
+  Lemma reorder_add_remove
         bm0
         loc1 bm1
         loc2 bm2
@@ -313,7 +313,7 @@ Module BoolMap.
       + apply LocFun.add_add. ss.
   Qed.
 
-  Lemma remove_add
+  Lemma reorder_remove_add
         bm0
         loc1 bm1
         loc2 bm2
@@ -337,7 +337,7 @@ Module BoolMap.
       + apply LocFun.add_add. ss.
   Qed.
 
-  Lemma remove_remove
+  Lemma reorder_remove_remove
         bm0
         loc1 bm1
         loc2 bm2

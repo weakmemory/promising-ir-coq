@@ -26,7 +26,7 @@ Require Import MemoryReorder.
 Set Implicit Arguments.
 
 
-(* reorder step-promise *)
+(* reorder step; promise *)
 
 Lemma reorder_read_promise
       lc0 gl0
@@ -39,24 +39,6 @@ Lemma reorder_read_promise
     <<STEP2: Local.read_step lc1' gl2 loc1 ts1 val1 released1 ord1 lc2>>.
 Proof.
   inv STEP1. inv STEP2. ss. esplits; eauto.
-Qed.
-
-Lemma reorder_fulfill_promise
-      prm0 gprm0
-      loc1 ord1 prm1 gprm1
-      loc2 prm2 gprm2
-      (FULFILL: Promises.fulfill prm0 gprm0 loc1 ord1 prm1 gprm1)
-      (PROMISE: Promises.promise prm1 gprm1 loc2 prm2 gprm2)
-      (LOC: loc1 <> loc2):
-  exists prm1' gprm1',
-    (<<PROMISE: Promises.promise prm0 gprm0 loc2 prm1' gprm1'>>) /\
-    (<<FULFILL: Promises.fulfill prm1' gprm1' loc1 ord1 prm2 gprm2>>).
-Proof.
-  inv FULFILL; [esplits; eauto|].
-  inv PROMISE.
-  exploit BoolMap.remove_add; try exact REMOVE; eauto. i. des; try congr.
-  exploit BoolMap.remove_add; try exact GREMOVE; eauto. i. des; try congr.
-  esplits; eauto.
 Qed.
 
 Lemma reorder_write_promise
@@ -72,7 +54,7 @@ Lemma reorder_write_promise
 Proof.
   destruct lc0, lc1, lc2, gl0, gl1, gl2.
   inv STEP1. inv STEP2. ss. clarify.
-  exploit reorder_fulfill_promise; eauto. i. des.
+  exploit Promises.reorder_fulfill_promise; eauto. i. des.
   esplits; eauto.
 Qed.
 
@@ -144,7 +126,7 @@ Proof.
 Qed.
 
 
-(* reorder step-reserve *)
+(* reorder step; reserve *)
 
 Lemma reorder_read_reserve
       lc0 gl0
@@ -243,7 +225,7 @@ Proof.
 Qed.
 
 
-(* reorder step-cancel *)
+(* reorder step; cancel *)
 
 Lemma reorder_read_cancel
       lc0 gl0
@@ -349,7 +331,7 @@ Proof.
 Qed.
 
 
-(* reorder step-internal *)
+(* reorder step; internal *)
 
 Lemma reorder_read_internal
       lc0 gl0

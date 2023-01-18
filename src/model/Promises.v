@@ -133,4 +133,75 @@ Module Promises.
   Proof.
     inv FULFILL; ss. eauto using remove_minus.
   Qed.
+
+
+  (* reorder *)
+
+  Lemma reorder_promise_promise
+        prm0 gprm0
+        loc1 prm1 gprm1
+        loc2 prm2 gprm2
+        (PROMISE1: promise prm0 gprm0 loc1 prm1 gprm1)
+        (PROMISE2: promise prm1 gprm1 loc2 prm2 gprm2):
+    exists prm1' gprm1',
+      (<<PROMISE1: promise prm0 gprm0 loc2 prm1' gprm1'>>) /\
+      (<<PROMISE2: promise prm1' gprm1' loc1 prm2 gprm2>>).
+  Proof.
+    inv PROMISE1. inv PROMISE2.
+    exploit BoolMap.reorder_add_add; try exact ADD; eauto. i. des.
+    exploit BoolMap.reorder_add_add; try exact GADD; eauto. i. des.
+    esplits; eauto.
+  Qed.
+
+  Lemma reorder_fulfill_promise
+        prm0 gprm0
+        loc1 ord1 prm1 gprm1
+        loc2 prm2 gprm2
+        (FULFILL1: fulfill prm0 gprm0 loc1 ord1 prm1 gprm1)
+        (PROMISE2: promise prm1 gprm1 loc2 prm2 gprm2)
+        (LOC: loc1 <> loc2):
+    exists prm1' gprm1',
+      (<<PROMISE1: promise prm0 gprm0 loc2 prm1' gprm1'>>) /\
+      (<<FULFILL2: fulfill prm1' gprm1' loc1 ord1 prm2 gprm2>>).
+  Proof.
+    inv FULFILL1; [esplits; eauto|]. inv PROMISE2.
+    exploit BoolMap.reorder_remove_add; try exact REMOVE; eauto. i. des; try congr.
+    exploit BoolMap.reorder_remove_add; try exact GREMOVE; eauto. i. des; try congr.
+    esplits; eauto.
+  Qed.
+
+  Lemma reorder_promise_fulfill
+        prm0 gprm0
+        loc1 prm1 gprm1
+        loc2 ord2 prm2 gprm2
+        (PROMISE1: promise prm0 gprm0 loc1 prm1 gprm1)
+        (FULFILL2: fulfill prm1 gprm1 loc2 ord2 prm2 gprm2)
+        (LOC: loc1 <> loc2):
+    exists prm1' gprm1',
+      (<<FULFILL1: fulfill prm0 gprm0 loc2 ord2 prm1' gprm1'>>) /\
+      (<<PROMISE2: promise prm1' gprm1' loc1 prm2 gprm2>>).
+  Proof.
+    inv FULFILL2; [esplits; eauto|]. inv PROMISE1.
+    exploit BoolMap.reorder_add_remove; try exact ADD; eauto. i. des; try congr.
+    exploit BoolMap.reorder_add_remove; try exact GADD; eauto. i. des; try congr.
+    esplits; [econs 2|]; eauto.
+  Qed.
+
+  Lemma reorder_fulfill_fulfill
+        prm0 gprm0
+        loc1 ord1 prm1 gprm1
+        loc2 ord2 prm2 gprm2
+        (FULFILL1: fulfill prm0 gprm0 loc1 ord1 prm1 gprm1)
+        (FULFILL2: fulfill prm1 gprm1 loc2 ord2 prm2 gprm2)
+        (LOC: loc1 <> loc2):
+    exists prm1' gprm1',
+      (<<FULFILL1: fulfill prm0 gprm0 loc2 ord2 prm1' gprm1'>>) /\
+      (<<FULFILL2: fulfill prm1' gprm1' loc1 ord1 prm2 gprm2>>).
+  Proof.
+    inv FULFILL1; [esplits; eauto|].
+    inv FULFILL2; [esplits; eauto|].
+    exploit BoolMap.reorder_remove_remove; try exact REMOVE; eauto. i. des; try congr.
+    exploit BoolMap.reorder_remove_remove; try exact GREMOVE; eauto. i. des; try congr.
+    esplits; [econs 2|]; eauto.
+  Qed.
 End Promises.

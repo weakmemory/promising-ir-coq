@@ -279,7 +279,7 @@ Lemma reorder_read_fence
       (STEP2: Local.fence_step lc1 gl0 ordr2 ordw2 lc2 gl2):
   exists lc1' lc2' gl2',
     <<STEP1: Local.fence_step lc0 gl0 ordr2 ordw2 lc1' gl2'>> /\
-    <<STEP2: Local.read_step lc1' gl0 loc1 ts1 val1 released1 ord1 lc2'>> /\
+    <<STEP2: Local.read_step lc1' gl2' loc1 ts1 val1 released1 ord1 lc2'>> /\
     <<LOCAL: sim_local lc2' lc2>> /\
     <<GLOBAL: sim_global gl2' gl2>>.
 Proof.

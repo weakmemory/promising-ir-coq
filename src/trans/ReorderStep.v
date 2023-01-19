@@ -774,198 +774,258 @@ Proof.
 Qed.
 
 
-(* (** reorder racy read *) *)
+(** reorder race; step *)
 
-(* Lemma reorder_is_racy_read *)
-(*       loc1 to1 ord1 *)
-(*       loc2 ts2 val2 released2 ord2 *)
-(*       lc0 mem0 *)
-(*       lc2 *)
-(*       (LOC: loc1 = loc2 -> Ordering.le ord1 Ordering.plain /\ Ordering.le ord2 Ordering.plain) *)
-(*       (ORD2: Ordering.le ord2 Ordering.relaxed) *)
-(*       (STEP1: Local.is_racy lc0 mem0 loc1 to1 ord1) *)
-(*       (STEP2: Local.read_step lc0 mem0 loc2 ts2 val2 released2 ord2 lc2): *)
-(*   <<STEP: Local.is_racy lc2 mem0 loc1 to1 ord1>>. *)
-(* Proof. *)
-(*   inv STEP1. inv STEP2. ss. *)
-(*   econs; eauto; ss. inv READABLE. *)
-(*   condtac; try by (destruct ord2; ss). *)
-(*   repeat apply TimeFacts.join_spec_lt; ss. *)
-(*   - unfold View.singleton_ur_if. condtac; ss. *)
-(*     + unfold TimeMap.singleton, LocFun.add, LocFun.find. condtac; ss. *)
-(*       * subst. exploit LOC; eauto. i. des. destruct ord2; ss. *)
-(*       * eapply TimeFacts.le_lt_lt; eauto. apply Time.bot_spec. *)
-(*     + eapply TimeFacts.le_lt_lt; eauto. apply Time.bot_spec. *)
-(*   - eapply TimeFacts.le_lt_lt; eauto. apply Time.bot_spec. *)
-(* Qed. *)
+Lemma reorder_is_racy_read
+      lc0 mem0
+      loc1 to1 ord1
+      loc2 ts2 val2 released2 ord2 lc2
+      (LOC: loc1 = loc2 -> Ordering.le ord1 Ordering.plain /\ Ordering.le ord2 Ordering.plain)
+      (ORD2: Ordering.le ord2 Ordering.relaxed)
+      (STEP1: Local.is_racy lc0 mem0 loc1 to1 ord1)
+      (STEP2: Local.read_step lc0 mem0 loc2 ts2 val2 released2 ord2 lc2):
+  <<STEP: Local.is_racy lc2 mem0 loc1 to1 ord1>>.
+Proof.
+  inv STEP2. inv STEP1; eauto.
+  econs; eauto; ss. inv READABLE.
+  condtac; try by (destruct ord2; ss).
+  repeat apply TimeFacts.join_spec_lt; ss.
+  - unfold View.singleton_ur_if. condtac; ss.
+    + unfold TimeMap.singleton, LocFun.add, LocFun.find. condtac; ss.
+      * subst. exploit LOC; eauto. i. des. destruct ord2; ss.
+      * eapply TimeFacts.le_lt_lt; eauto. apply Time.bot_spec.
+    + eapply TimeFacts.le_lt_lt; eauto. apply Time.bot_spec.
+  - eapply TimeFacts.le_lt_lt; eauto. apply Time.bot_spec.
+Qed.
 
-(* Lemma reorder_is_racy_fulfill *)
-(*       loc1 to1 ord1 *)
-(*       loc2 from2 to2 val2 releasedm2 released2 ord2 *)
-(*       lc0 sc0 mem0 *)
-(*       lc2 sc2 *)
-(*       (LOC: loc1 <> loc2) *)
-(*       (STEP1: Local.is_racy lc0 mem0 loc1 to1 ord1) *)
-(*       (STEP2: fulfill_step lc0 sc0 loc2 from2 to2 val2 releasedm2 released2 ord2 lc2 sc2): *)
-(*   <<STEP: Local.is_racy lc2 mem0 loc1 to1 ord1>>. *)
-(* Proof. *)
-(*   inv STEP1. inv STEP2. *)
-(*   econs; eauto; ss. *)
-(*   - erewrite Memory.remove_o; eauto. condtac; ss. *)
-(*   - apply TimeFacts.join_spec_lt; ss. *)
-(*     unfold TimeMap.singleton, LocFun.add. condtac; ss. *)
-(*     eapply TimeFacts.le_lt_lt; eauto. apply Time.bot_spec. *)
-(* Qed. *)
+Lemma reorder_is_racy_write
+      lc0 gl0
+      loc1 to1 ord1
+      loc2 from2 to2 val2 releasedm2 released2 ord2 lc2 gl2
+      (LOC: loc1 <> loc2)
+      (STEP1: Local.is_racy lc0 gl0 loc1 to1 ord1)
+      (STEP2: Local.write_step lc0 gl0 loc2 from2 to2 val2 releasedm2 released2 ord2 lc2 gl2):
+  <<STEP: Local.is_racy lc2 gl2 loc1 to1 ord1>>.
+Proof.
+  inv STEP2. inv STEP1.
+  - inv FULFILL; eauto. econs; ss.
+    + erewrite BoolMap.remove_o; eauto. condtac; ss.
+    + erewrite BoolMap.remove_o; eauto. condtac; ss.
+  - exploit Memory.add_get1; try exact GET; eauto. i.
+    econs; eauto; ss.
+    apply TimeFacts.join_spec_lt; ss.
+    unfold TimeMap.singleton, LocFun.add. condtac; ss.
+    eapply TimeFacts.le_lt_lt; eauto. apply Time.bot_spec.
+Qed.
 
-(* Lemma reorder_is_racy_write *)
-(*       loc1 to1 ord1 *)
-(*       loc2 from2 to2 val2 releasedm2 released2 ord2 *)
-(*       lc0 sc0 mem0 *)
-(*       lc2 sc2 mem2 *)
-(*       kind *)
-(*       (LOC: loc1 <> loc2) *)
-(*       (RELM_WF: View.opt_wf releasedm2) *)
-(*       (RELM_CLOSED: Memory.closed_opt_view releasedm2 mem0) *)
-(*       (WF0: Local.wf lc0 mem0) *)
-(*       (SC0: Memory.closed_timemap sc0 mem0) *)
-(*       (MEM0: Memory.closed mem0) *)
-(*       (STEP1: Local.is_racy lc0 mem0 loc1 to1 ord1) *)
-(*       (STEP2: Local.write_step lc0 sc0 mem0 loc2 from2 to2 val2 releasedm2 released2 ord2 lc2 sc2 mem2 kind): *)
-(*   <<STEP: Local.is_racy lc2 mem2 loc1 to1 ord1>>. *)
-(* Proof. *)
-(*   exploit write_promise_fulfill; try exact STEP2; eauto. i. des. *)
-(*   exploit reorder_is_racy_promise; eauto. i. des. *)
-(*   exploit reorder_is_racy_fulfill; eauto. *)
-(* Qed. *)
+Lemma reorder_is_racy_update
+      lc0 gl0
+      loc1 to1 ord1
+      loc2 ts2 val2 released2 ord2 lc2
+      from3 to3 val3 released3 ord3 lc3 gl3
+      (LOC: loc1 <> loc2)
+      (ORD2: Ordering.le ord2 Ordering.relaxed)
+      (STEP1: Local.is_racy lc0 gl0 loc1 to1 ord1)
+      (STEP2: Local.read_step lc0 gl0 loc2 ts2 val2 released2 ord2 lc2)
+      (STEP3: Local.write_step lc2 gl0 loc2 from3 to3 val3 released2 released3 ord3 lc3 gl3):
+  <<STEP: Local.is_racy lc3 gl3 loc1 to1 ord1>>.
+Proof.
+  exploit reorder_is_racy_read; eauto; ss. i. des.
+  exploit reorder_is_racy_write; try exact STEP3; eauto.
+Qed.
 
-(* Lemma reorder_is_racy_update *)
-(*       loc1 to1 ord1 *)
-(*       loc2 ts2 val2 released2 ord2 *)
-(*       from3 to3 val3 released3 ord3 *)
-(*       lc0 sc0 mem0 *)
-(*       lc2 *)
-(*       lc3 sc3 mem3 *)
-(*       kind *)
-(*       (LOC: loc1 <> loc2) *)
-(*       (ORD2: Ordering.le ord2 Ordering.relaxed) *)
-(*       (WF0: Local.wf lc0 mem0) *)
-(*       (SC0: Memory.closed_timemap sc0 mem0) *)
-(*       (MEM0: Memory.closed mem0) *)
-(*       (STEP1: Local.is_racy lc0 mem0 loc1 to1 ord1) *)
-(*       (STEP2: Local.read_step lc0 mem0 loc2 ts2 val2 released2 ord2 lc2) *)
-(*       (STEP3: Local.write_step lc2 sc0 mem0 loc2 from3 to3 val3 released2 released3 ord3 lc3 sc3 mem3 kind): *)
-(*   <<STEP: Local.is_racy lc3 mem3 loc1 to1 ord1>>. *)
-(* Proof. *)
-(*   exploit Local.read_step_future; try exact STEP2; eauto. i. des. *)
-(*   exploit reorder_is_racy_read; eauto; ss. i. des. *)
-(*   exploit reorder_is_racy_write; try exact STEP3; eauto. *)
-(* Qed. *)
+Lemma reorder_is_racy_fence
+      lc0 gl0
+      loc1 to1 ord1
+      ordr2 ordw2 lc2 gl2
+      (ORDR2: Ordering.le ordr2 Ordering.relaxed)
+      (ORDW2: Ordering.le ordw2 Ordering.acqrel)
+      (STEP1: Local.is_racy lc0 gl0 loc1 to1 ord1)
+      (STEP2: Local.fence_step lc0 gl0 ordr2 ordw2 lc2 gl2):
+  <<STEP: Local.is_racy lc2 gl2 loc1 to1 ord1>>.
+Proof.
+  inv STEP2. inv STEP1; eauto.
+  econs; eauto; ss.
+  condtac; try by (destruct ordw2; ss).
+  condtac; try by (destruct ordr2; ss).
+Qed.
 
-(* Lemma reorder_is_racy_fence *)
-(*       loc1 to1 ord1 *)
-(*       ordr2 ordw2 *)
-(*       lc0 sc0 mem0 *)
-(*       lc2 sc2 *)
-(*       (ORDR2: Ordering.le ordr2 Ordering.relaxed) *)
-(*       (ORDW2: Ordering.le ordw2 Ordering.acqrel) *)
-(*       (WF0: Local.wf lc0 mem0) *)
-(*       (MEM0: Memory.closed mem0) *)
-(*       (STEP1: Local.is_racy lc0 mem0 loc1 to1 ord1) *)
-(*       (STEP2: Local.fence_step lc0 sc0 ordr2 ordw2 lc2 sc2): *)
-(*   <<STEP: Local.is_racy lc2 mem0 loc1 to1 ord1>>. *)
-(* Proof. *)
-(*   inv STEP1. inv STEP2. ss. *)
-(*   econs; eauto; ss. *)
-(*   condtac; try by (destruct ordw2; ss). *)
-(*   condtac; try by (destruct ordr2; ss). *)
-(* Qed. *)
 
-(* Lemma reorder_racy_read_read *)
-(*       loc1 to1 val1 ord1 *)
-(*       loc2 ts2 val2 released2 ord2 *)
-(*       lc0 mem0 *)
-(*       lc2 *)
-(*       (LOC: loc1 = loc2 -> Ordering.le ord1 Ordering.plain /\ Ordering.le ord2 Ordering.plain) *)
-(*       (ORD2: Ordering.le ord2 Ordering.relaxed) *)
-(*       (STEP1: Local.racy_read_step lc0 mem0 loc1 to1 val1 ord1) *)
-(*       (STEP2: Local.read_step lc0 mem0 loc2 ts2 val2 released2 ord2 lc2): *)
-(*   <<STEP: Local.racy_read_step lc2 mem0 loc1 to1 val1 ord1>>. *)
-(* Proof. *)
-(*   inv STEP1. *)
-(*   exploit reorder_is_racy_read; eauto. *)
-(* Qed. *)
+(** reorder racy-read; step *)
 
-(* Lemma reorder_racy_read_fulfill *)
-(*       loc1 to1 val1 ord1 *)
-(*       loc2 from2 to2 val2 releasedm2 released2 ord2 *)
-(*       lc0 sc0 mem0 *)
-(*       lc2 sc2 *)
-(*       (LOC: loc1 <> loc2) *)
-(*       (STEP1: Local.racy_read_step lc0 mem0 loc1 to1 val1 ord1) *)
-(*       (STEP2: fulfill_step lc0 sc0 loc2 from2 to2 val2 releasedm2 released2 ord2 lc2 sc2): *)
-(*   <<STEP: Local.racy_read_step lc2 mem0 loc1 to1 val1 ord1>>. *)
-(* Proof. *)
-(*   inv STEP1. *)
-(*   exploit reorder_is_racy_fulfill; eauto. *)
-(* Qed. *)
+Lemma reorder_racy_read_read
+      lc0 gl0
+      loc1 to1 val1 ord1
+      loc2 ts2 val2 released2 ord2 lc2
+      (LOC: loc1 = loc2 -> Ordering.le ord1 Ordering.plain /\ Ordering.le ord2 Ordering.plain)
+      (ORD2: Ordering.le ord2 Ordering.relaxed)
+      (STEP1: Local.racy_read_step lc0 gl0 loc1 to1 val1 ord1)
+      (STEP2: Local.read_step lc0 gl0 loc2 ts2 val2 released2 ord2 lc2):
+  <<STEP: Local.racy_read_step lc2 gl0 loc1 to1 val1 ord1>>.
+Proof.
+  inv STEP1.
+  exploit reorder_is_racy_read; eauto.
+Qed.
 
-(* Lemma reorder_racy_read_write *)
-(*       loc1 to1 val1 ord1 *)
-(*       loc2 from2 to2 val2 releasedm2 released2 ord2 *)
-(*       lc0 sc0 mem0 *)
-(*       lc2 sc2 mem2 *)
-(*       kind *)
-(*       (LOC: loc1 <> loc2) *)
-(*       (RELM_WF: View.opt_wf releasedm2) *)
-(*       (RELM_CLOSED: Memory.closed_opt_view releasedm2 mem0) *)
-(*       (WF0: Local.wf lc0 mem0) *)
-(*       (SC0: Memory.closed_timemap sc0 mem0) *)
-(*       (MEM0: Memory.closed mem0) *)
-(*       (STEP1: Local.racy_read_step lc0 mem0 loc1 to1 val1 ord1) *)
-(*       (STEP2: Local.write_step lc0 sc0 mem0 loc2 from2 to2 val2 releasedm2 released2 ord2 lc2 sc2 mem2 kind): *)
-(*   <<STEP: Local.racy_read_step lc2 mem2 loc1 to1 val1 ord1>>. *)
-(* Proof. *)
-(*   exploit write_promise_fulfill; try exact STEP2; eauto. i. des. *)
-(*   exploit reorder_racy_read_promise; eauto. i. des. *)
-(*   exploit reorder_racy_read_fulfill; eauto. *)
-(* Qed. *)
+Lemma reorder_racy_read_write
+      lc0 gl0
+      loc1 to1 val1 ord1
+      loc2 from2 to2 val2 releasedm2 released2 ord2 lc2 gl2
+      (LOC: loc1 <> loc2)
+      (STEP1: Local.racy_read_step lc0 gl0 loc1 to1 val1 ord1)
+      (STEP2: Local.write_step lc0 gl0 loc2 from2 to2 val2 releasedm2 released2 ord2 lc2 gl2):
+  <<STEP: Local.racy_read_step lc2 gl2 loc1 to1 val1 ord1>>.
+Proof.
+  inv STEP1.
+  exploit reorder_is_racy_write; eauto.
+Qed.
 
-(* Lemma reorder_racy_read_update *)
-(*       loc1 to1 val1 ord1 *)
-(*       loc2 ts2 val2 released2 ord2 *)
-(*       from3 to3 val3 released3 ord3 *)
-(*       lc0 sc0 mem0 *)
-(*       lc2 *)
-(*       lc3 sc3 mem3 *)
-(*       kind *)
-(*       (LOC: loc1 <> loc2) *)
-(*       (ORD2: Ordering.le ord2 Ordering.relaxed) *)
-(*       (WF0: Local.wf lc0 mem0) *)
-(*       (SC0: Memory.closed_timemap sc0 mem0) *)
-(*       (MEM0: Memory.closed mem0) *)
-(*       (STEP1: Local.racy_read_step lc0 mem0 loc1 to1 val1 ord1) *)
-(*       (STEP2: Local.read_step lc0 mem0 loc2 ts2 val2 released2 ord2 lc2) *)
-(*       (STEP3: Local.write_step lc2 sc0 mem0 loc2 from3 to3 val3 released2 released3 ord3 lc3 sc3 mem3 kind): *)
-(*   <<STEP: Local.racy_read_step lc3 mem3 loc1 to1 val1 ord1>>. *)
-(* Proof. *)
-(*   exploit Local.read_step_future; try exact STEP2; eauto. i. des. *)
-(*   exploit reorder_racy_read_read; eauto; ss. i. des. *)
-(*   exploit reorder_racy_read_write; try exact STEP3; eauto. *)
-(* Qed. *)
+Lemma reorder_racy_read_update
+      lc0 gl0
+      loc1 to1 val1 ord1
+      loc2 ts2 val2 released2 ord2 lc2
+      from3 to3 val3 released3 ord3 lc3 gl3
+      (LOC: loc1 <> loc2)
+      (ORD2: Ordering.le ord2 Ordering.relaxed)
+      (STEP1: Local.racy_read_step lc0 gl0 loc1 to1 val1 ord1)
+      (STEP2: Local.read_step lc0 gl0 loc2 ts2 val2 released2 ord2 lc2)
+      (STEP3: Local.write_step lc2 gl0 loc2 from3 to3 val3 released2 released3 ord3 lc3 gl3):
+  <<STEP: Local.racy_read_step lc3 gl3 loc1 to1 val1 ord1>>.
+Proof.
+  exploit reorder_racy_read_read; eauto; ss. i. des.
+  exploit reorder_racy_read_write; try exact STEP3; eauto.
+Qed.
 
-(* Lemma reorder_racy_read_fence *)
-(*       loc1 to1 val1 ord1 *)
-(*       ordr2 ordw2 *)
-(*       lc0 sc0 mem0 *)
-(*       lc2 sc2 *)
-(*       (ORDR2: Ordering.le ordr2 Ordering.relaxed) *)
-(*       (ORDW2: Ordering.le ordw2 Ordering.acqrel) *)
-(*       (WF0: Local.wf lc0 mem0) *)
-(*       (MEM0: Memory.closed mem0) *)
-(*       (STEP1: Local.racy_read_step lc0 mem0 loc1 to1 val1 ord1) *)
-(*       (STEP2: Local.fence_step lc0 sc0 ordr2 ordw2 lc2 sc2): *)
-(*   <<STEP: Local.racy_read_step lc2 mem0 loc1 to1 val1 ord1>>. *)
-(* Proof. *)
-(*   inv STEP1. *)
-(*   exploit reorder_is_racy_fence; eauto. *)
-(* Qed. *)
+Lemma reorder_racy_read_fence
+      lc0 gl0
+      loc1 to1 val1 ord1
+      ordr2 ordw2 lc2 gl2
+      (ORDR2: Ordering.le ordr2 Ordering.relaxed)
+      (ORDW2: Ordering.le ordw2 Ordering.acqrel)
+      (STEP1: Local.racy_read_step lc0 gl0 loc1 to1 val1 ord1)
+      (STEP2: Local.fence_step lc0 gl0 ordr2 ordw2 lc2 gl2):
+  <<STEP: Local.racy_read_step lc2 gl2 loc1 to1 val1 ord1>>.
+Proof.
+  inv STEP1.
+  exploit reorder_is_racy_fence; eauto.
+Qed.
+
+
+(** reorder racy-write; step *)
+
+Lemma reorder_racy_write_read
+      lc0 gl0
+      loc1 to1 ord1
+      loc2 ts2 val2 released2 ord2 lc2
+      (LOC: loc1 <> loc2)
+      (ORD2: Ordering.le ord2 Ordering.relaxed)
+      (STEP1: Local.racy_write_step lc0 gl0 loc1 to1 ord1)
+      (STEP2: Local.read_step lc0 gl0 loc2 ts2 val2 released2 ord2 lc2):
+  <<STEP: Local.racy_write_step lc2 gl0 loc1 to1 ord1>>.
+Proof.
+  inv STEP1.
+  exploit reorder_is_racy_read; eauto. ss.
+Qed.
+
+Lemma reorder_racy_write_write
+      lc0 gl0
+      loc1 to1 ord1
+      loc2 from2 to2 val2 releasedm2 released2 ord2 lc2 gl2
+      (LOC: loc1 <> loc2)
+      (STEP1: Local.racy_write_step lc0 gl0 loc1 to1 ord1)
+      (STEP2: Local.write_step lc0 gl0 loc2 from2 to2 val2 releasedm2 released2 ord2 lc2 gl2):
+  <<STEP: Local.racy_write_step lc2 gl2 loc1 to1 ord1>>.
+Proof.
+  inv STEP1.
+  exploit reorder_is_racy_write; eauto.
+Qed.
+
+Lemma reorder_racy_write_update
+      lc0 gl0
+      loc1 to1 ord1
+      loc2 ts2 val2 released2 ord2 lc2
+      from3 to3 val3 released3 ord3 lc3 gl3
+      (LOC: loc1 <> loc2)
+      (ORD2: Ordering.le ord2 Ordering.relaxed)
+      (STEP1: Local.racy_write_step lc0 gl0 loc1 to1 ord1)
+      (STEP2: Local.read_step lc0 gl0 loc2 ts2 val2 released2 ord2 lc2)
+      (STEP3: Local.write_step lc2 gl0 loc2 from3 to3 val3 released2 released3 ord3 lc3 gl3):
+  <<STEP: Local.racy_write_step lc3 gl3 loc1 to1 ord1>>.
+Proof.
+  exploit reorder_racy_write_read; eauto; ss. i. des.
+  exploit reorder_racy_write_write; try exact STEP3; eauto.
+Qed.
+
+Lemma reorder_racy_write_fence
+      lc0 gl0
+      loc1 to1 ord1
+      ordr2 ordw2 lc2 gl2
+      (ORDR2: Ordering.le ordr2 Ordering.relaxed)
+      (ORDW2: Ordering.le ordw2 Ordering.acqrel)
+      (STEP1: Local.racy_write_step lc0 gl0 loc1 to1 ord1)
+      (STEP2: Local.fence_step lc0 gl0 ordr2 ordw2 lc2 gl2):
+  <<STEP: Local.racy_write_step lc2 gl2 loc1 to1 ord1>>.
+Proof.
+  inv STEP1.
+  exploit reorder_is_racy_fence; eauto.
+Qed.
+
+
+(** reorder racy-update; step *)
+
+Lemma reorder_racy_update_read
+      lc0 gl0
+      loc1 to1 ordr1 ordw1
+      loc2 ts2 val2 released2 ord2 lc2
+      (LOC: loc1 <> loc2)
+      (ORD2: Ordering.le ord2 Ordering.relaxed)
+      (STEP1: Local.racy_update_step lc0 gl0 loc1 to1 ordr1 ordw1)
+      (STEP2: Local.read_step lc0 gl0 loc2 ts2 val2 released2 ord2 lc2):
+  <<STEP: Local.racy_update_step lc2 gl0 loc1 to1 ordr1 ordw1>>.
+Proof.
+  inv STEP1; eauto.
+  exploit reorder_is_racy_read; eauto. ss.
+Qed.
+
+Lemma reorder_racy_update_write
+      lc0 gl0
+      loc1 to1 ordr1 ordw1
+      loc2 from2 to2 val2 releasedm2 released2 ord2 lc2 gl2
+      (LOC: loc1 <> loc2)
+      (STEP1: Local.racy_update_step lc0 gl0 loc1 to1 ordr1 ordw1)
+      (STEP2: Local.write_step lc0 gl0 loc2 from2 to2 val2 releasedm2 released2 ord2 lc2 gl2):
+  <<STEP: Local.racy_update_step lc2 gl2 loc1 to1 ordr1 ordw1>>.
+Proof.
+  inv STEP1; eauto.
+  exploit reorder_is_racy_write; eauto.
+Qed.
+
+Lemma reorder_racy_update_update
+      lc0 gl0
+      loc1 to1 ordr1 ordw1
+      loc2 ts2 val2 released2 ord2 lc2
+      from3 to3 val3 released3 ord3 lc3 gl3
+      (LOC: loc1 <> loc2)
+      (ORD2: Ordering.le ord2 Ordering.relaxed)
+      (STEP1: Local.racy_update_step lc0 gl0 loc1 to1 ordr1 ordw1)
+      (STEP2: Local.read_step lc0 gl0 loc2 ts2 val2 released2 ord2 lc2)
+      (STEP3: Local.write_step lc2 gl0 loc2 from3 to3 val3 released2 released3 ord3 lc3 gl3):
+  <<STEP: Local.racy_update_step lc3 gl3 loc1 to1 ordr1 ordw1>>.
+Proof.
+  exploit reorder_racy_update_read; eauto; ss. i. des.
+  exploit reorder_racy_update_write; try exact STEP3; eauto.
+Qed.
+
+Lemma reorder_racy_update_fence
+      lc0 gl0
+      loc1 to1 ordr1 ordw1
+      ordr2 ordw2 lc2 gl2
+      (ORDR2: Ordering.le ordr2 Ordering.relaxed)
+      (ORDW2: Ordering.le ordw2 Ordering.acqrel)
+      (STEP1: Local.racy_update_step lc0 gl0 loc1 to1 ordr1 ordw1)
+      (STEP2: Local.fence_step lc0 gl0 ordr2 ordw2 lc2 gl2):
+  <<STEP: Local.racy_update_step lc2 gl2 loc1 to1 ordr1 ordw1>>.
+Proof.
+  inv STEP1; eauto.
+  exploit reorder_is_racy_fence; eauto.
+Qed.

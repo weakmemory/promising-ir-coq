@@ -21,13 +21,14 @@ Require Import Local.
 Require Import Thread.
 Require Import Configuration.
 
+Require Import ReorderInternal.
+
 Require Import SimLocal.
 Require Import SimMemory.
 Require Import SimGlobal.
 Require Import SimThread.
 Require Import Compatibility.
 
-Require Import ReorderInternal.
 Require Import ReorderStep.
 
 Require Import ITreeLang.

@@ -38,7 +38,7 @@ Require Import ReorderFence.
 Require Import ReorderAbort.
 
 Require Import ITreeLang.
-Require Import Program.
+Require Import ITreeLib.
 
 Set Implicit Arguments.
 

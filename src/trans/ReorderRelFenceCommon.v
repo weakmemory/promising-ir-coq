@@ -36,50 +36,40 @@ Definition local_relfenced (lc:Local.t) :=
                (fun _ => (TView.cur (Local.tview lc)))
                (TView.cur (Local.tview lc))
                (TView.acq (Local.tview lc)))
-            (Local.promises lc)).
+            (Local.promises lc)
+            (Local.reserves lc)).
 
 Lemma local_relfenced_wf
-      lc mem
-      (WF: Local.wf lc mem):
-  Local.wf (local_relfenced lc) mem.
+      lc gl
+      (WF: Local.wf lc gl):
+  Local.wf (local_relfenced lc) gl.
 Proof.
   inv WF. econs; ss; eauto.
   - inv TVIEW_WF. econs; ss. refl.
   - inv TVIEW_CLOSED. econs; ss.
 Qed.
 
-Lemma sim_local_promise_relfenced
-      pview
-      lc1_src mem1_src
-      lc1_tgt mem1_tgt
-      lc2_tgt mem2_tgt
-      loc from to msg kind
-      (STEP_TGT: Local.promise_step lc1_tgt mem1_tgt loc from to msg lc2_tgt mem2_tgt kind)
-      (LOCAL1: sim_local pview lc1_src (local_relfenced lc1_tgt))
-      (MEM1: sim_memory mem1_src mem1_tgt)
-      (WF1_SRC: Local.wf lc1_src mem1_src)
-      (WF1_TGT: Local.wf lc1_tgt mem1_tgt)
-      (MEM1_SRC: Memory.closed mem1_src)
-      (MEM1_TGT: Memory.closed mem1_tgt):
-  exists lc2_src mem2_src,
-    <<STEP_SRC: Local.promise_step lc1_src mem1_src loc from to (SimPromises.none_if loc to pview msg) lc2_src mem2_src (SimPromises.kind_transf loc to pview kind)>> /\
-    <<LOCAL2: sim_local pview lc2_src (local_relfenced lc2_tgt)>> /\
-    <<MEM2: sim_memory mem2_src mem2_tgt>>.
+Lemma sim_local_internal_relfenced
+      e
+      lc1_src gl1_src
+      lc1_tgt gl1_tgt
+      lc2_tgt gl2_tgt
+      (STEP_TGT: Local.internal_step e lc1_tgt gl1_tgt lc2_tgt gl2_tgt)
+      (LOCAL1: sim_local lc1_src (local_relfenced lc1_tgt))
+      (GLOBAL1: sim_global gl1_src gl1_tgt)
+      (LC_WF1_SRC: Local.wf lc1_src gl1_src)
+      (LC_WF1_TGT: Local.wf lc1_tgt gl1_tgt)
+      (GL_WF1_SRC: Global.wf gl1_src)
+      (GL_WF1_TGT: Global.wf gl1_tgt):
+  exists lc2_src gl2_src,
+    <<STEP_SRC: Local.internal_step e lc1_src gl1_src lc2_src gl2_src>> /\
+    <<LOCAL2: sim_local lc2_src (local_relfenced lc2_tgt)>> /\
+    <<GLOBAL2: sim_global gl2_src gl2_tgt>>.
 Proof.
-  inv LOCAL1. inv STEP_TGT.
-  exploit SimPromises.promise; eauto.
-  { apply WF1_SRC. }
-  { apply WF1_TGT. }
-  i. des.
-  exploit Memory.promise_future; try apply PROMISE_SRC; try apply WF1_SRC; eauto.
-  { SimPromises.none_if_tac; econs; ss. inv CLOSED.
-    eapply sim_memory_closed_opt_view; eauto. }
-  i. des.
-  esplits; eauto.
-  - econs; eauto.
-    SimPromises.none_if_tac; econs; ss. inv CLOSED.
-    eapply sim_memory_closed_opt_view; eauto.
-  - econs; eauto.
+  exploit local_relfenced_wf; try exact LC_WF1_TGT. i.
+  exploit sim_local_internal; try exact LOCAL1; eauto.
+  unfold local_relfenced. destruct lc1_tgt.
+  inv STEP_TGT; inv LOCAL; ss; eauto.
 Qed.
 
 Lemma sim_local_read_relfenced

@@ -32,8 +32,6 @@ Require Import Compatibility.
 
 Require Import ReorderStep.
 Require Import ReorderLoad.
-Require Import ReorderStore.
-Require Import ReorderUpdate.
 Require Import ReorderFence.
 Require Import ReorderAbort.
 

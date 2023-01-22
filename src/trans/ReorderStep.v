@@ -48,37 +48,6 @@ Proof.
   - econs; s; refl.
 Qed.
 
-Lemma future_write_step
-      lc1 gl1 loc from to val releasedm released ord lc2 gl2
-      releasedm' gl1'
-      (FUTURE: Global.strong_le gl1 gl1')
-      (REL_LE: View.opt_le releasedm' releasedm)
-      (STEP: Local.write_step lc1 gl1 loc from to val releasedm released ord lc2 gl2):
-  (exists to',
-      <<STEP: Local.racy_write_step lc1 gl1' loc to' ord>>) \/
-  (exists released' lc2' gl2',
-      (<<STEP: Local.write_step lc1 gl1' loc from to val releasedm' released' ord lc2' gl2'>>) /\
-      (<<REL: View.opt_le released' released>>) /\
-      (<<LOCAL: sim_local lc2' lc2>>)).
-Proof.
-Admitted.
-
-(* Lemma future_fulfill_step *)
-(*       lc1 sc1 sc1' loc from to val releasedm releasedm' released ord lc2 sc2 *)
-(*       (REL_LE: View.opt_le releasedm' releasedm) *)
-(*       (STEP: fulfill_step lc1 sc1 loc from to val releasedm released ord lc2 sc2): *)
-(*   fulfill_step lc1 sc1' loc from to val releasedm' released ord lc2 sc1'. *)
-(* Proof. *)
-(*   assert (TVIEW: TView.write_tview (Local.tview lc1) sc1 loc to ord = TView.write_tview (Local.tview lc1) sc1' loc to ord). *)
-(*   { unfold TView.write_tview. repeat (condtac; viewtac). } *)
-(*   inversion STEP. subst lc2 sc2. *)
-(*   rewrite TVIEW. econs; eauto. *)
-(*   - etrans; eauto. unfold TView.write_released. condtac; econs. repeat apply View.join_spec. *)
-(*     + rewrite <- View.join_l. apply View.unwrap_opt_le. auto. *)
-(*     + rewrite <- ? View.join_r. rewrite TVIEW. refl. *)
-(*   - econs; try apply WRITABLE. *)
-(* Qed. *)
-
 Lemma future_fence_step
       lc1 gl1 gl1' ordr ordw lc2 gl2
       (ORDW: Ordering.le ordw Ordering.acqrel)

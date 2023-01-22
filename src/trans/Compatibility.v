@@ -197,7 +197,7 @@ Proof.
     econs; eauto.
 Qed.
 
-Inductive sim_bind R0 R1 (k: R0 -> itree MemE.t R1):
+Variant sim_bind R0 R1 (k: R0 -> itree MemE.t R1):
   forall (lhs: Thread.t (lang R0)) (rhs:Thread.t (lang R1)), Prop :=
 | sim_bind_intro
     itr lc gl:
@@ -229,7 +229,7 @@ Qed.
 
 Global Hint Resolve cpn9_wcompat: paco.
 
-Inductive ctx (sim_thread:SIM_THREAD): SIM_THREAD :=
+Variant ctx (sim_thread:SIM_THREAD): SIM_THREAD :=
 | ctx_ret
     R_src R_tgt
     (sim_ret:SIM_VAL R_src R_tgt)
@@ -468,7 +468,7 @@ Proof.
       Unshelve. all: try exact ITree.spin.
 Qed.
 
-Inductive iter_ctx (sim_thread:SIM_THREAD): SIM_THREAD :=
+Variant iter_ctx (sim_thread:SIM_THREAD): SIM_THREAD :=
 | ctx_iter
     I_src I_tgt R_src R_tgt
     (sim_ret0: SIM_VAL I_src I_tgt) (sim_ret1: SIM_VAL R_src R_tgt)

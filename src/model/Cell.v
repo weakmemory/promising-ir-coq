@@ -185,7 +185,7 @@ Module Cell.
         + eapply DISJOINT; eauto.
     Qed.
 
-    Inductive remove (cell1:t) (from to:Time.t) (msg:Message.t) (cell2:t): Prop :=
+    Variant remove (cell1:t) (from to:Time.t) (msg:Message.t) (cell2:t): Prop :=
     | remove_intro
         (GET: DOMap.find to cell1 = Some (from, msg))
         (CELL2: cell2 = DOMap.remove to cell1)
@@ -871,7 +871,7 @@ Module Cell.
 
   (* adjacent *)
 
-  Inductive adjacent (from1 to1 from2 to2: Time.t) (cell: t): Prop :=
+  Variant adjacent (from1 to1 from2 to2: Time.t) (cell: t): Prop :=
   | adjacent_intro
       m1 m2
       (GET1: get to1 cell = Some (from1, m1))
@@ -956,7 +956,7 @@ Module Cell.
 
   (* cap *)
 
-  Inductive cap (cell1 cell2: t): Prop :=
+  Variant cap (cell1 cell2: t): Prop :=
   | cap_intro
       (SOUND: le cell1 cell2)
       (MIDDLE: forall from1 to1 from2 to2
@@ -973,7 +973,7 @@ Module Cell.
           (exists f m, get from cell1 = Some (f, m)))
   .
 
-  Inductive cap_aux (dom: list Time.t) (cell1 cell2: t): Prop :=
+  Variant cap_aux (dom: list Time.t) (cell1 cell2: t): Prop :=
   | cap_aux_intro
       (SOUND: le cell1 cell2)
       (MIDDLE: forall from1 to1 from2 to2

@@ -29,7 +29,7 @@ Require Import SimGlobal.
 Require Import SimThread.
 Require Import Compatibility.
 
-Require Import ReorderAbortCommon.
+(* Require Import ReorderAbortCommon. *)
 
 Require Import ITreeLang.
 Require Import ITreeLib.
@@ -37,7 +37,7 @@ Require Import ITreeLib.
 Set Implicit Arguments.
 
 
-Inductive reorder_abort: forall R (i2:MemE.t R), Prop :=
+Variant reorder_abort: forall R (i2:MemE.t R), Prop :=
 | reorder_abort_load
     l2 o2
     (ORD2: Ordering.le o2 Ordering.relaxed):
@@ -54,80 +54,49 @@ Inductive reorder_abort: forall R (i2:MemE.t R), Prop :=
     reorder_abort (MemE.fence or2 ow2)
 .
 
-Inductive sim_abort:
-  forall R (st_src:itree MemE.t (void * R)%type) (lc_src:Local.t) (sc1_src:TimeMap.t) (mem1_src:Memory.t), Prop :=
+Variant sim_abort:
+  forall R (st_src:itree MemE.t (void * R)%type) (lc_src:Local.t) (gl1_src:Global.t), Prop :=
 | sim_abort_intro
     R (i2: MemE.t R)
-    lc1_src sc1_src mem1_src
+    lc1_src gl1_src
     (REORDER: reorder_abort i2)
-    (FAILURE: Local.failure_step lc1_src)
-    (WF_SRC: Local.wf lc1_src mem1_src)
-    (SC_SRC: Memory.closed_timemap sc1_src mem1_src)
-    (MEM_SRC: Memory.closed mem1_src):
+    (LC_WF_SRC: Local.wf lc1_src gl1_src)
+    (GL_WF_SRC: Global.wf gl1_src):
     @sim_abort
-      R (Vis i2 (fun v2 => Vis (MemE.abort) (fun v1 => Ret (v1, v2)))) lc1_src sc1_src mem1_src
+      R (Vis i2 (fun v2 => Vis (MemE.abort) (fun v1 => Ret (v1, v2)))) lc1_src gl1_src
 .
 
 Lemma sim_abort_steps_failure
       R
-      st1_src lc1_src sc1_src mem1_src
-      (SIM: @sim_abort R st1_src lc1_src sc1_src mem1_src):
-  Thread.steps_failure (Thread.mk (lang (void * R)%type) st1_src lc1_src sc1_src mem1_src).
+      st1_src lc1_src gl1_src
+      (SIM: @sim_abort R st1_src lc1_src gl1_src):
+  Thread.steps_failure (Thread.mk (lang (void * R)%type) st1_src lc1_src gl1_src).
 Proof.
-  destruct SIM. inv FAILURE. unfold Thread.steps_failure.
-  dependent destruction REORDER.
+  destruct SIM. destruct REORDER.
   - (* load *)
-    exploit progress_read_step_cur; try exact WF_SRC; eauto. i. des.
-    exploit read_step_cur_future; try exact READ; eauto. i. des.
-    esplits.
-    + econs 2; try refl. econs.
-      * econs. econs 2. econs; [|econs 2]; eauto. econs. econs.
+    exploit progress_read_step; try exact LC_WF_SRC; eauto. i. des.
+    econs.
+    + econs 2; [|refl]. econs.
+      * econs 2; [|econs 2]; eauto. econs. refl.
       * ss.
-    + econs 2. econs; [|econs 7].
-      * econs; eauto.
-      * econs. ii.
-        rewrite <- TVIEW_RLX. rewrite <- PROMISES in *. eauto.
+    + econs 2; [|econs 7]; eauto. econs.
     + ss.
   - (* store *)
-    exploit (@LowerPromises.steps_promises_rel
-               (lang (void * unit)%type)
-               (Thread.mk (lang (void * unit)%type)
-                          (Vis (MemE.write l2 v2 o2) (fun v2 => Vis (MemE.abort) (fun v1 => Ret (v1, v2))))
-                          lc1_src sc1_src mem1_src)); s; eauto.
-    i. des. destruct e2. ss.
-    exploit LowerPromises.rtc_opt_promise_step_future; eauto. s. i. des. subst.
-    hexploit LowerPromises.promises_rel_promise_consistent; eauto. i.
-    hexploit LowerPromises.promises_rel_nonsynch; eauto. i.
-    exploit Thread.rtc_tau_step_future; try exact STEPS0; eauto. s. i. des.
-    exploit write_step_consistent; try exact WF2; eauto. i. des.
-    esplits.
-    + eapply rtc_n1; eauto. econs.
-      * econs. econs 2. econs; [|econs 3; eauto]. econs. econs.
+    exploit progress_write_step; try apply Time.incr_spec; eauto. i. des.
+    econs.
+    + econs 2; [|refl]. econs.
+      * econs 2; [|econs 3]; eauto. econs. refl.
       * ss.
-    + econs 2. econs; [|econs 7].
-      * econs.
-      * econs. ss.
+    + econs 2; [|econs 7]; eauto. econs.
     + ss.
   - (* fence *)
-    exploit (@LowerPromises.steps_promises_rel
-               (lang (void * unit)%type)
-               (Thread.mk (lang (void * unit)%type)
-                          (Vis (MemE.fence or2 ow2) (fun v2 => Vis (MemE.abort) (fun v1 => Ret (v1, v2))))
-                          lc1_src sc1_src mem1_src)); s; eauto.
-    i. des. destruct e2. ss.
-    exploit LowerPromises.rtc_opt_promise_step_future; eauto. s. i. des. inv STATE.
-    hexploit LowerPromises.promises_rel_promise_consistent; eauto. i.
-    hexploit LowerPromises.promises_rel_nonsynch; eauto. i.
-    exploit progress_fence_step; eauto.
-    { instantiate (1:=ow2). i. subst. ss. }
+    exploit progress_fence_step.
+    { instantiate (2:=ow2). destruct ow2; ss. }
     i. des.
-    esplits.
-    + eapply rtc_n1; eauto. econs.
-      * econs. econs 2. econs; [|econs 5; eauto]. econs. econs.
+    econs.
+    + econs 2; [|refl]. econs.
+      * econs 2; [|econs 5]; eauto. econs. refl.
       * ss.
-    + econs 2. econs; [|econs 7].
-      * econs.
-      * econs. exploit fence_step_future; eauto. i. des.
-        ii. rewrite <- PROMISES in *. rewrite <- TVIEW0. eauto.
+    + econs 2; [|econs 7]; eauto. econs.
     + ss.
 Qed.

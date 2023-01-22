@@ -29,8 +29,6 @@ Require Import SimGlobal.
 Require Import SimThread.
 Require Import Compatibility.
 
-(* Require Import ReorderAbortCommon. *)
-
 Require Import ITreeLang.
 Require Import ITreeLib.
 
@@ -52,6 +50,8 @@ Variant reorder_abort: forall R (i2:MemE.t R), Prop :=
     (ORDR2: Ordering.le or2 Ordering.relaxed)
     (ORDW2: Ordering.le ow2 Ordering.acqrel):
     reorder_abort (MemE.fence or2 ow2)
+| reorder_abort_choose:
+    reorder_abort MemE.choose
 .
 
 Variant sim_abort:
@@ -99,4 +99,12 @@ Proof.
       * ss.
     + econs 2; [|econs 7]; eauto. econs.
     + ss.
+  - (* choose *)
+    econs.
+    + econs 2; [|econs 1]. econs.
+      * econs 2; [|econs 1]. econs. refl.
+      * ss.
+    + econs 2; [|econs 7]; eauto. econs.
+    + ss.
+  Unshelve. econs 2.
 Qed.

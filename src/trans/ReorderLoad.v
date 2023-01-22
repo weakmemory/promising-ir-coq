@@ -60,6 +60,8 @@ Variant reorder_load l1 o1: forall R (i2:MemE.t R), Prop :=
     (ORDR2: Ordering.le or2 Ordering.relaxed)
     (ORDW2: Ordering.le ow2 Ordering.acqrel):
     reorder_load l1 o1 (MemE.fence or2 ow2)
+| reorder_load_choose:
+    reorder_load l1 o1 MemE.choose
 .
 
 Variant sim_load: forall R
@@ -167,6 +169,17 @@ Proof.
       + right. econs; eauto.
     }
     inv LOCAL0; ss; dependent destruction REORDER; dependent destruction STATE.
+    - (* choose *)
+      right.
+      esplits.
+      + ss.
+      + econs 2; [|econs 1]. econs.
+        * econs 2; [|econs 1]. econs. refl.
+        * ss.
+      + econs 2. econs 2; [|econs 2]; eauto. econs. refl.
+      + ss.
+      + ss.
+      + left. eapply paco9_mon; [apply sim_itree_ret|]; ss.
     - (* load *)
       right.
       exploit sim_local_read; try exact LOCAL; try exact LOCAL1; eauto; try refl. i. des.
@@ -305,6 +318,17 @@ Proof.
       + right. econs 2; eauto.
     }
     inv LOCAL0; ss; dependent destruction REORDER; dependent destruction STATE.
+    - (* choose *)
+      right.
+      esplits.
+      + ss.
+      + econs 2; [|econs 1]. econs.
+        * econs 2; [|econs 1]. econs. refl.
+        * ss.
+      + econs 2. econs 2; [|econs 8]; eauto. econs. refl.
+      + ss.
+      + ss.
+      + left. eapply paco9_mon; [apply sim_itree_ret|]; ss.
     - (* load *)
       right.
       exploit sim_local_read; try exact LOCAL; try exact LOCAL1; eauto; try refl. i. des.

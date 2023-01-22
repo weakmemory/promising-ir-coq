@@ -57,6 +57,9 @@ Variant reorder_fence (or1 ow1:Ordering.t): forall R (i2:MemE.t R), Prop :=
     (ORDW1: Ordering.le ow1 Ordering.relaxed)
     (ORDR2: Ordering.le or2 Ordering.plain \/ Ordering.le Ordering.acqrel or2):
     reorder_fence or1 ow1 (MemE.update l2 rmw2 or2 ow2)
+| reorder_fence_choose
+    (ORDW1: Ordering.le ow1 Ordering.acqrel):
+    reorder_fence or1 ow1 MemE.choose
 .
 
 Variant sim_fence: forall R
@@ -170,6 +173,17 @@ Proof.
     + right. econs; eauto.
   }
   inv LOCAL0; ss; dependent destruction REORDER; dependent destruction STATE.
+  - (* choose *)
+    right.
+    esplits.
+    + ss.
+    + econs 2; [|econs 1]. econs.
+      * econs 2; [|econs 1]. econs. refl.
+      * ss.
+    + econs 2. econs 2; [|econs 5]; eauto. econs. refl.
+    + ss.
+    + ss.
+    + left. eapply paco9_mon; [apply sim_itree_ret|]; ss.
   - (* load *)
     right.
     guardH ORD2.

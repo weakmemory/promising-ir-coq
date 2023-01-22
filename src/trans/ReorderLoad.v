@@ -65,7 +65,7 @@ Variant reorder_load l1 o1: forall R (i2:MemE.t R), Prop :=
 .
 
 Variant sim_load: forall R
-                      (st_src:itree MemE.t (Const.t * R)%type) (lc_src:Local.t)  (gl1_src:Global.t)
+                      (st_src:itree MemE.t (Const.t * R)%type) (lc_src:Local.t) (gl1_src:Global.t)
                       (st_tgt:itree MemE.t (Const.t * R)%type) (lc_tgt:Local.t) (gl1_tgt:Global.t), Prop :=
 | sim_load_read
     R

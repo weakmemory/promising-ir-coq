@@ -34,6 +34,7 @@ Require Import ReorderStep.
 Require Import ReorderLoad.
 Require Import ReorderFence.
 Require Import ReorderAbort.
+Require Import ReorderChoose.
 
 Require Import ITreeLang.
 Require Import ITreeLib.
@@ -54,6 +55,10 @@ Variant reorder: forall R0 R1 (i1: MemE.t R0) (i2: MemE.t R1), Prop :=
     R1 (i2: MemE.t R1)
     (REORDER: reorder_abort i2):
     reorder MemE.abort i2
+| reorder_intro_choose
+    R1 (i2: MemE.t R1)
+    (REORDER: reorder_choose i2):
+    reorder MemE.choose i2
 .
 
 Lemma reorder_sim_itree R0 R1
@@ -113,4 +118,8 @@ Proof.
     left.
     eapply sim_abort_steps_failure.
     econs; eauto.
+  - (* choose *)
+    right.
+    esplits; eauto; ss.
+    left. eapply paco9_mon; [apply sim_choose_sim_thread|]; ss.
 Qed.

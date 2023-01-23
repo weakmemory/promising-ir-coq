@@ -1,35 +1,41 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 
+From PromisingLib Require Import Axioms.
 From PromisingLib Require Import Basic.
 From PromisingLib Require Import Loc.
+From PromisingLib Require Import DataStructure.
+From PromisingLib Require Import DenseOrder.
 From PromisingLib Require Import Language.
-
 From PromisingLib Require Import Event.
+
 Require Import Time.
 Require Import View.
+Require Import BoolMap.
+Require Import Promises.
 Require Import Cell.
 Require Import Memory.
+Require Import Global.
 Require Import TView.
 Require Import Local.
 Require Import Thread.
 Require Import Configuration.
 
-Require Import FulfillStep.
-
-Require Import SimMemory.
-Require Import SimPromises.
 Require Import SimLocal.
+Require Import SimMemory.
+Require Import SimGlobal.
 Require Import SimThread.
-Require Import iCompatibility.
+Require Import Compatibility.
+
 Require Import SplitRelCommon.
 
 Require Import ITreeLang.
+Require Import ITreeLib.
 
 Set Implicit Arguments.
 
 
-Inductive split_release: forall R (i1: MemE.t R) (i2: MemE.t R), Prop :=
+Variant split_release: forall R (i1: MemE.t R) (i2: MemE.t R), Prop :=
 | split_release_store
     l v:
     split_release (MemE.write l v Ordering.acqrel) (MemE.write l v Ordering.strong_relaxed)
@@ -39,154 +45,139 @@ Inductive split_release: forall R (i1: MemE.t R) (i2: MemE.t R), Prop :=
     split_release (MemE.update l rmw or Ordering.acqrel) (MemE.update l rmw or Ordering.strong_relaxed)
 .
 
-Inductive sim_released: forall R
-                               (st_src:(Language.state (lang R))) (lc_src:Local.t) (sc1_src:TimeMap.t) (mem1_src:Memory.t)
-                               (st_tgt:(Language.state (lang R))) (lc_tgt:Local.t) (sc1_tgt:TimeMap.t) (mem1_tgt:Memory.t), Prop :=
+Variant sim_released: forall R
+                        (st_src:(Language.state (lang R))) (lc_src:Local.t) (gl1_src:Global.t)
+                        (st_tgt:(Language.state (lang R))) (lc_tgt:Local.t) (gl1_tgt:Global.t), Prop :=
 | sim_released_intro
     R
     (i_src i_tgt: MemE.t R)
-    lc1_src sc1_src mem1_src
-    lc1_tgt sc1_tgt mem1_tgt
+    lc1_src gl1_src
+    lc1_tgt gl1_tgt
     (SPLIT: split_release i_src i_tgt)
-    (LOCAL: sim_local SimPromises.bot lc1_src lc1_tgt)
+    (LOCAL: sim_local lc1_src lc1_tgt)
     (RELEASED: forall l, View.le (TView.cur (Local.tview lc1_tgt)) ((TView.rel (Local.tview lc1_tgt)) l))
-    (SC: TimeMap.le sc1_src sc1_tgt)
-    (MEMORY: sim_memory mem1_src mem1_tgt)
-    (WF_SRC: Local.wf lc1_src mem1_src)
-    (WF_TGT: Local.wf lc1_tgt mem1_tgt)
-    (SC_SRC: Memory.closed_timemap sc1_src mem1_src)
-    (SC_TGT: Memory.closed_timemap sc1_tgt mem1_tgt)
-    (MEM_SRC: Memory.closed mem1_src)
-    (MEM_TGT: Memory.closed mem1_tgt):
+    (GLOBAL: sim_global gl1_src gl1_tgt)
+    (LC_WF_SRC: Local.wf lc1_src gl1_src)
+    (LC_WF_TGT: Local.wf lc1_tgt gl1_tgt)
+    (GL_WF_SRC: Global.wf gl1_src)
+    (GL_WF_TGT: Global.wf gl1_tgt):
     sim_released
-      (Vis i_src (fun r => Ret r)) lc1_src sc1_src mem1_src
-      (Vis i_tgt (fun r => Ret r)) lc1_tgt sc1_tgt mem1_tgt
+      (Vis i_src (fun r => Ret r)) lc1_src gl1_src
+      (Vis i_tgt (fun r => Ret r)) lc1_tgt gl1_tgt
 .
 
 Lemma sim_released_mon
       R
-      st_src lc_src sc1_src mem1_src
-      st_tgt lc_tgt sc1_tgt mem1_tgt
-      sc2_src mem2_src
-      sc2_tgt mem2_tgt
-      (SIM1: sim_released st_src lc_src sc1_src mem1_src
-                          st_tgt lc_tgt sc1_tgt mem1_tgt)
-      (SC_FUTURE_SRC: TimeMap.le sc1_src sc2_src)
-      (SC_FUTURE_TGT: TimeMap.le sc1_tgt sc2_tgt)
-      (MEM_FUTURE_SRC: Memory.future_weak mem1_src mem2_src)
-      (MEM_FUTURE_TGT: Memory.future_weak mem1_tgt mem2_tgt)
-      (SC1: TimeMap.le sc2_src sc2_tgt)
-      (MEM1: sim_memory mem2_src mem2_tgt)
-      (WF_SRC: Local.wf lc_src mem2_src)
-      (WF_TGT: Local.wf lc_tgt mem2_tgt)
-      (SC_SRC: Memory.closed_timemap sc2_src mem2_src)
-      (SC_TGT: Memory.closed_timemap sc2_tgt mem2_tgt)
-      (MEM_SRC: Memory.closed mem2_src)
-      (MEM_TGT: Memory.closed mem2_tgt):
+      st_src lc_src gl1_src
+      st_tgt lc_tgt gl1_tgt
+      gl2_src
+      gl2_tgt
+      (SIM1: sim_released st_src lc_src gl1_src
+                          st_tgt lc_tgt gl1_tgt)
+      (FUTURE_SRC: Global.strong_le gl1_src gl2_src)
+      (FUTURE_TGT: Global.le gl1_tgt gl2_tgt)
+      (GLOBAL: sim_global gl2_src gl2_tgt)
+      (LC_WF_SRC: Local.wf lc_src gl2_src)
+      (LC_WF_TGT: Local.wf lc_tgt gl2_tgt)
+      (GL_WF_SRC: Global.wf gl2_src)
+      (GL_WF_TGT: Global.wf gl2_tgt):
   @sim_released R
-                st_src lc_src sc2_src mem2_src
-                st_tgt lc_tgt sc2_tgt mem2_tgt.
+                st_src lc_src gl2_src
+                st_tgt lc_tgt gl2_tgt.
 Proof.
   destruct SIM1. econs; eauto.
 Qed.
 
-Lemma sim_released_step R
-      st1_src lc1_src sc1_src mem1_src
-      st1_tgt lc1_tgt sc1_tgt mem1_tgt
+Lemma sim_released_step
+      R
+      st1_src lc1_src gl1_src
+      st1_tgt lc1_tgt gl1_tgt
       (SIM: @sim_released R
-                          st1_src lc1_src sc1_src mem1_src
-                          st1_tgt lc1_tgt sc1_tgt mem1_tgt):
+                          st1_src lc1_src gl1_src
+                          st1_tgt lc1_tgt gl1_tgt):
   _sim_thread_step (lang R) (lang R)
-                   ((@sim_thread (lang R) (lang R) (sim_terminal eq)) \8/ @sim_released R)
-                   st1_src lc1_src sc1_src mem1_src
-                   st1_tgt lc1_tgt sc1_tgt mem1_tgt.
+                   ((@sim_thread (lang R) (lang R) (sim_terminal eq)) \6/ @sim_released R)
+                   st1_src lc1_src gl1_src
+                   st1_tgt lc1_tgt gl1_tgt.
 Proof.
   destruct SIM. ii.
-  inv STEP_TGT; [inv STEP|dependent destruction STEP; inv LOCAL0; ss; dependent destruction STATE; inv SPLIT]; ss.
-  - (* promise *)
+  inv STEP_TGT; [|inv LOCAL0; destruct SPLIT; ss; dependent destruction STATE].
+  - (* internal *)
     right.
-    exploit Local.promise_step_future; eauto. i. des.
-    exploit sim_local_promise; eauto. i. des.
-    exploit Local.promise_step_future; eauto. i. des.
-    esplits; try apply SC; eauto; ss.
-    + econs 2. econs. econs; eauto.
-    + eauto.
+    exploit Local.internal_step_future; eauto. i. des.
+    exploit sim_local_internal; try exact LOCAL; eauto. i. des.
+    exploit Local.internal_step_future; eauto. i. des.
+    esplits; try exact GL2; eauto.
+    + inv LOCAL0; ss.
     + right. econs; eauto.
-      inv LOCAL0. ss.
-  - dependent destruction H.
-    (* update-load *)
+      inv LOCAL0; inv LOCAL1; ss.
+  - (* update-load *)
     right.
-    exploit sim_local_read; (try by etrans; eauto); eauto; try refl. i. des.
-    esplits; eauto; ss.
-    + econs 2. econs 2. econs; [|econs 2]; eauto. econs; eauto.
-    + eauto.
-    + left. eapply paco11_mon; [apply sim_itree_ret|]; ss.
-  - dependent destruction H.
-    (* write *)
+    exploit sim_local_read; try exact LOCAL1; eauto; try refl. i. des.
+    esplits.
+    + ss.
+    + refl.
+    + econs 2. econs 2; [|econs 2]; eauto. econs; eauto.
+    + ss.
+    + ss.
+    + left. eapply paco9_mon; [apply sim_itree_ret|]; ss.
+  - (* write *)
     right.
-    hexploit sim_local_write_released; (try by etrans; eauto); eauto; try refl; try by econs.
+    hexploit sim_local_write_released; try exact LOCAL1; eauto; try refl.
     { by rewrite <- View.join_l. }
     i. des.
-    esplits; eauto; ss.
-    + econs 2. econs 2. econs; [|econs 3]; eauto. econs. econs.
+    esplits.
     + ss.
-    + left. eapply paco11_mon; [apply sim_itree_ret|]; ss.
-  - dependent destruction H.
-    (* update *)
+    + refl.
+    + econs 2. econs 2; [|econs 3]; eauto. econs. refl.
+    + ss.
+    + ss.
+    + left. eapply paco9_mon; [apply sim_itree_ret|]; ss.
+  - (* update *)
     right.
-    exploit Local.read_step_future; eauto. i. des.
-    exploit sim_local_read; (try by etrans; eauto); eauto; try refl; try by econs. i. des.
-    exploit Local.read_step_future; eauto. i. des.
-    hexploit sim_local_write_released; (try by etrans; eauto); eauto; try refl; try by econs.
-    { assert (TS: Time.lt tsr tsw).
-      { inv LOCAL2. eapply MemoryFacts.MemoryFacts.write_time_lt. eauto. }
-      inv LOCAL1. ss. repeat (condtac; aggrtac); try by apply WF_TGT.
-      destruct ordr; ss.
-    }
-    i. des.
-    esplits; eauto; ss.
-    + econs 2. econs 2. econs; [|econs 4]; eauto. econs; eauto.
+    exploit sim_local_update_released; try exact LOCAL1; try exact LOCAL2; eauto; try refl. i. des.
+    esplits.
     + ss.
-    + left. eapply paco11_mon; [apply sim_itree_ret|]; ss.
-  - (* na write *)
-    inv LOCAL1. inv ORD.
+    + refl.
+    + econs 2. econs 2; [|econs 4]; eauto. econs; eauto.
+    + ss.
+    + ss.
+    + left. eapply paco9_mon; [apply sim_itree_ret|]; ss.
   - (* racy read *)
     right.
-    dependent destruction H.
     exploit sim_local_racy_read; try exact LOCAL1; eauto; try refl. i. des.
-    esplits; try apply SC; eauto; ss.
-    + econs 2. econs 2. econs; [|econs 9]; eauto. econs; eauto.
+    esplits.
     + ss.
-    + left. eapply paco11_mon; [apply sim_itree_ret|]; ss.
+    + refl.
+    + econs 2. econs 2; [|econs 8]; eauto. econs; eauto.
+    + ss.
+    + ss.
+    + left. eapply paco9_mon; [apply sim_itree_ret|]; ss.
   - (* racy write *)
     left.
-    dependent destruction H.
     exploit sim_local_racy_write_released; try exact LOCAL1; eauto. i. des.
-    unfold Thread.steps_failure.
-    esplits; try refl.
-    + econs 2. econs; [|econs 10]; eauto. econs; eauto.
+    econs; try refl.
+    + econs 2; [|econs 9]; eauto. econs; eauto.
     + ss.
   - (* racy update *)
     left.
-    dependent destruction H.
     exploit sim_local_racy_update_released; try exact LOCAL1; eauto. i. des.
-    unfold Thread.steps_failure.
-    esplits; try refl.
-    + econs 2. econs; [|econs 11]; eauto. econs; eauto.
+    econs; try refl.
+    + econs 2; [|econs 10]; eauto. econs; eauto.
     + ss.
 Qed.
 
 Lemma sim_released_sim_thread R:
-  @sim_released R <8= @sim_thread (lang R) (lang R) (sim_terminal eq).
+  @sim_released R <6= @sim_thread (lang R) (lang R) (sim_terminal eq).
 Proof.
   pcofix CIH. i. pfold. ii. ss. splits; ss; ii.
   - inv TERMINAL_TGT. inv PR; ss.
   - right. esplits; eauto.
-    inv PR. eapply sim_local_memory_bot; eauto.
+    inv PR. eapply sim_local_promises_bot; eauto.
   - exploit sim_released_mon; eauto. i.
     exploit sim_released_step; eauto. i. des; eauto.
     + right. esplits; eauto.
-      left. eapply paco11_mon; eauto. ss.
+      left. eapply paco9_mon; eauto. ss.
     + right. esplits; eauto.
 Qed.
 
@@ -205,25 +196,26 @@ Proof.
   pcofix CIH. ii. subst. pfold. ii. splits; ii.
   { inv TERMINAL_TGT. eapply f_equal with (f:=observe) in H; ss. }
   { right. esplits; eauto.
-    inv LOCAL. apply SimPromises.sem_bot_inv in PROMISES; auto. rewrite PROMISES. auto.
+    eapply sim_local_promises_bot; eauto.
   }
   right.
-  inv STEP_TGT; [inv STEP|dependent destruction STEP; inv LOCAL0; ss; dependent destruction STATE]; ss.
-  - (* promise *)
-    exploit sim_local_promise; eauto. i. des.
-    esplits; try apply SC; eauto; ss.
-    econs 2. econs 1; eauto. econs; eauto. eauto.
+  inv STEP_TGT; ss.
+  - (* internal *)
+    exploit sim_local_internal; eauto. i. des.
+    esplits; try apply GL2; eauto; ss.
+    inv LOCAL0; ss.
   - (* fence *)
+    inv LOCAL0; dependent destruction STATE.
     exploit Local.fence_step_future; eauto. i. des.
     esplits.
     + ss.
-    + eauto.
+    + refl.
     + econs 1.
     + ss.
-    + inv LOCAL1. ss.
-    + ss.
-    + left. eapply paco11_mon; [apply sim_released_sim_thread|]; ss.
+    + exploit Local.fence_step_non_sc; eauto. i. subst. ss.
+    + left. eapply paco9_mon; [apply sim_released_sim_thread|]; ss.
       inv LOCAL1. econs; eauto.
       * inv LOCAL. econs; ss. etrans; eauto.
       * s. i. repeat condtac; ss. refl.
+      * inv GLOBAL. econs; ss.        
 Qed.

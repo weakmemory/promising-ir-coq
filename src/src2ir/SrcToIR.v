@@ -28,19 +28,19 @@ Require Import Behavior.
 
 Require Import PFConsistent.
 Require Import FutureCertify.
-Require Import PFtoIRThread.
+Require Import SrcToIRThread.
 
 Set Implicit Arguments.
 
 
-Module PFtoIR.
+Module SrcToIR.
   Variant sim_thread_sl (gl_pf gl_ir: Global.t):
     forall (sl_pf sl_ir: {lang: language & Language.state lang} * Local.t), Prop :=
     | sim_thread_sl_intro
         lang
         st_pf lc_pf
         st_ir lc_ir
-        (THREAD: PFtoIRThread.sim_thread (Thread.mk _ st_pf lc_pf gl_pf) (Thread.mk _ st_ir lc_ir gl_ir))
+        (THREAD: SrcToIRThread.sim_thread (Thread.mk _ st_pf lc_pf gl_pf) (Thread.mk _ st_ir lc_ir gl_ir))
         (CONS: exists gl_past,
             (<<FUTURE: Global.future gl_past gl_ir>>) /\
             (<<LC_WF: Local.wf lc_ir gl_past>>) /\
@@ -56,7 +56,7 @@ Module PFtoIR.
         (GL_FUTURE_IR: Global.future gl_ir gl_future_ir)
         (SC: Global.sc gl_future_pf = Global.sc gl_future_ir)
         (GPROMISES: Global.promises gl_future_pf = BoolMap.bot)
-        (MEMORY: PFtoIRThread.sim_memory (Global.memory gl_future_pf) (Global.memory gl_future_ir))
+        (MEMORY: SrcToIRThread.sim_memory (Global.memory gl_future_pf) (Global.memory gl_future_ir))
         (SIM: sim_thread_sl gl_pf gl_ir
                             (existT _ lang_pf st_pf, lc_pf)
                             (existT _ lang_ir st_ir, lc_ir)):
@@ -89,7 +89,7 @@ Module PFtoIR.
     destruct (@UsualFMapPositive.UsualPositiveMap'.find
                 (@sigT _ (@Language.syntax ProgramEvent.t)) tid prog); ss.
     econs; ss.
-    - econs; ss. apply PFtoIRThread.init_sim_memory.
+    - econs; ss. apply SrcToIRThread.init_sim_memory.
     - exists Global.init. splits.
       + refl.
       + apply Local.init_wf.
@@ -173,10 +173,10 @@ Module PFtoIR.
     destruct (IdentMap.find tid ths1_pf) as [[[lang_pf st1_pf] lc1_pf]|] eqn:FIND_PF; ss.
     inv THS. Configuration.simplify. clear CONS.
 
-    exploit PFtoIRThread.plus_step_cases; try exact STEPS; eauto. i. des; cycle 1.
+    exploit SrcToIRThread.plus_step_cases; try exact STEPS; eauto. i. des; cycle 1.
     { (* race with a promise *)
       left. clear e0 th2 st3 lc3 gl3 STEPS STEP0 CONSISTENT.
-      exploit PFtoIRThread.sim_thread_rtc_step; try exact STEPS0; eauto. i. des.
+      exploit SrcToIRThread.sim_thread_rtc_step; try exact STEPS0; eauto. i. des.
       exploit is_racy_promise_is_racy; try exact STEP_RACE; ss. i. des.
       exploit Thread.rtc_tau_step_promises_minus;
         try eapply rtc_implies; try exact STEPS0; s.
@@ -307,8 +307,8 @@ Module PFtoIR.
           * destruct e0; ss.
     }
 
-    exploit PFtoIRThread.sim_thread_rtc_step; try exact STEPS0; eauto. i. des.
-    exploit PFtoIRThread.sim_thread_step; try exact STEP0; eauto. i. des.
+    exploit SrcToIRThread.sim_thread_rtc_step; try exact STEPS0; eauto. i. des.
+    exploit SrcToIRThread.sim_thread_step; try exact STEP0; eauto. i. des.
     exploit (@PFConfiguration.opt_plus_program_step_opt_plus_step (Configuration.mk ths1_pf gl1_pf));
       try exact STEPS_PF; eauto. s. i. des; try by left; eauto.
     right.
@@ -341,8 +341,8 @@ Module PFtoIR.
     (* race with a promise during certification *)
     right. clear H c2 STEPS1 STEP EVENT0 x0 x1.
     inv SPF_RACE. ss.
-    exploit PFtoIRThread.sim_thread_cap; try exact SIM0. i.
-    exploit PFtoIRThread.sim_thread_rtc_step; try eapply rtc_implies; try exact STEPS1; eauto.
+    exploit SrcToIRThread.sim_thread_cap; try exact SIM0. i.
+    exploit SrcToIRThread.sim_thread_rtc_step; try eapply rtc_implies; try exact STEPS1; eauto.
     { i. inv H. des. inv EVENT0. inv EVENT2. econs; eauto. }
     i. des.
     exploit is_racy_promise_is_racy; try exact STEP_RACE; ss. i. des.
@@ -565,4 +565,4 @@ Module PFtoIR.
         econs 3; eauto.
     - econs 5.
   Qed.
-End PFtoIR.
+End SrcToIR.

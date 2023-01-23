@@ -27,7 +27,7 @@ Require Import Cover.
 
 Require Import Mapping.
 Require Import PFConsistent.
-Require Import PFtoIRThread.
+Require Import SrcToIRThread.
 
 Set Implicit Arguments.
 
@@ -439,7 +439,7 @@ Section FutureCertify.
         (CLOSED: Memory.closed mem)
         (FUTURE: Memory.messages_le mem mem_future)
         (FUTURE_LE: Memory.le rsv mem_future)
-        (SIM: PFtoIRThread.sim_memory fmem mem_future)
+        (SIM: SrcToIRThread.sim_memory fmem mem_future)
         (CAP: Memory.cap mem mem_cap):
     exists f,
       (<<F: f = fun loc ts fts =>
@@ -760,7 +760,7 @@ Section FutureCertify.
         (TVIEW: Local.tview (Thread.local th) = Local.tview (Thread.local fth))
         (FPROMISES: Local.promises (Thread.local fth) = BoolMap.bot)
         (FUTURE: Memory.messages_le (Global.memory (Thread.global th)) mem_future)
-        (SIM: PFtoIRThread.sim_memory (Global.memory (Thread.global fth)) mem_future)
+        (SIM: SrcToIRThread.sim_memory (Global.memory (Thread.global fth)) mem_future)
         (LC_WF: Local.wf (Thread.local th) (Thread.global th))
         (GL_WF: Global.wf (Thread.global th))
         (LE_FUTURE: Memory.le (Local.reserves (Thread.local th)) mem_future)

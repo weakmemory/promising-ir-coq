@@ -31,8 +31,8 @@ Require Import PFConsistent.
 Set Implicit Arguments.
 
 
-Module PFtoIRThread.
-  Section PFtoIRThread.
+Module SrcToIRThread.
+  Section SrcToIRThread.
     Variable lang: language.
 
     Variant sim_memory (mem_pf mem_ir: Memory.t): Prop :=
@@ -77,8 +77,8 @@ Module PFtoIRThread.
 
     Lemma sim_thread_cap
           th_pf th_ir
-          (SIM: PFtoIRThread.sim_thread th_pf th_ir):
-      PFtoIRThread.sim_thread th_pf (Thread.cap_of th_ir).
+          (SIM: SrcToIRThread.sim_thread th_pf th_ir):
+      SrcToIRThread.sim_thread th_pf (Thread.cap_of th_ir).
     Proof.
       inv SIM. econs; ss.
       eapply sim_memory_cap; eauto.
@@ -378,5 +378,5 @@ Module PFtoIRThread.
       econs 2; eauto. econs; eauto. split; ss.
       unguard. des; subst; ss.
     Qed.
-  End PFtoIRThread.
-End PFtoIRThread.
+  End SrcToIRThread.
+End SrcToIRThread.

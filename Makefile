@@ -3,7 +3,7 @@ COQTHEORIES  := \
 	src/model/*.v \
 	src/itree/*.v \
 	src/prop/*.v \
-	src/pf2ir/*.v \
+	src/src2ir/*.v \
 	src/ldrfra/*.v \
 	src/ldrfsc/*.v \
 	src/sequential/*.v \
@@ -24,7 +24,7 @@ Makefile.coq: Makefile $(COQTHEORIES)
 	(echo "-R src/model $(COQMODULE)"; \
 	 echo "-R src/itree $(COQMODULE)"; \
 	 echo "-R src/prop $(COQMODULE)"; \
-	 echo "-R src/pf2ir $(COQMODULE)"; \
+	 echo "-R src/src2ir $(COQMODULE)"; \
 	 echo "-R src/ldrfra $(COQMODULE)"; \
 	 echo "-R src/ldrfsc $(COQMODULE)"; \
 	 echo "-R src/sequential $(COQMODULE)"; \

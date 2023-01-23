@@ -544,6 +544,30 @@ Module Local.
     - eapply TViewFacts.write_released_ts; eauto.
   Qed.
 
+  Lemma update_step_future
+        lc1 gl1 loc ts val1 released1 ordr lc2
+        to val2 released2 ordw lc3 gl3
+        (READ: read_step lc1 gl1 loc ts val1 released1 ordr lc2)
+        (WRITE: write_step lc2 gl1 loc ts to val2 released1 released2 ordw lc3 gl3)
+        (LC_WF1: wf lc1 gl1)
+        (GL_WF1: Global.wf gl1):
+    <<LC_WF2: wf lc3 gl3>> /\
+    <<GL_WF2: Global.wf gl3>> /\
+    <<TVIEW_FUTURE: TView.le (tview lc1) (tview lc2)>> /\
+    <<GL_FUTURE: Global.future gl1 gl3>> /\
+    <<REL_WF: View.opt_wf released2>> /\
+    <<REL_TS: Time.le ((View.rlx (View.unwrap released2)) loc) to>> /\
+    <<REL_CLOSED: Memory.closed_opt_view released2 (Global.memory gl3)>>.
+  Proof.
+    exploit read_step_future; eauto. i. des.
+    exploit write_step_future; eauto.
+    { etrans; eauto. econs.
+      inv WRITE. eapply Memory.add_ts; eauto.
+    }
+    i. des.
+    esplits; eauto.
+  Qed.
+
   Lemma fence_step_future
         lc1 gl1 ordr ordw lc2 gl2
         (STEP: fence_step lc1 gl1 ordr ordw lc2 gl2)
@@ -989,5 +1013,15 @@ Module Local.
     }
     econs. unfold TView.write_released. condtac; econs.
     repeat (try condtac; aggrtac; try apply LC_WF).
+  Qed.
+
+  Lemma fence_step_non_sc
+        lc1 gl1 or ow lc2 gl2
+        (STEP: fence_step lc1 gl1 or ow lc2 gl2)
+        (SC: Ordering.le ow Ordering.acqrel):
+    gl2 = gl1.
+  Proof.
+    destruct gl1. inv STEP. ss. f_equal.
+    apply TViewFacts.write_fence_sc_acqrel. ss.
   Qed.
 End Local.

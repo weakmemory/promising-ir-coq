@@ -92,16 +92,6 @@ Proof.
   inv WF. econs; ss; condtac; eauto. refl.
 Qed.
 
-Lemma fence_step_non_sc
-      lc1 gl1 or ow lc2 gl2
-      (STEP: Local.fence_step lc1 gl1 or ow lc2 gl2)
-      (SC: Ordering.le ow Ordering.acqrel):
-  gl2 = gl1.
-Proof.
-  destruct gl1. inv STEP. ss. f_equal.
-  apply TViewFacts.write_fence_sc_acqrel. ss.
-Qed.
-
 Lemma sim_fence_mon
       R
       st_src lc_src gl1_src
@@ -159,7 +149,7 @@ Proof.
   assert (OW: Ordering.le ow1 Ordering.acqrel)
     by (inv FENCE; inv REORDER; destruct ow1; ss).
   exploit Local.fence_step_future; eauto. i. des.
-  exploit fence_step_non_sc; try exact FENCE; ss. i. subst.
+  exploit Local.fence_step_non_sc; try exact FENCE; ss. i. subst.
   inv STEP_TGT; ss.
   { (* internal *)
     right.
@@ -167,7 +157,7 @@ Proof.
     exploit sim_local_internal; try exact LOCAL; eauto. i. des.
     exploit reorder_fence_internal; try exact FENCE; try exact STEP_SRC; eauto. i. des.
     exploit Local.internal_step_future; eauto. i. des.
-    exploit fence_step_non_sc; try exact STEP2; eauto. i. subst.
+    exploit Local.fence_step_non_sc; try exact STEP2; eauto. i. subst.
     esplits; try apply GL2; eauto; ss.
     + inv LOCAL0; ss.
     + right. econs; eauto.

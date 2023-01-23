@@ -74,8 +74,6 @@ Lemma sim_released_mon
       gl2_tgt
       (SIM1: sim_released st_src lc_src gl1_src
                           st_tgt lc_tgt gl1_tgt)
-      (FUTURE_SRC: Global.strong_le gl1_src gl2_src)
-      (FUTURE_TGT: Global.le gl1_tgt gl2_tgt)
       (GLOBAL: sim_global gl2_src gl2_tgt)
       (LC_WF_SRC: Local.wf lc_src gl2_src)
       (LC_WF_TGT: Local.wf lc_tgt gl2_tgt)

@@ -35,12 +35,12 @@ Module SrcToIRThread.
   Section SrcToIRThread.
     Variable lang: language.
 
-    Variant sim_memory (mem_pf mem_ir: Memory.t): Prop :=
+    Variant sim_memory (mem_src mem_ir: Memory.t): Prop :=
       | sim_memory_intro
-          (SOUND: Memory.le mem_pf mem_ir)
-          (COMPLETE: Memory.messages_le mem_ir mem_pf)
+          (SOUND: Memory.le mem_src mem_ir)
+          (COMPLETE: Memory.messages_le mem_ir mem_src)
           (GRESERVES: forall loc from to msg
-                        (GET: Memory.get loc to mem_pf = Some (from, msg)),
+                        (GET: Memory.get loc to mem_src = Some (from, msg)),
               msg <> Message.reserve)
     .
     #[local] Hint Constructors sim_memory: core.
@@ -51,22 +51,22 @@ Module SrcToIRThread.
       exploit Memory.init_get; eauto. i. des. subst. ss.
     Qed.
 
-    Variant sim_thread (th_pf th_ir: Thread.t lang): Prop :=
+    Variant sim_thread (th_src th_ir: Thread.t lang): Prop :=
       | sim_thread_intro
-          (STATE: Thread.state th_pf = Thread.state th_ir)
-          (TVIEW: Local.tview (Thread.local th_pf) = Local.tview (Thread.local th_ir))
-          (PROMISES: Local.promises (Thread.local th_pf) = BoolMap.bot)
-          (RESERVES: Local.reserves (Thread.local th_pf) = Memory.bot)
-          (SC: Global.sc (Thread.global th_pf) = Global.sc (Thread.global th_ir))
-          (GPROMISES: Global.promises (Thread.global th_pf) = BoolMap.bot)
-          (MEMORY: sim_memory (Global.memory (Thread.global th_pf)) (Global.memory (Thread.global th_ir)))
+          (STATE: Thread.state th_src = Thread.state th_ir)
+          (TVIEW: Local.tview (Thread.local th_src) = Local.tview (Thread.local th_ir))
+          (PROMISES: Local.promises (Thread.local th_src) = BoolMap.bot)
+          (RESERVES: Local.reserves (Thread.local th_src) = Memory.bot)
+          (SC: Global.sc (Thread.global th_src) = Global.sc (Thread.global th_ir))
+          (GPROMISES: Global.promises (Thread.global th_src) = BoolMap.bot)
+          (MEMORY: sim_memory (Global.memory (Thread.global th_src)) (Global.memory (Thread.global th_ir)))
     .
     #[local] Hint Constructors sim_thread: core.
 
     Lemma sim_memory_cap
-          mem_pf mem_ir
-          (SIM: sim_memory mem_pf mem_ir):
-      sim_memory mem_pf (Memory.cap_of mem_ir).
+          mem_src mem_ir
+          (SIM: sim_memory mem_src mem_ir):
+      sim_memory mem_src (Memory.cap_of mem_ir).
     Proof.
       specialize (Memory.cap_of_cap mem_ir). i.
       inv SIM. econs; ii; eauto.
@@ -76,26 +76,26 @@ Module SrcToIRThread.
     Qed.
 
     Lemma sim_thread_cap
-          th_pf th_ir
-          (SIM: SrcToIRThread.sim_thread th_pf th_ir):
-      SrcToIRThread.sim_thread th_pf (Thread.cap_of th_ir).
+          th_src th_ir
+          (SIM: SrcToIRThread.sim_thread th_src th_ir):
+      SrcToIRThread.sim_thread th_src (Thread.cap_of th_ir).
     Proof.
       inv SIM. econs; ss.
       eapply sim_memory_cap; eauto.
     Qed.
 
     Lemma sim_memory_add
-          mem1_pf mem1_ir
+          mem1_src mem1_ir
           loc from to msg mem2_ir
-          (MEM1: sim_memory mem1_pf mem1_ir)
+          (MEM1: sim_memory mem1_src mem1_ir)
           (ADD_IR: Memory.add mem1_ir loc from to msg mem2_ir)
           (MSG: msg <> Message.reserve):
-      exists mem2_pf,
-        (<<ADD_PF: Memory.add mem1_pf loc from to msg mem2_pf>>) /\
-        (<<MEM2: sim_memory mem2_pf mem2_ir>>).
+      exists mem2_src,
+        (<<ADD_SRC: Memory.add mem1_src loc from to msg mem2_src>>) /\
+        (<<MEM2: sim_memory mem2_src mem2_ir>>).
     Proof.
       inv MEM1.
-      exploit (@Memory.add_exists mem1_pf loc from to msg); i.
+      exploit (@Memory.add_exists mem1_src loc from to msg); i.
       { exploit SOUND; eauto. i.
         exploit Memory.add_get1; eauto. i.
         exploit Memory.add_get0; eauto. i. des.
@@ -119,12 +119,12 @@ Module SrcToIRThread.
     Qed.
 
     Lemma sim_memory_reserve
-          mem1_pf
+          mem1_src
           rsv1_ir mem1_ir
           loc from to rsv2_ir mem2_ir
-          (MEM1: sim_memory mem1_pf mem1_ir)
+          (MEM1: sim_memory mem1_src mem1_ir)
           (RESERVE_IR: Memory.reserve rsv1_ir mem1_ir loc from to rsv2_ir mem2_ir):
-      (<<MEM2: sim_memory mem1_pf mem2_ir>>).
+      (<<MEM2: sim_memory mem1_src mem2_ir>>).
     Proof.
       inv MEM1. inv RESERVE_IR. econs; ii.
       - erewrite Memory.add_o; eauto.
@@ -137,12 +137,12 @@ Module SrcToIRThread.
     Qed.
 
     Lemma sim_memory_cancel
-          mem1_pf
+          mem1_src
           rsv1_ir mem1_ir
           loc from to rsv2_ir mem2_ir
-          (MEM1: sim_memory mem1_pf mem1_ir)
+          (MEM1: sim_memory mem1_src mem1_ir)
           (CANCEL_IR: Memory.cancel rsv1_ir mem1_ir loc from to rsv2_ir mem2_ir):
-      (<<MEM2: sim_memory mem1_pf mem2_ir>>).
+      (<<MEM2: sim_memory mem1_src mem2_ir>>).
     Proof.
       inv MEM1. inv CANCEL_IR. econs; ii.
       - erewrite Memory.remove_o; eauto.
@@ -170,12 +170,12 @@ Module SrcToIRThread.
     Qed.
 
     Lemma sim_thread_internal_step
-          th1_pf th1_ir
+          th1_src th1_ir
           e th2_ir
-          (SIM1: sim_thread th1_pf th1_ir)
+          (SIM1: sim_thread th1_src th1_ir)
           (STEP: Thread.step e th1_ir th2_ir)
           (EVENT: ThreadEvent.is_internal e):
-      <<SIM2: sim_thread th1_pf th2_ir>>.
+      <<SIM2: sim_thread th1_src th2_ir>>.
     Proof.
       inv SIM1. inv STEP; inv LOCAL; ss; inv LOCAL0; ss.
       - exploit sim_memory_reserve; eauto.
@@ -183,22 +183,22 @@ Module SrcToIRThread.
     Qed.
 
     Lemma sim_thread_step
-          th1_pf th1_ir
+          th1_src th1_ir
           e_ir th2_ir
-          (SIM1: sim_thread th1_pf th1_ir)
+          (SIM1: sim_thread th1_src th1_ir)
           (STEP: Thread.step e_ir th1_ir th2_ir)
           (PF: ~ ThreadEvent.is_racy_promise e_ir):
-      exists e_pf th2_pf,
-        (<<STEP_PF: Thread.opt_step e_pf th1_pf th2_pf>>) /\
-        (<<EVENT_PF: ThreadEvent.is_program e_pf>>) /\
+      exists e_src th2_src,
+        (<<STEP_SRC: Thread.opt_step e_src th1_src th2_src>>) /\
+        (<<EVENT_SRC: ThreadEvent.is_program e_src>>) /\
         (<<EVENT: __guard__ (
-                      e_pf = ThreadEvent.silent /\ ThreadEvent.is_internal e_ir \/
-                      e_pf = e_ir)>>) /\
-        (<<SIM2: sim_thread th2_pf th2_ir>>).
+                      e_src = ThreadEvent.silent /\ ThreadEvent.is_internal e_ir \/
+                      e_src = e_ir)>>) /\
+        (<<SIM2: sim_thread th2_src th2_ir>>).
     Proof.
       unguard.
       destruct th1_ir as [st1_ir [tview1_ir prm1_ir rsv1_ir] [sc1_ir gprm1_ir mem1_ir]],
-          th1_pf as [st1_pf [tview1_pf prm1_pf rsv1_pf] [sc1_pf gprm1_pf mem1_pf]].
+          th1_src as [st1_src [tview1_src prm1_src rsv1_src] [sc1_src gprm1_src mem1_src]].
       inv SIM1. ss. subst.
       inv STEP; inv LOCAL; ss.
       { (* promise *)
@@ -356,24 +356,24 @@ Module SrcToIRThread.
     Qed.
 
     Lemma sim_thread_rtc_step
-          th1_pf th1_ir
+          th1_src th1_ir
           th2_ir
-          (SIM1: sim_thread th1_pf th1_ir)
+          (SIM1: sim_thread th1_src th1_ir)
           (STEPS: rtc (pstep (@Thread.step _)
                              (fun e => ~ ThreadEvent.is_racy_promise e /\ ThreadEvent.is_silent e))
                       th1_ir th2_ir):
-      exists th2_pf,
-        (<<STEPS_PF: rtc (pstep (@Thread.step _)
+      exists th2_src,
+        (<<STEPS_SRC: rtc (pstep (@Thread.step _)
                                 (fun e => ThreadEvent.is_program e /\ ThreadEvent.is_silent e))
-                         th1_pf th2_pf>>) /\
-        (<<SIM2: sim_thread th2_pf th2_ir>>).
+                         th1_src th2_src>>) /\
+        (<<SIM2: sim_thread th2_src th2_ir>>).
     Proof.
-      revert th1_pf SIM1.
+      revert th1_src SIM1.
       induction STEPS; i; eauto.
       inv H. des.
       exploit sim_thread_step; eauto. i. des.
       exploit IHSTEPS; eauto. i. des.
-      inv STEP_PF; eauto.
+      inv STEP_SRC; eauto.
       esplits; try exact SIM0.
       econs 2; eauto. econs; eauto. split; ss.
       unguard. des; subst; ss.

@@ -34,34 +34,34 @@ Set Implicit Arguments.
 
 
 Module SrcToIR.
-  Variant sim_thread_sl (gl_pf gl_ir: Global.t):
-    forall (sl_pf sl_ir: {lang: language & Language.state lang} * Local.t), Prop :=
+  Variant sim_thread_sl (gl_src gl_ir: Global.t):
+    forall (sl_src sl_ir: {lang: language & Language.state lang} * Local.t), Prop :=
     | sim_thread_sl_intro
         lang
-        st_pf lc_pf
+        st_src lc_src
         st_ir lc_ir
-        (THREAD: SrcToIRThread.sim_thread (Thread.mk _ st_pf lc_pf gl_pf) (Thread.mk _ st_ir lc_ir gl_ir))
+        (THREAD: SrcToIRThread.sim_thread (Thread.mk _ st_src lc_src gl_src) (Thread.mk _ st_ir lc_ir gl_ir))
         (CONS: exists gl_past,
             (<<FUTURE: Global.future gl_past gl_ir>>) /\
             (<<LC_WF: Local.wf lc_ir gl_past>>) /\
             (<<GL_WF: Global.wf gl_past>>) /\
             (<<CONS: PFConsistent.spf_consistent (Thread.mk _ st_ir lc_ir gl_past)>>))
       :
-      sim_thread_sl gl_pf gl_ir (existT _ lang st_pf, lc_pf) (existT _ lang st_ir, lc_ir)
+      sim_thread_sl gl_src gl_ir (existT _ lang st_src, lc_src) (existT _ lang st_ir, lc_ir)
   .
 
   Lemma sim_thread_sl_future
-        gl_pf gl_ir lang_pf st_pf lc_pf lang_ir st_ir lc_ir
-        gl_future_pf gl_future_ir
+        gl_src gl_ir lang_src st_src lc_src lang_ir st_ir lc_ir
+        gl_future_src gl_future_ir
         (GL_FUTURE_IR: Global.future gl_ir gl_future_ir)
-        (SC: Global.sc gl_future_pf = Global.sc gl_future_ir)
-        (GPROMISES: Global.promises gl_future_pf = BoolMap.bot)
-        (MEMORY: SrcToIRThread.sim_memory (Global.memory gl_future_pf) (Global.memory gl_future_ir))
-        (SIM: sim_thread_sl gl_pf gl_ir
-                            (existT _ lang_pf st_pf, lc_pf)
+        (SC: Global.sc gl_future_src = Global.sc gl_future_ir)
+        (GPROMISES: Global.promises gl_future_src = BoolMap.bot)
+        (MEMORY: SrcToIRThread.sim_memory (Global.memory gl_future_src) (Global.memory gl_future_ir))
+        (SIM: sim_thread_sl gl_src gl_ir
+                            (existT _ lang_src st_src, lc_src)
                             (existT _ lang_ir st_ir, lc_ir)):
-    sim_thread_sl gl_future_pf gl_future_ir
-                  (existT _ lang_pf st_pf, lc_pf)
+    sim_thread_sl gl_future_src gl_future_ir
+                  (existT _ lang_src st_src, lc_src)
                   (existT _ lang_ir st_ir, lc_ir).
   Proof.
     inv SIM. Configuration.simplify. econs.
@@ -70,16 +70,16 @@ Module SrcToIR.
       splits; ss; try by (etrans; eauto).
   Qed.
 
-  Variant sim_conf: forall (c_pf c_ir: Configuration.t), Prop :=
+  Variant sim_conf: forall (c_src c_ir: Configuration.t), Prop :=
     | sim_conf_intro
-        ths_pf gl_pf
+        ths_src gl_src
         ths_ir gl_ir
         (THS: forall tid,
             option_rel
-              (sim_thread_sl gl_pf gl_ir)
-              (IdentMap.find tid ths_pf)
+              (sim_thread_sl gl_src gl_ir)
+              (IdentMap.find tid ths_src)
               (IdentMap.find tid ths_ir)):
-      sim_conf (Configuration.mk ths_pf gl_pf) (Configuration.mk ths_ir gl_ir)
+      sim_conf (Configuration.mk ths_src gl_src) (Configuration.mk ths_ir gl_ir)
   .
 
   Lemma init_sim_conf prog: sim_conf (Configuration.init prog) (Configuration.init prog).
@@ -98,10 +98,10 @@ Module SrcToIR.
   Qed.
 
   Lemma sim_conf_terminal
-        c1_pf c1_ir
-        (SIM: sim_conf c1_pf c1_ir)
+        c1_src c1_ir
+        (SIM: sim_conf c1_src c1_ir)
         (TERMINAL: Configuration.is_terminal c1_ir):
-    Configuration.is_terminal c1_pf.
+    Configuration.is_terminal c1_src.
   Proof.
     inv SIM. ii. ss.
     specialize (THS tid). rewrite FIND in THS.
@@ -143,34 +143,34 @@ Module SrcToIR.
   Qed.
 
   Lemma sim_conf_step
-        c1_pf c1_ir
+        c1_src c1_ir
         e tid c2_ir
-        (SIM: sim_conf c1_pf c1_ir)
-        (WF1_PF: Configuration.wf c1_pf)
+        (SIM: sim_conf c1_src c1_ir)
+        (WF1_SRC: Configuration.wf c1_src)
         (WF1_IR: Configuration.wf c1_ir)
         (STEP: Configuration.step e tid c1_ir c2_ir):
-    (exists c_pf tid' c2_pf,
-        (<<STEPS_PF: rtc (PFConfiguration.tau_step ThreadEvent.get_machine_event_pf)
-                         c1_pf c_pf>>) /\
-        (<<STEP_PF: PFConfiguration.step ThreadEvent.get_machine_event_pf
-                                         MachineEvent.failure tid' c_pf c2_pf>>)) \/
-    (exists c_pf c2_pf,
-        (<<STEPS_PF: rtc (PFConfiguration.tau_step ThreadEvent.get_machine_event_pf)
-                         c1_pf c_pf>>) /\
-        (<<STEP_PF: PFConfiguration.opt_step ThreadEvent.get_machine_event_pf
-                                             e tid c_pf c2_pf>>) /\
-        ((<<SIM2: sim_conf c2_pf c2_ir>>) \/
-         exists c3_pf tid' c4_pf,
-           (<<STEPS2_PF: rtc (PFConfiguration.tau_step ThreadEvent.get_machine_event_pf)
-                             c2_pf c3_pf>>) /\
-           (<<STEP2_PF: PFConfiguration.step ThreadEvent.get_machine_event_pf
-                                             MachineEvent.failure tid' c3_pf c4_pf>>))).
+    (exists c_src tid' c2_src,
+        (<<STEPS_SRC: rtc (PFConfiguration.tau_step ThreadEvent.get_machine_event_pf)
+                         c1_src c_src>>) /\
+        (<<STEP_SRC: PFConfiguration.step ThreadEvent.get_machine_event_pf
+                                         MachineEvent.failure tid' c_src c2_src>>)) \/
+    (exists c_src c2_src,
+        (<<STEPS_SRC: rtc (PFConfiguration.tau_step ThreadEvent.get_machine_event_pf)
+                         c1_src c_src>>) /\
+        (<<STEP_SRC: PFConfiguration.opt_step ThreadEvent.get_machine_event_pf
+                                             e tid c_src c2_src>>) /\
+        ((<<SIM2: sim_conf c2_src c2_ir>>) \/
+         exists c3_src tid' c4_src,
+           (<<STEPS2_SRC: rtc (PFConfiguration.tau_step ThreadEvent.get_machine_event_pf)
+                             c2_src c3_src>>) /\
+           (<<STEP2_SRC: PFConfiguration.step ThreadEvent.get_machine_event_pf
+                                             MachineEvent.failure tid' c3_src c4_src>>))).
   Proof.
-    destruct c1_pf as [ths1_pf gl1_pf], c1_ir as [ths1_ir gl1_ir].
+    destruct c1_src as [ths1_src gl1_src], c1_ir as [ths1_ir gl1_ir].
     inv STEP. dup SIM. inv SIM0. ss.
     rename st1 into st1_ir, lc1 into lc1_ir.
     specialize (THS tid). rewrite TID in *.
-    destruct (IdentMap.find tid ths1_pf) as [[[lang_pf st1_pf] lc1_pf]|] eqn:FIND_PF; ss.
+    destruct (IdentMap.find tid ths1_src) as [[[lang_src st1_src] lc1_src]|] eqn:FIND_SRC; ss.
     inv THS. Configuration.simplify. clear CONS.
 
     exploit SrcToIRThread.plus_step_cases; try exact STEPS; eauto. i. des; cycle 1.
@@ -192,7 +192,7 @@ Module SrcToIR.
       destruct (classic (tid = tid0)).
       { subst. rewrite TID in *. Configuration.simplify. congr. }
       dup SIM. inv SIM0. specialize (THS tid0). rewrite TH in *.
-      destruct (IdentMap.find tid0 ths1_pf) as [[[lang0_pf st0_pf] lc0_pf]|] eqn:FIND0_PF; ss.
+      destruct (IdentMap.find tid0 ths1_src) as [[[lang0_src st0_src] lc0_src]|] eqn:FIND0_SRC; ss.
       inv THS. Configuration.simplify. des.
       exploit FutureCertify.spf_consistent_certify; try exact CONS; eauto. s. intro CERTIFY.
 
@@ -201,37 +201,37 @@ Module SrcToIR.
       exploit THREADS; try exact TID. i.
       exploit THREADS; try exact TH. i.
       clear DISJOINT THREADS PROMISES.
-      dup WF1_PF. inv WF1_PF0. inv WF. ss.
+      dup WF1_SRC. inv WF1_SRC0. inv WF. ss.
       exploit DISJOINT; try exact H; eauto. i.
-      exploit THREADS; try exact FIND_PF. i.
-      exploit THREADS; try exact FIND0_PF. i.
+      exploit THREADS; try exact FIND_SRC. i.
+      exploit THREADS; try exact FIND0_SRC. i.
       clear DISJOINT THREADS PROMISES.
       exploit Thread.rtc_tau_step_future; try eapply rtc_implies; try exact STEPS0; ss.
       { i. inv H0. des. econs; eauto. }
       i. des.
-      exploit Thread.rtc_tau_step_future; try eapply rtc_implies; try exact STEPS_PF; ss.
+      exploit Thread.rtc_tau_step_future; try eapply rtc_implies; try exact STEPS_SRC; ss.
       { i. inv H0. des. econs; eauto. }
       i. des.
       exploit Thread.rtc_tau_step_disjoint; try eapply rtc_implies; try exact STEPS0; eauto.
       { i. inv H0. des. econs; eauto. }
       i. des.
-      exploit Thread.rtc_tau_step_disjoint; try eapply rtc_implies; try exact STEPS_PF; eauto.
+      exploit Thread.rtc_tau_step_disjoint; try eapply rtc_implies; try exact STEPS_SRC; eauto.
       { i. inv H0. des. econs; eauto. }
       i. des.
-      exploit (@FutureCertify.future_certify lang0 (Thread.mk _ st0_pf lc0_pf (Thread.global th2_pf)));
+      exploit (@FutureCertify.future_certify lang0 (Thread.mk _ st0_src lc0_src (Thread.global th2_src)));
         try exact CERTIFY; ss; (try by inv THREAD0; ss); (try by inv SIM2; ss); try apply SIM2.
       { eapply Memory.future_messages_le. etrans; try apply FUTURE. apply GL_FUTURE. }
       { apply LC_WF1. }
-      intro CERTIFY_PF.
-      exploit (@PFConfiguration.rtc_program_step_rtc_step (Configuration.mk ths1_pf gl1_pf));
-        try eapply STEPS_PF; eauto. s. i. des; eauto.
+      intro CERTIFY_SRC.
+      exploit (@PFConfiguration.rtc_program_step_rtc_step (Configuration.mk ths1_src gl1_src));
+        try eapply STEPS_SRC; eauto. s. i. des; eauto.
 
-      inv CERTIFY_PF.
+      inv CERTIFY_SRC.
       - exploit (@PFConfiguration.plus_program_step_plus_step
                    (Configuration.mk
-                      (IdentMap.add tid (existT _ lang (Thread.state th2_pf), Thread.local th2_pf) ths1_pf)
-                      (Thread.global th2_pf))); s.
-        { erewrite IdentMap.gso; try eapply FIND0_PF. auto. }
+                      (IdentMap.add tid (existT _ lang (Thread.state th2_src), Thread.local th2_src) ths1_src)
+                      (Thread.global th2_src))); s.
+        { erewrite IdentMap.gso; try eapply FIND0_SRC. auto. }
         { eapply rtc_implies; try exact STEPS1.
           i. inv H0. des. econs; eauto.
           inv EVENT. inv EVENT0. destruct e1; ss.
@@ -240,10 +240,10 @@ Module SrcToIR.
         { destruct e0; ss. }
         i. des; try by destruct e0; ss.
         esplits; try exact STEP. etrans; eauto.
-      - destruct th2_pf as [st2_pf lc2_pf gl2_pf]. ss.
-        assert (RACE: exists e th3_pf,
+      - destruct th2_src as [st2_src lc2_src gl2_src]. ss.
+        assert (RACE: exists e th3_src,
                      Thread.step e
-                                 (Thread.mk _ st2_pf lc2_pf (Thread.global th2)) th3_pf /\
+                                 (Thread.mk _ st2_src lc2_src (Thread.global th2)) th3_src /\
                      ThreadEvent.is_racy e /\
                      ~ ThreadEvent.is_racy_promise e).
         { exploit Thread.rtc_all_step_future; try eapply rtc_implies; try exact STEPS1; ss.
@@ -284,11 +284,11 @@ Module SrcToIR.
             + ss.
             + ss.
         }
-        des. destruct th3_pf.
+        des. destruct th3_src.
         exploit (@PFConfiguration.plus_program_step_plus_step
                    (Configuration.mk
-                      (IdentMap.add tid (existT _ lang st2_pf, lc2_pf) ths1_pf) gl2_pf)); s.
-        { erewrite IdentMap.gso; try eapply FIND0_PF. auto. }
+                      (IdentMap.add tid (existT _ lang st2_src, lc2_src) ths1_src) gl2_src)); s.
+        { erewrite IdentMap.gso; try eapply FIND0_SRC. auto. }
         { eapply rtc_implies; try exact STEPS1.
           i. inv H0. des. econs; eauto.
           inv EVENT. inv EVENT0. destruct e1; ss.
@@ -309,10 +309,10 @@ Module SrcToIR.
 
     exploit SrcToIRThread.sim_thread_rtc_step; try exact STEPS0; eauto. i. des.
     exploit SrcToIRThread.sim_thread_step; try exact STEP0; eauto. i. des.
-    exploit (@PFConfiguration.opt_plus_program_step_opt_plus_step (Configuration.mk ths1_pf gl1_pf));
-      try exact STEPS_PF; eauto. s. i. des; try by left; eauto.
+    exploit (@PFConfiguration.opt_plus_program_step_opt_plus_step (Configuration.mk ths1_src gl1_src));
+      try exact STEPS_SRC; eauto. s. i. des; try by left; eauto.
     right.
-    assert (ThreadEvent.get_machine_event e0 = ThreadEvent.get_machine_event_pf e_pf).
+    assert (ThreadEvent.get_machine_event e0 = ThreadEvent.get_machine_event_pf e_src).
     { unguard. des; subst; ss; destruct e0; ss. }
     rewrite H.
     esplits; try exact STEPS1; eauto.
@@ -326,14 +326,14 @@ Module SrcToIR.
     exploit PFConsistent.pf_consistent_spf_consistent; try exact x1. i. des.
     { (* certification with no race *)
       left. clear x0 x1.
-      destruct th2_pf, th2_pf0. ss.
+      destruct th2_src, th2_src0. ss.
       econs. i.
       destruct (classic (tid = tid0)).
       - subst. repeat rewrite IdentMap.gss. s. econs; ss.
         esplits; try exact SPF_CONS; ss; try refl.
       - repeat (rewrite IdentMap.gso; auto).
         dup SIM. inv SIM1. specialize (THS tid0).
-        destruct (IdentMap.find tid0 ths1_pf) as [[[lang0_pf st0_pf] lc0_pf]|] eqn:FIND0_PF;
+        destruct (IdentMap.find tid0 ths1_src) as [[[lang0_src st0_src] lc0_src]|] eqn:FIND0_SRC;
           destruct (IdentMap.find tid0 ths1_ir) as [[[lang0_ir st0_ir] lc0_ir]|] eqn:FIND0_IR; ss.
         eapply sim_thread_sl_future; try exact THS; try apply SIM0; try by (etrans; eauto).
     }
@@ -366,7 +366,7 @@ Module SrcToIR.
     destruct (classic (tid = tid0)).
     { subst. rewrite TID in *. Configuration.simplify. congr. }
     dup SIM. inv SIM3. specialize (THS tid0). rewrite TH in *.
-    destruct (IdentMap.find tid0 ths1_pf) as [[[lang0_pf st0_pf] lc0_pf]|] eqn:FIND0_PF; ss.
+    destruct (IdentMap.find tid0 ths1_src) as [[[lang0_src st0_src] lc0_src]|] eqn:FIND0_SRC; ss.
     inv THS. Configuration.simplify. des.
     exploit FutureCertify.spf_consistent_certify; try exact CONS; eauto. intro CERTIFY.
 
@@ -375,21 +375,21 @@ Module SrcToIR.
     exploit THREADS; try exact TID. i.
     exploit THREADS; try exact TH. i.
     clear DISJOINT THREADS PROMISES.
-    dup WF1_PF. inv WF1_PF0. inv WF. ss.
+    dup WF1_SRC. inv WF1_SRC0. inv WF. ss.
     exploit DISJOINT; try exact H; eauto. i.
-    exploit THREADS; try exact FIND_PF. i.
-    exploit THREADS; try exact FIND0_PF. i.
+    exploit THREADS; try exact FIND_SRC. i.
+    exploit THREADS; try exact FIND0_SRC. i.
     clear DISJOINT THREADS PROMISES.
     exploit rtc_implies; [eauto|..].
     { etrans.
-      - eapply Thread.tau_opt_all; try exact STEP_PF.
-        eapply rtc_implies; try exact STEPS_PF. i. inv H0. des. econs; eauto.
-      - eapply rtc_implies; try exact STEPS_PF0. i. inv H0. des. econs; eauto.
+      - eapply Thread.tau_opt_all; try exact STEP_SRC.
+        eapply rtc_implies; try exact STEPS_SRC. i. inv H0. des. econs; eauto.
+      - eapply rtc_implies; try exact STEPS_SRC0. i. inv H0. des. econs; eauto.
     }
-    intro STEP_PF_ALL.
-    exploit Thread.rtc_all_step_future; try exact STEP_PF_ALL; eauto. s. i. des.
-    exploit Thread.rtc_all_step_disjoint; try exact STEP_PF_ALL; eauto. s. i. des.
-    exploit (@FutureCertify.future_certify lang0 (Thread.mk _ st0_pf lc0_pf (Thread.global th2_pf1)));
+    intro STEP_SRC_ALL.
+    exploit Thread.rtc_all_step_future; try exact STEP_SRC_ALL; eauto. s. i. des.
+    exploit Thread.rtc_all_step_disjoint; try exact STEP_SRC_ALL; eauto. s. i. des.
+    exploit (@FutureCertify.future_certify lang0 (Thread.mk _ st0_src lc0_src (Thread.global th2_src1)));
       try exact CERTIFY; ss; (try by inv THREAD0; ss); (try by inv SIM1; ss); try apply SIM1.
     { etrans.
       - eapply Memory.future_messages_le.
@@ -420,19 +420,19 @@ Module SrcToIR.
       { ss. }
       i. des. apply LC_WF6.
     }
-    intro CERTIFY_PF.
-    destruct th2_pf0. ss.
+    intro CERTIFY_SRC.
+    destruct th2_src0. ss.
     exploit (@PFConfiguration.rtc_program_step_rtc_step
-               (Configuration.mk (IdentMap.add tid (existT _ lang state, local) ths1_pf) global));
-      try exact STEPS_PF0; s; try apply IdentMap.gss.
+               (Configuration.mk (IdentMap.add tid (existT _ lang state, local) ths1_src) global));
+      try exact STEPS_SRC0; s; try apply IdentMap.gss.
     i. des; eauto.
 
-    inv CERTIFY_PF.
+    inv CERTIFY_SRC.
     - exploit (@PFConfiguration.plus_program_step_plus_step
                  (Configuration.mk
-                    (IdentMap.add tid (existT _ lang (Thread.state th2_pf1), Thread.local th2_pf1) ths1_pf)
-                    (Thread.global th2_pf1))); s.
-      { erewrite IdentMap.gso; try eapply FIND0_PF. auto. }
+                    (IdentMap.add tid (existT _ lang (Thread.state th2_src1), Thread.local th2_src1) ths1_src)
+                    (Thread.global th2_src1))); s.
+      { erewrite IdentMap.gso; try eapply FIND0_SRC. auto. }
       { eapply rtc_implies; try exact STEPS3.
         i. inv H0. des. econs; eauto.
         inv EVENT0. inv EVENT2. destruct e2; ss.
@@ -442,10 +442,10 @@ Module SrcToIR.
       i. des; try by destruct e1; ss.
       esplits; try exact STEP. etrans; [eauto|].
       rewrite IdentMap.add_add_eq. ss.
-    - destruct th2_pf1 as [st2_pf lc2_pf gl2_pf]. ss.
-      assert (RACE: exists e th3_pf,
+    - destruct th2_src1 as [st2_src lc2_src gl2_src]. ss.
+      assert (RACE: exists e th3_src,
                  Thread.step e
-                             (Thread.mk _ st2_pf lc2_pf (Thread.global th4)) th3_pf /\
+                             (Thread.mk _ st2_src lc2_src (Thread.global th4)) th3_src /\
                  ThreadEvent.is_racy e /\
                  ~ ThreadEvent.is_racy_promise e).
       { exploit Thread.rtc_all_step_future; try eapply rtc_implies; try exact STEPS3; ss.
@@ -487,11 +487,11 @@ Module SrcToIR.
           + ss.
           + ss.
       }
-      des. destruct th3_pf.
+      des. destruct th3_src.
       exploit (@PFConfiguration.plus_program_step_plus_step
                  (Configuration.mk
-                    (IdentMap.add tid (existT _ lang st2_pf, lc2_pf) ths1_pf) gl2_pf)); s.
-      { erewrite IdentMap.gso; try eapply FIND0_PF. auto. }
+                    (IdentMap.add tid (existT _ lang st2_src, lc2_src) ths1_src) gl2_src)); s.
+      { erewrite IdentMap.gso; try eapply FIND0_SRC. auto. }
       { eapply rtc_implies; try exact STEPS3.
         i. inv H0. des. econs; eauto.
         inv EVENT0. inv EVENT2. destruct e1; ss.
@@ -514,7 +514,7 @@ Module SrcToIR.
         * destruct e1; ss.
   Qed.
 
-  Theorem pf_to_ir prog:
+  Theorem src_to_ir prog:
     behaviors Configuration.step (Configuration.init prog) <2=
     behaviors (PFConfiguration.step ThreadEvent.get_machine_event_pf) (Configuration.init prog).
   Proof.
@@ -524,44 +524,44 @@ Module SrcToIR.
     rewrite <- Heqc_ir in WF_IR.
     rewrite <- Heqc_ir in SIM at 2.
     clear Heqc_ir.
-    specialize (Configuration.init_wf prog). intro WF_PF.
-    remember (Configuration.init prog) as c_pf.
-    clear Heqc_pf.
-    revert c_pf WF_PF SIM.
+    specialize (Configuration.init_wf prog). intro WF_SRC.
+    remember (Configuration.init prog) as c_src.
+    clear Heqc_src.
+    revert c_src WF_SRC SIM.
     induction PR; i.
     - econs. eauto using sim_conf_terminal.
     - exploit sim_conf_step; try exact SIM; eauto. i. des.
-      + eapply rtc_tau_step_behavior; try exact STEPS_PF.
+      + eapply rtc_tau_step_behavior; try exact STEPS_SRC.
         econs 3; eauto.
       + exploit Configuration.step_future; try exact STEP; ss. i. des.
-        exploit PFConfiguration.rtc_tau_step_future; try exact STEPS_PF; ss. i. des.
-        exploit PFConfiguration.opt_step_future; try exact STEP_PF; ss. i. des.
-        eapply rtc_tau_step_behavior; try exact STEPS_PF.
-        inv STEP_PF. econs 2; eauto.
-      + eapply rtc_tau_step_behavior; try exact STEPS_PF.
-        inv STEP_PF. econs 2; eauto.
-        eapply rtc_tau_step_behavior; try exact STEPS2_PF.
+        exploit PFConfiguration.rtc_tau_step_future; try exact STEPS_SRC; ss. i. des.
+        exploit PFConfiguration.opt_step_future; try exact STEP_SRC; ss. i. des.
+        eapply rtc_tau_step_behavior; try exact STEPS_SRC.
+        inv STEP_SRC. econs 2; eauto.
+      + eapply rtc_tau_step_behavior; try exact STEPS_SRC.
+        inv STEP_SRC. econs 2; eauto.
+        eapply rtc_tau_step_behavior; try exact STEPS2_SRC.
         econs 3; eauto.
     - exploit sim_conf_step; try exact SIM; eauto. i. des.
-      + eapply rtc_tau_step_behavior; try exact STEPS_PF.
+      + eapply rtc_tau_step_behavior; try exact STEPS_SRC.
         econs 3; eauto.
-      + eapply rtc_tau_step_behavior; try exact STEPS_PF.
-        inv STEP_PF. econs 3; eauto.
-      + eapply rtc_tau_step_behavior; try exact STEPS_PF.
-        inv STEP_PF. econs 3; eauto.
+      + eapply rtc_tau_step_behavior; try exact STEPS_SRC.
+        inv STEP_SRC. econs 3; eauto.
+      + eapply rtc_tau_step_behavior; try exact STEPS_SRC.
+        inv STEP_SRC. econs 3; eauto.
     - exploit sim_conf_step; try exact SIM; eauto. i. des.
-      + eapply rtc_tau_step_behavior; try exact STEPS_PF.
+      + eapply rtc_tau_step_behavior; try exact STEPS_SRC.
         econs 3; eauto.
       + exploit Configuration.step_future; try exact STEP; ss. i. des.
-        exploit PFConfiguration.rtc_tau_step_future; try exact STEPS_PF; ss. i. des.
-        exploit PFConfiguration.opt_step_future; try exact STEP_PF; ss. i. des.
-        eapply rtc_tau_step_behavior; try exact STEPS_PF.
-        inv STEP_PF; auto. econs 4; eauto.
+        exploit PFConfiguration.rtc_tau_step_future; try exact STEPS_SRC; ss. i. des.
+        exploit PFConfiguration.opt_step_future; try exact STEP_SRC; ss. i. des.
+        eapply rtc_tau_step_behavior; try exact STEPS_SRC.
+        inv STEP_SRC; auto. econs 4; eauto.
       + eapply rtc_tau_step_behavior.
-        { etrans; try exact STEPS_PF.
-          inv STEP_PF; [refl|]. econs 2; eauto.
+        { etrans; try exact STEPS_SRC.
+          inv STEP_SRC; [refl|]. econs 2; eauto.
         }
-        eapply rtc_tau_step_behavior; try exact STEPS2_PF.
+        eapply rtc_tau_step_behavior; try exact STEPS2_SRC.
         econs 3; eauto.
     - econs 5.
   Qed.

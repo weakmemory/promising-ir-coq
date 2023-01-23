@@ -27,7 +27,7 @@ Require Import SimGlobal.
 Require Import SimThread.
 Require Import Compatibility.
 
-Require Import SplitRelCommon.
+Require Import SimLocalAdvance.
 
 Require Import ITreeLang.
 Require Import ITreeLib.

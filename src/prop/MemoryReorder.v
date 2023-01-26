@@ -108,30 +108,6 @@ Module MemoryReorder.
     - erewrite (@Memory.add_o mem1); eauto. condtac; ss.
   Qed.
 
-  Lemma remove_add
-        mem0 loc1 from1 to1 msg1
-        mem1 loc2 from2 to2 msg2
-        mem2
-        mem1'
-        (REMOVE1: Memory.remove mem0 loc1 from1 to1 msg1 mem1)
-        (ADD2: Memory.add mem1 loc2 from2 to2 msg2 mem2)
-        (ADD1: Memory.add mem0 loc2 from2 to2 msg2 mem1'):
-    Memory.remove mem1' loc1 from1 to1 msg1 mem2.
-  Proof.
-    exploit Memory.remove_get0; try eexact REMOVE1; eauto. i. des.
-    exploit (@Memory.remove_exists mem1' loc1 from1 to1 msg1); eauto.
-    { erewrite Memory.add_o; eauto. condtac; ss; eauto.
-      des. subst. exploit Memory.add_get0; eauto. i. des. congr.
-    }
-    i. des.
-    cut (mem3 = mem2); [by i; subst|].
-    apply Memory.ext. i.
-    erewrite Memory.remove_o; eauto. erewrite Memory.add_o; eauto.
-    erewrite (@Memory.add_o mem2); eauto. erewrite (@Memory.remove_o mem1); eauto.
-    repeat (condtac; ss). des. subst. subst.
-    exploit Memory.add_get0; try eexact ADD1; eauto. i. des. congr.
-  Qed.
-
   Lemma remove_remove
         promises0 loc1 from1 to1 msg1
         promises1 loc2 from2 to2 msg2

@@ -433,3 +433,310 @@ Proof.
   inv STEP1; eauto.
   exploit reorder_is_racy_internal; eauto.
 Qed.
+
+
+(* reorder promise; step *)
+
+Lemma reorder_promise_promise
+      lc0 gl0
+      loc1 lc1 gl1
+      loc2 lc2 gl2
+      (STEP1: Local.promise_step lc0 gl0 loc1 lc1 gl1)
+      (STEP2: Local.promise_step lc1 gl1 loc2 lc2 gl2):
+  exists lc1' gl1',
+    <<STEP1: Local.promise_step lc0 gl0 loc2 lc1' gl1'>> /\
+    <<STEP1: Local.promise_step lc1' gl1' loc1 lc2 gl2>>.
+Proof.
+  inv STEP1. inv STEP2. ss.
+  exploit Promises.reorder_promise_promise; [exact PROMISE|..]; eauto. i. des.
+  esplits; eauto.
+Qed.
+
+Lemma reorder_promise_reserve
+      lc0 gl0
+      loc1 lc1 gl1
+      loc2 from2 to2 lc2 gl2
+      (STEP1: Local.promise_step lc0 gl0 loc1 lc1 gl1)
+      (STEP2: Local.reserve_step lc1 gl1 loc2 from2 to2 lc2 gl2):
+  exists lc1' gl1',
+    <<STEP1: Local.reserve_step lc0 gl0 loc2 from2 to2 lc1' gl1'>> /\
+    <<STEP1: Local.promise_step lc1' gl1' loc1 lc2 gl2>>.
+Proof.
+  inv STEP1. inv STEP2. ss.
+  esplits; eauto.
+Qed.
+
+Lemma reorder_promise_cancel
+      lc0 gl0
+      loc1 lc1 gl1
+      loc2 from2 to2 lc2 gl2
+      (STEP1: Local.promise_step lc0 gl0 loc1 lc1 gl1)
+      (STEP2: Local.cancel_step lc1 gl1 loc2 from2 to2 lc2 gl2):
+  exists lc1' gl1',
+    <<STEP1: Local.cancel_step lc0 gl0 loc2 from2 to2 lc1' gl1'>> /\
+    <<STEP1: Local.promise_step lc1' gl1' loc1 lc2 gl2>>.
+Proof.
+  inv STEP1. inv STEP2. ss.
+  esplits; eauto.
+Qed.
+
+Lemma reorder_promise_read
+      lc0 gl0
+      loc1 lc1 gl1
+      loc2 ts2 val2 released2 ord2 lc2
+      (STEP1: Local.promise_step lc0 gl0 loc1 lc1 gl1)
+      (STEP2: Local.read_step lc1 gl1 loc2 ts2 val2 released2 ord2 lc2):
+  exists lc1' gl1,
+    <<STEP1: Local.read_step lc0 gl0 loc2 ts2 val2 released2 ord2 lc1'>> /\
+    <<STEP2: Local.promise_step lc1' gl0 loc1 lc2 gl1>>.
+Proof.
+  inv STEP1. inv STEP2. ss. esplits; eauto.
+Qed.
+
+Lemma reorder_promise_write
+      lc0 gl0
+      loc1 lc1 gl1
+      loc2 from2 to2 val2 releasedm2 released2 ord2 lc2 gl2
+      (STEP1: Local.promise_step lc0 gl0 loc1 lc1 gl1)
+      (STEP2: Local.write_step lc1 gl1 loc2 from2 to2 val2 releasedm2 released2 ord2 lc2 gl2):
+  exists lc1' gl1',
+    <<STEP1: Local.write_step lc0 gl0 loc2 from2 to2 val2 releasedm2 released2 ord2 lc1' gl1'>> /\
+    (<<LOC: loc1 = loc2>> /\ <<LC: lc1' = lc2>> /\ <<GL: gl1' = gl2>> \/
+     <<STEP2: Local.promise_step lc1' gl1' loc1 lc2 gl2>>).
+Proof.
+  destruct lc0, lc1, lc2, gl0, gl1, gl2.
+  inv STEP1. inv STEP2. ss. clarify.
+  destruct (Loc.eq_dec loc1 loc2).
+  - subst. inv FULFILL; [esplits; eauto|].
+    inv PROMISE.
+    exploit BoolMap.reorder_add_remove; try exact ADD; eauto. i. des; ss.
+    exploit BoolMap.reorder_add_remove; try exact GADD; eauto. i. des; ss.
+    subst. esplits; eauto.
+  - exploit Promises.reorder_promise_fulfill; eauto. i. des.
+    esplits; eauto.
+Qed.
+
+Lemma reorder_promise_fence
+      lc0 gl0
+      loc1 lc1 gl1
+      ordr2 ordw2 lc2 gl2
+      (STEP1: Local.promise_step lc0 gl0 loc1 lc1 gl1)
+      (STEP2: Local.fence_step lc1 gl1 ordr2 ordw2 lc2 gl2):
+  exists lc1' gl1',
+    <<STEP1: Local.fence_step lc0 gl0 ordr2 ordw2 lc1' gl1'>> /\
+    <<STEP2: Local.promise_step lc1' gl1' loc1 lc2 gl2>>.
+Proof.
+  inv STEP1. inv STEP2. ss.
+  esplits.
+  - econs; eauto. i.
+    exploit PROMISES; ss. i. subst.
+    inv PROMISE.
+    hexploit BoolMap.add_le; try exact ADD. i.
+    apply BoolMap.antisym; ss.
+  - eauto.
+Qed.
+
+Lemma reorder_promise_is_racy
+      lc0 gl0
+      loc1 lc1 gl1
+      loc2 to2 ord2
+      (STEP1: Local.promise_step lc0 gl0 loc1 lc1 gl1)
+      (STEP2: Local.is_racy lc1 gl1 loc2 to2 ord2):
+  <<STEP: Local.is_racy lc0 gl0 loc2 to2 ord2>>.
+Proof.
+  inv STEP1. inv PROMISE.
+  inv STEP2; eauto. ss.
+  revert GET. erewrite BoolMap.add_o; eauto.
+  revert GETP. erewrite BoolMap.add_o; eauto.
+  condtac; ss. eauto.
+Qed.
+
+Lemma reorder_promise_racy_read
+      lc0 gl0
+      loc1 lc1 gl1
+      loc2 to2 val2 ord2
+      (STEP1: Local.promise_step lc0 gl0 loc1 lc1 gl1)
+      (STEP2: Local.racy_read_step lc1 gl1 loc2 to2 val2 ord2):
+  <<STEP: Local.racy_read_step lc0 gl0 loc2 to2 val2 ord2>>.
+Proof.
+  inv STEP2.
+  exploit reorder_promise_is_racy; eauto.
+Qed.
+
+Lemma reorder_promise_racy_write
+      lc0 gl0
+      loc1 lc1 gl1
+      loc2 to2 ord2
+      (STEP1: Local.promise_step lc0 gl0 loc1 lc1 gl1)
+      (STEP2: Local.racy_write_step lc1 gl1 loc2 to2 ord2):
+  <<STEP: Local.racy_write_step lc0 gl0 loc2 to2 ord2>>.
+Proof.
+  inv STEP2.
+  exploit reorder_promise_is_racy; eauto.
+Qed.
+
+Lemma reorder_promise_racy_update
+      lc0 gl0
+      loc1 lc1 gl1
+      loc2 to2 ordr2 ordw2
+      (STEP1: Local.promise_step lc0 gl0 loc1 lc1 gl1)
+      (STEP2: Local.racy_update_step lc1 gl1 loc2 to2 ordr2 ordw2):
+  <<STEP: Local.racy_update_step lc0 gl0 loc2 to2 ordr2 ordw2>>.
+Proof.
+  inv STEP2; eauto.
+  exploit reorder_promise_is_racy; eauto.
+Qed.
+
+
+(* reorder reserve; step *)
+
+Lemma reorder_reserve_promise
+      lc0 gl0
+      loc1 from1 to1 lc1 gl1
+      loc2 lc2 gl2
+      (STEP1: Local.reserve_step lc0 gl0 loc1 from1 to1 lc1 gl1)
+      (STEP2: Local.promise_step lc1 gl1 loc2 lc2 gl2):
+  exists lc1' gl1',
+    <<STEP1: Local.promise_step lc0 gl0 loc2 lc1' gl1'>> /\
+    <<STEP1: Local.reserve_step lc1' gl1' loc1 from1 to1 lc2 gl2>>.
+Proof.
+  inv STEP1. inv STEP2. ss.
+  esplits; eauto.
+Qed.
+
+Lemma reorder_reserve_reserve
+      lc0 gl0
+      loc1 from1 to1 lc1 gl1
+      loc2 from2 to2 lc2 gl2
+      (STEP1: Local.reserve_step lc0 gl0 loc1 from1 to1 lc1 gl1)
+      (STEP2: Local.reserve_step lc1 gl1 loc2 from2 to2 lc2 gl2):
+  exists lc1' gl1',
+    <<STEP1: Local.reserve_step lc0 gl0 loc2 from2 to2 lc1' gl1'>> /\
+    <<STEP1: Local.reserve_step lc1' gl1' loc1 from1 to1 lc2 gl2>>.
+Proof.
+  inv STEP1. inv STEP2. ss.
+  inv RESERVE. inv RESERVE0.
+  exploit MemoryReorder.add_add; try exact RSV; eauto. i. des.
+  exploit MemoryReorder.add_add; try exact MEM; eauto. i. des.
+  esplits; eauto.
+Qed.
+
+Lemma reorder_reserve_cancel
+      lc0 gl0
+      loc1 from1 to1 lc1 gl1
+      loc2 from2 to2 lc2 gl2
+      (STEP1: Local.reserve_step lc0 gl0 loc1 from1 to1 lc1 gl1)
+      (STEP2: Local.cancel_step lc1 gl1 loc2 from2 to2 lc2 gl2):
+  <<LOC: loc1 = loc2>> /\ <<FROM: from1 = from2>> /\ <<TO: to1 = to2>> \/
+  <<LOCTS: (loc1, to1) <> (loc2, to2)>> /\
+  exists lc1' gl1',
+     <<STEP1: Local.cancel_step lc0 gl0 loc2 from2 to2 lc1' gl1'>> /\
+     <<STEP1: Local.reserve_step lc1' gl1' loc1 from1 to1 lc2 gl2>>.
+Proof.
+  inv STEP1. inv STEP2. ss.
+  inv RESERVE. inv CANCEL.
+  destruct (classic ((loc1, to1) = (loc2, to2))).
+  - inv H.
+    exploit MemoryReorder.add_remove_same; try exact RSV; eauto. i. des.
+    exploit MemoryReorder.add_remove_same; try exact MEM; eauto. i. des.
+    subst. auto.
+  - exploit MemoryReorder.add_remove; try exact RSV; eauto. i. des.
+    exploit MemoryReorder.add_remove; try exact MEM; eauto. i. des.
+    right. esplits; eauto.
+Qed.
+
+Lemma reorder_reserve_read
+      lc0 gl0
+      loc1 from1 to1 lc1 gl1
+      loc2 ts2 val2 released2 ord2 lc2
+      (STEP1: Local.reserve_step lc0 gl0 loc1 from1 to1 lc1 gl1)
+      (STEP2: Local.read_step lc1 gl1 loc2 ts2 val2 released2 ord2 lc2):
+  exists lc1' gl1,
+    <<STEP1: Local.read_step lc0 gl0 loc2 ts2 val2 released2 ord2 lc1'>> /\
+    <<STEP2: Local.reserve_step lc1' gl0 loc1 from1 to1 lc2 gl1>>.
+Proof.
+  inv STEP1. inv STEP2. ss.
+  inv RESERVE. revert GET.
+  erewrite Memory.add_o; eauto. condtac; ss. i.
+  esplits; eauto.
+Qed.
+
+Lemma reorder_reserve_write
+      lc0 gl0
+      loc1 from1 to1 lc1 gl1
+      loc2 from2 to2 val2 releasedm2 released2 ord2 lc2 gl2
+      (STEP1: Local.reserve_step lc0 gl0 loc1 from1 to1 lc1 gl1)
+      (STEP2: Local.write_step lc1 gl1 loc2 from2 to2 val2 releasedm2 released2 ord2 lc2 gl2):
+  exists lc1' gl1',
+    <<STEP1: Local.write_step lc0 gl0 loc2 from2 to2 val2 releasedm2 released2 ord2 lc1' gl1'>> /\
+    <<STEP2: Local.reserve_step lc1' gl1' loc1 from1 to1 lc2 gl2>>.
+Proof.
+  inv STEP1. inv STEP2. ss.
+  inv RESERVE.
+  exploit MemoryReorder.add_add; try exact MEM; eauto. i. des.
+  esplits; eauto.
+Qed.
+
+Lemma reorder_reserve_fence
+      lc0 gl0
+      loc1 from1 to1 lc1 gl1
+      ordr2 ordw2 lc2 gl2
+      (STEP1: Local.reserve_step lc0 gl0 loc1 from1 to1 lc1 gl1)
+      (STEP2: Local.fence_step lc1 gl1 ordr2 ordw2 lc2 gl2):
+  exists lc1' gl1',
+    <<STEP1: Local.fence_step lc0 gl0 ordr2 ordw2 lc1' gl1'>> /\
+    <<STEP2: Local.reserve_step lc1' gl1' loc1 from1 to1 lc2 gl2>>.
+Proof.
+  inv STEP1. inv STEP2. ss.
+  esplits; eauto.
+Qed.
+
+Lemma reorder_reserve_is_racy
+      lc0 gl0
+      loc1 from1 to1 lc1 gl1
+      loc2 to2 ord2
+      (STEP1: Local.reserve_step lc0 gl0 loc1 from1 to1 lc1 gl1)
+      (STEP2: Local.is_racy lc1 gl1 loc2 to2 ord2):
+  <<STEP: Local.is_racy lc0 gl0 loc2 to2 ord2>>.
+Proof.
+  inv STEP1. inv RESERVE.
+  inv STEP2; eauto. ss.
+  revert GET. erewrite Memory.add_o; eauto.
+  condtac; ss. eauto.
+Qed.
+
+Lemma reorder_reserve_racy_read
+      lc0 gl0
+      loc1 from1 to1 lc1 gl1
+      loc2 to2 val2 ord2
+      (STEP1: Local.reserve_step lc0 gl0 loc1 from1 to1 lc1 gl1)
+      (STEP2: Local.racy_read_step lc1 gl1 loc2 to2 val2 ord2):
+  <<STEP: Local.racy_read_step lc0 gl0 loc2 to2 val2 ord2>>.
+Proof.
+  inv STEP2.
+  exploit reorder_reserve_is_racy; eauto.
+Qed.
+
+Lemma reorder_reserve_racy_write
+      lc0 gl0
+      loc1 from1 to1 lc1 gl1
+      loc2 to2 ord2
+      (STEP1: Local.reserve_step lc0 gl0 loc1 from1 to1 lc1 gl1)
+      (STEP2: Local.racy_write_step lc1 gl1 loc2 to2 ord2):
+  <<STEP: Local.racy_write_step lc0 gl0 loc2 to2 ord2>>.
+Proof.
+  inv STEP2.
+  exploit reorder_reserve_is_racy; eauto.
+Qed.
+
+Lemma reorder_reserve_racy_update
+      lc0 gl0
+      loc1 from1 to1 lc1 gl1
+      loc2 to2 ordr2 ordw2
+      (STEP1: Local.reserve_step lc0 gl0 loc1 from1 to1 lc1 gl1)
+      (STEP2: Local.racy_update_step lc1 gl1 loc2 to2 ordr2 ordw2):
+  <<STEP: Local.racy_update_step lc0 gl0 loc2 to2 ordr2 ordw2>>.
+Proof.
+  inv STEP2; eauto.
+  exploit reorder_reserve_is_racy; eauto.
+Qed.

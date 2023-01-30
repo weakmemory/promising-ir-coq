@@ -3,12 +3,12 @@ COQTHEORIES  := \
 	src/model/*.v \
 	src/itree/*.v \
 	src/prop/*.v \
-	src/src2ir/*.v \
 	src/ldrfra/*.v \
 	src/ldrfsc/*.v \
+	src/src2ir/*.v \
+	src/trans/*.v \
 	src/sequential/*.v \
 	src/optimizer/*.v \
-	src/trans/*.v \
 
 .PHONY: all theories clean
 
@@ -24,12 +24,12 @@ Makefile.coq: Makefile $(COQTHEORIES)
 	(echo "-R src/model $(COQMODULE)"; \
 	 echo "-R src/itree $(COQMODULE)"; \
 	 echo "-R src/prop $(COQMODULE)"; \
-	 echo "-R src/src2ir $(COQMODULE)"; \
 	 echo "-R src/ldrfra $(COQMODULE)"; \
 	 echo "-R src/ldrfsc $(COQMODULE)"; \
+	 echo "-R src/src2ir $(COQMODULE)"; \
+	 echo "-R src/trans $(COQMODULE)"; \
 	 echo "-R src/sequential $(COQMODULE)"; \
 	 echo "-R src/optimizer $(COQMODULE)"; \
-	 echo "-R src/trans $(COQMODULE)"; \
    \
    echo $(COQTHEORIES)) > _CoqProject
 	coq_makefile -f _CoqProject -o Makefile.coq

@@ -1,6 +1,27 @@
 # Putting Weak Memory in Order via Promising Intermediate Representation
 
-The Coq development of the source model (vRC11) and the IR model (PSir).
+Sung-Hwan Lee, Minki Cho, Roy Margalit, Chung-Kil Hur, Ori Lahav.
+
+Proceedings of the 44st annual ACM SIGPLAN conference on Programming Languages Design and Implementation ([PLDI 2023](https://pldi23.sigplan.org/)).
+
+This repository contains the coq development of the source model (vRC11) and the IR model (PSir).
+The coq development of mapping PSir to Armv8S can be found [here](https://github.com/snu-sf/promising-ir-to-promising-arm/).
+Please visit the [project website](https://sf.snu.ac.kr/promising-ir/) for more information.
+
+
+## Build
+
+- Requirement: opam (>=2.0.0), Coq 8.15.2
+- Installing dependencies with opam
+```
+./configure
+```
+- Build the project
+```
+cd coq/promising-ir
+make -j
+```
+
 
 ## Structures
 
@@ -26,5 +47,5 @@ The Coq development of the source model (vRC11) and the IR model (PSir).
 - `Theorem local_drf_sc` in `src/ldrfsc/LocalDRFSC.v`: Local DRF-SC guarantee
 
 ### Adequacy of SEQ
-- `Theorem sequential_refinement_adequacy_concurrent_context` in `src/sequential/SequentialAdequacy`:
+- `Theorem sequential_refinement_adequacy_concurrent_context` in `src/sequential/SequentialAdequacy.v`:
 The adequacy of sequential reasoning, ported from [Cho et al. 2022]

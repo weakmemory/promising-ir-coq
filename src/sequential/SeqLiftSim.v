@@ -1,4 +1,5 @@
 Require Import RelationClasses.
+Require Import Lia.
 
 From sflib Require Import sflib.
 From Paco Require Import paco.
@@ -8,13 +9,12 @@ From PromisingLib Require Import Basic.
 From PromisingLib Require Import Loc.
 From PromisingLib Require Import DenseOrder.
 From PromisingLib Require Import Language.
-
 From PromisingLib Require Import Event.
+
 Require Import Time.
 Require Import View.
 Require Import Cell.
 Require Import Memory.
-(* Require Import MemoryFacts. *)
 Require Import TView.
 Require Import Local.
 Require Import Promises.
@@ -24,20 +24,14 @@ Require Import Thread.
 Require Import Configuration.
 
 Require Import Cover.
-(* Require Import MemorySplit. *)
-(* Require Import MemoryMerge. *)
-(* Require Import FulfillStep. *)
+Require Import Certify.
+Require Import CurrentCertify.
+Require Import PFConsistent.
+
 Require Import MemoryProps.
-
 Require Import LowerMemory.
-(* Require Import JoinedView. *)
-
 Require Import MaxView.
-(* Require Import Delayed. *)
 
-Require Import Lia.
-
-(* Require Import JoinedView. *)
 Require Import SeqLift.
 Require Import SeqLiftStep.
 Require Import SeqLiftCertification.
@@ -47,12 +41,11 @@ Require Import SequentialRefinement.
 Require Import Sequential.
 Require Import CertOracle.
 
-(* Require Import Pred. *)
-
 Require Import SimAux.
 Require Import FlagAux.
 Require Import SeqAux.
 Require Import NoMix.
+
 
 Definition initial_mapping: Mapping.t :=
   Mapping.mk
@@ -3232,8 +3225,6 @@ Section LIFT.
       { right. esplits; eauto. }
     }
   Qed.
-
-  Require Import Certify CurrentCertify PFConsistent.
 
   Lemma sim_lift_psteps c:
     forall

@@ -1020,7 +1020,7 @@ Module DConfiguration.
   Proof.
     inv STEP.
     exploit dsteps_plus_step; eauto. i. des.
-    - inv x1. destruct c1 as [threads sc mem]. ss.
+    - inv x1. destruct c1 as [threads mem]. ss.
       rewrite IdentMap.gsident; eauto.
     - subst. econs 2. econs; eauto. i.
       hexploit CONSISTENT; eauto. i.
@@ -1053,7 +1053,7 @@ Module DConfiguration.
         + inv STEP. econs 2; eauto.
         + ii. econs 2; eauto. ss. inv PROMISES. auto.
       }
-    - inv x0. destruct c1 as [threads sc mem]. ss.
+    - inv x0. destruct c1 as [threads mem]. ss.
       rewrite IdentMap.gsident; eauto.
   Qed.
 

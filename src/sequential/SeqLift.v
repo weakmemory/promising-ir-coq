@@ -1822,7 +1822,7 @@ Variant sim_message
     sim_message loc f v Message.reserve Message.reserve
 .
 
-Program Instance Bool_le_PreOrder: PreOrder Bool.le.
+Global Program Instance Bool_le_PreOrder: PreOrder Bool.le.
 Next Obligation. Proof. ii. destruct x; ss. Qed.
 Next Obligation. Proof. ii. destruct x, y, z; ss. Qed.
 
@@ -2731,7 +2731,7 @@ Definition own_fp_upd (ctx: Loc.t -> bool): (Loc.t -> bool) -> (Loc.t -> bool) -
     forall (DISJOINT: BoolMap.disjoint lown0 ctx),
       BoolMap.disjoint lown1 ctx.
 
-Program Instance own_fp_upd_PreOrder ctx: PreOrder (own_fp_upd ctx).
+Global Program Instance own_fp_upd_PreOrder ctx: PreOrder (own_fp_upd ctx).
 Next Obligation.
 Proof.
   ii. eapply DISJOINT; eauto.
@@ -2758,7 +2758,7 @@ Definition wf_D_upd: ((Loc.t -> bool) * (Loc.t -> bool)) -> ((Loc.t -> bool) * (
       (<<DISJOINT: BoolMap.disjoint flag1 ctx>>) /\
         (<<EQ: D1 = boolmap_plus flag1 ctx>>).
 
-Program Instance wf_D_upd_PreOrder: PreOrder wf_D_upd.
+Global Program Instance wf_D_upd_PreOrder: PreOrder wf_D_upd.
 Next Obligation.
 Proof.
   ii. destruct x as [? ?]. ss.

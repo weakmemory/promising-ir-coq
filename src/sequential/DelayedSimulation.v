@@ -44,7 +44,7 @@ Set Implicit Arguments.
 
 Module PCM.
   Class t: Type := mk {
-    car:> Type;
+    car: Type;
     unit: car;
     add: car -> car -> car;
     wf: car -> Prop;

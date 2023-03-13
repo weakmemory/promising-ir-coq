@@ -4648,6 +4648,7 @@ Variant machine_event_le: forall (e0 e1: MachineEvent.t), Prop :=
 | machine_event_le_failure: machine_event_le MachineEvent.failure MachineEvent.failure
 .
 
+#[global]
 Program Instance machine_event_le_PreOrder: PreOrder machine_event_le.
 Next Obligation.
 Proof.

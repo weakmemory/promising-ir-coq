@@ -71,8 +71,8 @@ Lemma future_is_racy
     <<STEP: Local.is_racy lc1 gl1' loc to' ord>>.
 Proof.
   inv FUTURE. inv LE.
-  inv STEP; eauto.
-  specialize (ADDNA loc). des.
+  inv STEP; eauto. inv ADDNA.
+  specialize (ADDNA0 loc). des.
   - esplits; econs 1; eauto.
     rewrite GET in *. ss.
   - r in LATEST. des.
@@ -162,7 +162,7 @@ Proof.
 Qed.
 
 Lemma reorder_read_write
-      lc0 gl0 
+      lc0 gl0
       loc1 ts1 val1 released1 ord1 lc1
       loc2 from2 to2 val2 releasedm2 released2 ord2 lc2 gl2
       (LOC: loc1 <> loc2)

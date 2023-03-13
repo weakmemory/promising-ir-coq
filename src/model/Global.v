@@ -116,34 +116,39 @@ Module Global.
     apply Memory.cap_of_cap.
   Qed.
 
-  Variant strong_le (gl1 gl2: t): Prop :=
-  | strong_le_intro
-      (LE: le gl1 gl2)
+  Variant na_added_latest (gl1 gl2: t): Prop :=
+  | na_added_latest_intro
       (ADDNA: forall loc,
           (<<PROMISES: implb (gl1.(promises) loc) (gl2.(promises) loc)>>) \/
           (<<LATEST: Memory.na_added_latest loc gl1.(memory) gl2.(memory)>>))
+  .
+
+  Variant strong_le (gl1 gl2: t): Prop :=
+  | strong_le_intro
+      (LE: le gl1 gl2)
+      (ADDNA: na_added_latest gl1 gl2)
   .
   #[global] Hint Constructors strong_le: core.
 
   Global Program Instance strong_le_PreOrder: PreOrder strong_le.
   Next Obligation.
-    ii. destruct x. econs; [refl|]. i. left. ss. rewrite Bool.implb_same. auto.
+    ii. destruct x. econs; [refl|]. econs. i. left. ss. rewrite Bool.implb_same. auto.
   Qed.
   Next Obligation.
     ii. destruct x, y, z. inv H. inv H0. ss. econs.
     { etrans; eauto. }
-    { i. ss. destruct (promises0 loc) eqn:PRM0.
+    { econs. i. ss. destruct (promises0 loc) eqn:PRM0.
       { destruct (promises2 loc) eqn:PRM2.
         { left. ss. }
         destruct (promises1 loc) eqn:PRM1.
-        { right. hexploit ADDNA0; eauto.
+        { right. inv ADDNA0. ss. hexploit ADDNA1; eauto.
           rewrite PRM1. rewrite PRM2. i. des; ss.
           eapply Memory.na_added_latest_le.
           { inv LE. eauto. }
           { eauto. }
           { reflexivity. }
         }
-        { right. hexploit ADDNA; eauto.
+        { right. inv ADDNA. ss. hexploit ADDNA1; eauto.
           rewrite PRM0. rewrite PRM1. i. des; ss.
           eapply Memory.na_added_latest_le.
           { reflexivity. }
@@ -162,6 +167,6 @@ Module Global.
   Proof.
     destruct gl, gl_cap. inv CAP. econs.
     { eapply cap_le; eauto. }
-    { i. left. ss. rewrite Bool.implb_same. auto. }
+    { econs. i. left. ss. rewrite Bool.implb_same. auto. }
   Qed.
 End Global.

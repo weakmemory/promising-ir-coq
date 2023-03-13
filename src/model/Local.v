@@ -648,7 +648,7 @@ Module Local.
   Proof.
     hexploit promise_step_future; eauto. i. des. esplits; eauto. econs.
     { eapply Global.future_le; eauto. }
-    { i. left. inv STEP. ss. inv PROMISE. inv GADD.
+    { econs. i. left. inv STEP. ss. inv PROMISE. inv GADD.
       change (LocFun.add loc true (Global.promises gl1) loc0) with
         (LocFun.find loc0 (LocFun.add loc true (Global.promises gl1))).
       rewrite LocFun.add_spec. des_ifs. rewrite Bool.implb_same. auto.
@@ -667,7 +667,7 @@ Module Local.
   Proof.
     hexploit reserve_step_future; eauto. i. des. esplits; eauto. econs.
     { eapply Global.future_le; eauto. }
-    { i. left. inv STEP. rewrite Bool.implb_same. auto. }
+    { econs. i. left. inv STEP. rewrite Bool.implb_same. auto. }
   Qed.
 
   Lemma cancel_step_strong_le
@@ -682,7 +682,7 @@ Module Local.
   Proof.
     hexploit cancel_step_future; eauto. i. des. esplits; eauto. econs.
     { eapply Global.future_le; eauto. }
-    { i. left. inv STEP. rewrite Bool.implb_same. auto. }
+    { econs. i. left. inv STEP. rewrite Bool.implb_same. auto. }
   Qed.
 
   Lemma write_step_strong_le
@@ -708,7 +708,7 @@ Module Local.
     left. hexploit write_step_future; eauto. i. des.
     esplits; eauto. econs.
     { eapply Global.future_le; eauto. }
-    { i. inv STEP. ss. inv FULFILL; ss.
+    { econs. i. inv STEP. ss. inv FULFILL; ss.
       { left. rewrite Bool.implb_same. auto. }
       inv GREMOVE.
       change (LocFun.add loc false (Global.promises gl1) loc0) with
@@ -743,7 +743,7 @@ Module Local.
   Proof.
     hexploit fence_step_future; eauto. i. des. esplits; eauto. econs.
     { eapply Global.future_le; eauto. }
-    { i. left. inv STEP. rewrite Bool.implb_same. auto. }
+    { econs. i. left. inv STEP. rewrite Bool.implb_same. auto. }
   Qed.
 
   Lemma internal_step_strong_le

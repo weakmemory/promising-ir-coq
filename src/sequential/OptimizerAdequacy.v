@@ -15,6 +15,7 @@ Require Import Sequential.
 Require Import SequentialITree.
 Require Import SequentialCompatibility.
 Require Import SequentialITreeAdequacy.
+Require Import NoMix.
 
 Require Import WRforwarding.
 Require Import WRforwardingProof2.
@@ -31,6 +32,10 @@ Set Implicit Arguments.
 
 
 Section ADEQUACY.
+  Variable loc_na: Loc.t -> Prop.
+  Variable loc_at: Loc.t -> Prop.
+  Hypothesis LOCDISJOINT: forall loc (NA: loc_na loc) (AT: loc_at loc), False.
+
   Theorem WRforwarding_sound A
           (code: ITreeLang.block)
           (prog_src prog_tgt: (lang Const.t).(Language.syntax))
@@ -38,7 +43,13 @@ Section ADEQUACY.
           (PROG_TGT: prog_tgt = eval_lang (WRfwd_opt_alg code))
           (ctx_seq: itree MemE.t Const.t -> itree MemE.t A)
           (ctx_ths: Threads.syntax) (tid: Ident.t)
-          (CTX: @itree_context Const.t A ctx_seq)
+          (CTX: @itree_context loc_na loc_at Const.t A ctx_seq)
+          (NOMIX_SRC: nomix loc_na loc_at _ ((lang Const.t).(Language.init) prog_src))
+          (NOMIX_TGT: nomix loc_na loc_at _ ((lang Const.t).(Language.init) prog_tgt))
+          (NOMIX_CTX:
+             forall tid lang syn
+                    (FIND: IdentMap.find tid ctx_ths = Some (existT _ lang syn)),
+               nomix loc_na loc_at lang (lang.(Language.init) syn))
     :
       behaviors
         Configuration.step
@@ -59,7 +70,13 @@ Section ADEQUACY.
           (PROG_TGT: prog_tgt = eval_lang (RRfwd_opt_alg code))
           (ctx_seq: itree MemE.t Const.t -> itree MemE.t A)
           (ctx_ths: Threads.syntax) (tid: Ident.t)
-          (CTX: @itree_context Const.t A ctx_seq)
+          (CTX: @itree_context loc_na loc_at Const.t A ctx_seq)
+          (NOMIX_SRC: nomix loc_na loc_at _ ((lang Const.t).(Language.init) prog_src))
+          (NOMIX_TGT: nomix loc_na loc_at _ ((lang Const.t).(Language.init) prog_tgt))
+          (NOMIX_CTX:
+             forall tid lang syn
+                    (FIND: IdentMap.find tid ctx_ths = Some (existT _ lang syn)),
+               nomix loc_na loc_at lang (lang.(Language.init) syn))
     :
       behaviors
         Configuration.step
@@ -80,7 +97,13 @@ Section ADEQUACY.
           (PROG_TGT: prog_tgt = eval_lang (LICM_LoadIntro code))
           (ctx_seq: itree MemE.t Const.t -> itree MemE.t A)
           (ctx_ths: Threads.syntax) (tid: Ident.t)
-          (CTX: @itree_context Const.t A ctx_seq)
+          (CTX: @itree_context loc_na loc_at Const.t A ctx_seq)
+          (NOMIX_SRC: nomix loc_na loc_at _ ((lang Const.t).(Language.init) prog_src))
+          (NOMIX_TGT: nomix loc_na loc_at _ ((lang Const.t).(Language.init) prog_tgt))
+          (NOMIX_CTX:
+             forall tid lang syn
+                    (FIND: IdentMap.find tid ctx_ths = Some (existT _ lang syn)),
+               nomix loc_na loc_at lang (lang.(Language.init) syn))
     :
       behaviors
         Configuration.step
@@ -101,7 +124,13 @@ Section ADEQUACY.
           (PROG_TGT: prog_tgt = eval_lang (DSE_opt_alg code))
           (ctx_seq: itree MemE.t Const.t -> itree MemE.t A)
           (ctx_ths: Threads.syntax) (tid: Ident.t)
-          (CTX: @itree_context Const.t A ctx_seq)
+          (CTX: @itree_context loc_na loc_at Const.t A ctx_seq)
+          (NOMIX_SRC: nomix loc_na loc_at _ ((lang Const.t).(Language.init) prog_src))
+          (NOMIX_TGT: nomix loc_na loc_at _ ((lang Const.t).(Language.init) prog_tgt))
+          (NOMIX_CTX:
+             forall tid lang syn
+                    (FIND: IdentMap.find tid ctx_ths = Some (existT _ lang syn)),
+               nomix loc_na loc_at lang (lang.(Language.init) syn))
     :
       behaviors
         Configuration.step

@@ -16,7 +16,6 @@ From PromisingLib Require Import Loc.
 From PromisingLib Require Import Event.
 
 Require Import Sequential.
-Require Import SeqLib.
 
 Set Implicit Arguments.
 

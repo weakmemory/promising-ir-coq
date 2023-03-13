@@ -1185,6 +1185,18 @@ Module Memory.
     econs; apply max_timemap_spec; try apply VIEW; auto.
   Qed.
 
+  Lemma le_max_ts
+        mem1 mem2 loc
+        (LE: le mem1 mem2)
+        (INHABITED: inhabited mem1):
+    Time.le (max_ts loc mem1) (max_ts loc mem2).
+  Proof.
+    exploit max_ts_spec; try apply INHABITED. i. des.
+    exploit LE; eauto. i.
+    exploit Memory.max_ts_spec; try exact x0. i. des.
+    apply MAX0.
+  Qed.
+
 
   (* Lemmas on existence of memory op *)
 
@@ -1255,6 +1267,16 @@ Module Memory.
     eexists. econs; eauto.
   Qed.
 
+  Lemma remove_exists_le
+        mem1 mem1' loc from to msg mem2
+        (LE: le mem1 mem1')
+        (REMOVE: remove mem1 loc from to msg mem2):
+    exists mem2', remove mem1' loc from to msg mem2'.
+  Proof.
+    exploit remove_get0; eauto. i. des.
+    exploit LE; eauto. i.
+    eapply remove_exists. ss.
+  Qed.
 
   (* maximal & minimal messages satisfying a property *)
 

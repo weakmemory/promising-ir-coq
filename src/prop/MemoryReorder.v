@@ -108,6 +108,45 @@ Module MemoryReorder.
     - erewrite (@Memory.add_o mem1); eauto. condtac; ss.
   Qed.
 
+  Lemma remove_add
+        mem0 loc1 from1 to1 msg1
+        mem1 loc2 from2 to2 msg2
+        mem2
+        (REMOVE1: Memory.remove mem0 loc1 from1 to1 msg1 mem1)
+        (ADD2: Memory.add mem1 loc2 from2 to2 msg2 mem2)
+        (TS: Time.lt from1 to1)
+        (LOCTS: loc1 <> loc2 \/ Interval.disjoint (from1, to1) (from2, to2)):
+    exists mem1',
+      <<ADD1: Memory.add mem0 loc2 from2 to2 msg2 mem1'>> /\
+      <<REMOVE2: Memory.remove mem1' loc1 from1 to1 msg1 mem2>>.
+  Proof.
+    guardH LOCTS.
+    exploit (@Memory.add_exists mem0 loc2 from2 to2 msg2).
+    { i. exploit Memory.remove_get1; try exact GET2; eauto. i. des.
+      { subst. unguard. des; ss. symmetry. ss. }
+      exploit Memory.add_get1; try exact x0; eauto. i.
+      exploit Memory.add_get0; eauto. i. des.
+      exploit Memory.get_disjoint; [exact GET0|exact x1|]. i. des; ss. subst. congr.
+    }
+    { exploit Memory.add_ts; eauto. }
+    { inv ADD2. inv ADD. ss. }
+    i. des.
+    esplits; eauto.
+    exploit Memory.remove_get0; eauto. i. des.
+    exploit Memory.add_get1; try exact GET; eauto. i.
+    exploit Memory.remove_exists; try exact x1. i. des.
+    cut (mem4 = mem2); try congr.
+    apply Memory.ext. i.
+    erewrite (@Memory.remove_o mem4); eauto.
+    erewrite (@Memory.add_o mem3); eauto.
+    erewrite (@Memory.add_o mem2); eauto.
+    erewrite (@Memory.remove_o mem1); eauto.
+    repeat (condtac; ss). des. subst. exfalso.
+    unguard. des; ss.
+    exploit Memory.add_ts; eauto. i.
+    apply (LOCTS to2); econs; ss; refl.
+  Qed.
+
   Lemma remove_remove
         promises0 loc1 from1 to1 msg1
         promises1 loc2 from2 to2 msg2

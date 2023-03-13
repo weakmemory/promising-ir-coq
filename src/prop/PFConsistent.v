@@ -107,6 +107,39 @@ Module PFConsistent.
         + esplits; [|eauto]. econs 2; eauto.
     Qed.
 
+    Lemma rtc_all_step_rtc_non_sc_step
+          (th1 th2: Thread.t lang)
+          (STEPS: rtc (@Thread.all_step _) th1 th2):
+      exists th2',
+        (<<STEPS1: rtc (pstep (@Thread.step _) non_sc) th1 th2'>>) /\
+        ((<<TH2: th2' = th2>>) \/
+         (exists e th3,
+             (<<STEP_FAILURE: Thread.step e th2' th3>>) /\
+             (<<EVENT_FAILURE: ThreadEvent.get_machine_event e = MachineEvent.failure>>)) \/
+         (<<STEPS2: rtc (@Thread.all_step _) th2' th2>>) /\
+         (<<PROMISES: Local.promises (Thread.local th2') = BoolMap.bot>>)).
+    Proof.
+      induction STEPS.
+      { esplits; eauto. }
+      inv H.
+      destruct (classic (ThreadEvent.get_machine_event e = MachineEvent.failure)).
+      { esplits; try refl. right. left. eauto. }
+      destruct (classic (ThreadEvent.is_sc e)).
+      { esplits; [refl|]. right. right. split.
+        - econs 2; eauto. econs; eauto.
+        - inv USTEP; inv LOCAL; ss; inv LOCAL0; auto.
+      }
+      des.
+      - esplits; [|eauto]. econs 2; eauto.
+        econs; eauto. destruct e; ss.
+      - esplits.
+        + econs 2; eauto.
+          econs; eauto. destruct e; ss.
+        + right. left. eauto.
+      - esplits; [|eauto]. econs 2; eauto.
+        econs; eauto. destruct e; ss.
+    Qed.
+
     Lemma consistent_non_sc_consistent
           th
           (CONS: Thread.consistent th):

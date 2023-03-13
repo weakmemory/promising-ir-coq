@@ -27,6 +27,8 @@ Require Import PFConfiguration.
 Require Import Behavior.
 
 Require Import PFConsistent.
+Require Import Certify.
+
 Require Import FutureCertify.
 Require Import SrcToIRThread.
 
@@ -194,7 +196,7 @@ Module SrcToIR.
       dup SIM. inv SIM0. specialize (THS tid0). rewrite TH in *.
       destruct (IdentMap.find tid0 ths1_src) as [[[lang0_src st0_src] lc0_src]|] eqn:FIND0_SRC; ss.
       inv THS. Configuration.simplify. des.
-      exploit FutureCertify.spf_consistent_certify; try exact CONS; eauto. s. intro CERTIFY.
+      exploit spf_consistent_certify; try exact CONS; eauto. s. intro CERTIFY.
 
       dup WF1_IR. inv WF1_IR0. inv WF. ss.
       exploit DISJOINT; try exact H; eauto. i.
@@ -368,7 +370,7 @@ Module SrcToIR.
     dup SIM. inv SIM3. specialize (THS tid0). rewrite TH in *.
     destruct (IdentMap.find tid0 ths1_src) as [[[lang0_src st0_src] lc0_src]|] eqn:FIND0_SRC; ss.
     inv THS. Configuration.simplify. des.
-    exploit FutureCertify.spf_consistent_certify; try exact CONS; eauto. intro CERTIFY.
+    exploit spf_consistent_certify; try exact CONS; eauto. intro CERTIFY.
 
     dup WF1_IR. inv WF1_IR0. inv WF. ss.
     exploit DISJOINT; try exact H; eauto. i.

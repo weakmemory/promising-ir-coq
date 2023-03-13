@@ -170,6 +170,30 @@ Module Promises.
     esplits; eauto.
   Qed.
 
+  Lemma reorder_fulfill_promise_same
+        prm0 gprm0
+        loc ord1 prm1 gprm1
+        prm2 gprm2
+        (FULFILL1: fulfill prm0 gprm0 loc ord1 prm1 gprm1)
+        (PROMISE2: promise prm1 gprm1 loc prm2 gprm2):
+    exists prm1' gprm1',
+      (<<PROMISE1: __guard__ (prm1' = prm0 /\ gprm1' = gprm0 \/
+                              promise prm0 gprm0 loc prm1' gprm1')>>) /\
+      (<<FULFILL2: fulfill prm1' gprm1' loc ord1 prm2 gprm2>>).
+  Proof.
+    inv FULFILL1.
+    { esplits; eauto. right. ss. }
+    inv PROMISE2. esplits; [left; eauto|]. econs.
+    - extensionality l.
+      erewrite (@BoolMap.add_o prm2); eauto.
+      erewrite (@BoolMap.remove_o prm1); eauto.
+      condtac; ss. subst. inv REMOVE. ss.
+    - extensionality l.
+      erewrite (@BoolMap.add_o gprm2); eauto.
+      erewrite (@BoolMap.remove_o gprm1); eauto.
+      condtac; ss. subst. inv GREMOVE. ss.
+  Qed.
+
   Lemma reorder_promise_fulfill
         prm0 gprm0
         loc1 prm1 gprm1

@@ -122,6 +122,23 @@ Module Thread.
     .
     Hint Constructors opt_step: core.
 
+    Variant internal_step: forall (th1 th2: t), Prop :=
+    | interal_step_intro
+        e st lc1 gl1 lc2 gl2
+        (LOCAL: Local.internal_step e lc1 gl1 lc2 gl2):
+      internal_step (mk st lc1 gl1) (mk st lc2 gl2)
+    .
+    Hint Constructors internal_step: core.
+
+    Variant program_step: forall (e: ThreadEvent.t) (th1 th2: t), Prop :=
+    | program_step_intro
+        e st1 lc1 gl1 st2 lc2 gl2
+        (STATE: Language.step lang (ThreadEvent.get_program_event e) st1 st2)
+        (LOCAL: Local.program_step e lc1 gl1 lc2 gl2):
+      program_step e (mk st1 lc1 gl1) (mk st2 lc2 gl2)
+    .
+    Hint Constructors program_step: core.
+
     Lemma tau_opt_tau
           th1 th2 th3 e
           (STEPS: rtc tau_step th1 th2)
@@ -242,6 +259,68 @@ Module Thread.
       apply rtc_all_step_future; auto.
       eapply rtc_implies; [|eauto].
       apply tau_union.
+    Qed.
+
+    Lemma internal_step_future
+          th1 th2
+          (STEP: internal_step th1 th2)
+          (LC_WF1: Local.wf (local th1) (global th1))
+          (GL_WF1: Global.wf (global th1)):
+      <<LC_WF2: Local.wf (local th2) (global th2)>> /\
+      <<GL_WF2: Global.wf (global th2)>> /\
+      <<TVIEW_FUTURE: TView.le (Local.tview (local th1)) (Local.tview (local th2))>> /\
+      <<GL_FUTURE: Global.future (global th1) (global th2)>>.
+    Proof.
+      inv STEP; ss.
+      eauto using Local.internal_step_future.
+    Qed.
+
+    Lemma rtc_internal_step_future
+          th1 th2
+          (STEP: rtc internal_step th1 th2)
+          (LC_WF1: Local.wf (local th1) (global th1))
+          (GL_WF1: Global.wf (global th1)):
+      <<LC_WF2: Local.wf (local th2) (global th2)>> /\
+      <<GL_WF2: Global.wf (global th2)>> /\
+      <<TVIEW_FUTURE: TView.le (Local.tview (local th1)) (Local.tview (local th2))>> /\
+      <<GL_FUTURE: Global.future (global th1) (global th2)>>.
+    Proof.
+      revert LC_WF1. induction STEP; i.
+      - splits; ss; refl.
+      - exploit internal_step_future; eauto. i. des.
+        exploit IHSTEP; eauto. i. des.
+        splits; ss; etrans; eauto.
+    Qed.
+
+    Lemma program_step_future
+          e th1 th2
+          (STEP: program_step e th1 th2)
+          (LC_WF1: Local.wf (local th1) (global th1))
+          (GL_WF1: Global.wf (global th1)):
+      <<LC_WF2: Local.wf (local th2) (global th2)>> /\
+      <<GL_WF2: Global.wf (global th2)>> /\
+      <<TVIEW_FUTURE: TView.le (Local.tview (local th1)) (Local.tview (local th2))>> /\
+      <<GL_FUTURE: Global.future (global th1) (global th2)>>.
+    Proof.
+      inv STEP; ss.
+      eauto using Local.program_step_future.
+    Qed.
+
+    Lemma rtc_program_step_future
+          th1 th2
+          (STEP: rtc (tau program_step) th1 th2)
+          (LC_WF1: Local.wf (local th1) (global th1))
+          (GL_WF1: Global.wf (global th1)):
+      <<LC_WF2: Local.wf (local th2) (global th2)>> /\
+      <<GL_WF2: Global.wf (global th2)>> /\
+      <<TVIEW_FUTURE: TView.le (Local.tview (local th1)) (Local.tview (local th2))>> /\
+      <<GL_FUTURE: Global.future (global th1) (global th2)>>.
+    Proof.
+      revert LC_WF1. induction STEP; i.
+      - splits; ss; refl.
+      - inv H. exploit program_step_future; eauto. i. des.
+        exploit IHSTEP; eauto. i. des.
+        splits; ss; etrans; eauto.
     Qed.
 
 
@@ -431,6 +510,48 @@ Module Thread.
           { eauto. }
         }
     Qed.
+
+
+    (* internal and program step *)
+
+    Lemma internal_step_tau_thread_step
+          th1 th2
+          (STEP: internal_step th1 th2)
+      :
+      tau_step th1 th2.
+    Proof.
+      inv STEP. econs 1; eauto. inv LOCAL; ss.
+    Qed.
+
+    Lemma program_step_thread_step
+          e th1 th2
+          (STEP: program_step e th1 th2)
+      :
+      step e th1 th2.
+    Proof.
+      inv STEP. econs 2; eauto.
+    Qed.
+
+    Lemma rtc_internal_step_rtc_tau_thread_step
+          th1 th2
+          (STEPS: rtc internal_step th1 th2)
+      :
+      rtc tau_step th1 th2.
+    Proof.
+      induction STEPS; eauto. econs 2; [|eauto].
+      eapply internal_step_tau_thread_step; eauto.
+    Qed.
+
+    Lemma rtc_tau_program_step_rtc_tau_thread_step
+          th1 th2
+          (STEPS: rtc (tau program_step) th1 th2)
+      :
+      rtc tau_step th1 th2.
+    Proof.
+      induction STEPS; eauto. econs 2; [|eauto].
+      inv H. econs; eauto. eapply program_step_thread_step; eauto.
+    Qed.
+
   End Thread.
 End Thread.
 #[export] Hint Constructors Thread.step: core.

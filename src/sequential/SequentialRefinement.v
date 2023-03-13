@@ -15,7 +15,6 @@ From PromisingLib Require Import Loc.
 From PromisingLib Require Import Event.
 Require Import List.
 
-Require Import SeqLib.
 Require Import Sequential.
 Require Import OracleFacts.
 

@@ -10,15 +10,25 @@ From PromisingLib Require Import Event.
 Require Import Configuration.
 Require Import Behavior.
 
+Require Import NoMix.
+Require Import DelayedSimulation.
+Require Import DelayedStep.
+Require Import DelayedAdequacy.
+Require Import SeqLiftSim.
 Require Import Sequential.
 Require Import SequentialBehavior.
 Require Import SequentialRefinement.
 Require Import Program.
 
+
 Set Implicit Arguments.
 
 
 Section ADEQUACY.
+  Variable loc_na: Loc.t -> Prop.
+  Variable loc_at: Loc.t -> Prop.
+  Hypothesis LOCDISJOINT: forall loc (NA: loc_na loc) (AT: loc_at loc), False.
+
   Theorem sequential_adequacy (progs_src progs_tgt: Threads.syntax)
           (SIM: forall tid,
               option_rel
@@ -29,6 +39,14 @@ Section ADEQUACY.
                                      (lang_tgt.(Language.init) prog_tgt))
                 (IdentMap.find tid progs_src)
                 (IdentMap.find tid progs_tgt))
+          (NOMIX_SRC:
+             forall tid lang syn
+                    (FIND: IdentMap.find tid progs_src = Some (existT _ lang syn)),
+               nomix loc_na loc_at lang (lang.(Language.init) syn))
+          (NOMIX_TGT:
+             forall tid lang syn
+                    (FIND: IdentMap.find tid progs_tgt = Some (existT _ lang syn)),
+               nomix loc_na loc_at lang (lang.(Language.init) syn))
     :
       behaviors
         Configuration.step
@@ -38,8 +56,20 @@ Section ADEQUACY.
         Configuration.step
         (Configuration.init progs_src).
   Proof.
-    (* to be ported from promising-seq-coq project *)
-  Admitted.
+    i. eapply DelayedAdequacy.sim_init.
+    { eapply SeqLiftSim.world_messages_le_PreOrder. }
+    { eapply SeqLiftSim.world_messages_le_mon. }
+    { eapply SeqLiftSim.world_messages_le_frame. }
+    { i. specialize (SIM tid). unfold option_rel in *. des_ifs.
+      { rewrite Heq1 in Heq0. dependent destruction Heq0.
+        des. eapply SeqLiftSim.sim_lift_init; eauto.
+      }
+      { clarify. }
+      { clarify. }
+    }
+    { eapply SeqLiftSim.initial_sim_memory_lift. }
+    eapply DConfiguration.delayed_refinement; eauto.
+  Qed.
 
   Theorem sequential_adequacy_concurrent_context
           (ctx: Threads.syntax) (tid: Ident.t)
@@ -49,6 +79,12 @@ Section ADEQUACY.
                                   _ _ sim_ret
                                   (lang_src.(Language.init) prog_src)
                                   (lang_tgt.(Language.init) prog_tgt))
+          (NOMIX_SRC: nomix loc_na loc_at _ (lang_src.(Language.init) prog_src))
+          (NOMIX_TGT: nomix loc_na loc_at _ (lang_tgt.(Language.init) prog_tgt))
+          (NOMIX_CTX:
+             forall tid lang syn
+                    (FIND: IdentMap.find tid ctx = Some (existT _ lang syn)),
+               nomix loc_na loc_at lang (lang.(Language.init) syn))
     :
       behaviors
         Configuration.step
@@ -63,6 +99,12 @@ Section ADEQUACY.
       destruct (IdentMap.find tid0 ctx) as [[lang prog]|]; ss.
       esplits. eapply sim_seq_all_refl.
     }
+    { ii. rewrite IdentMap.gsspec in FIND. des_ifs; eauto.
+      dependent destruction H0. auto.
+    }
+    { ii. rewrite IdentMap.gsspec in FIND. des_ifs; eauto.
+      dependent destruction H0. auto.
+    }
   Qed.
 
   Theorem sequential_refinement_adequacy_concurrent_context
@@ -73,6 +115,12 @@ Section ADEQUACY.
           (DETERM: deterministic _ (lang_src.(Language.init) prog_src))
           (RECEPTIVE: receptive _ (lang_tgt.(Language.init) prog_tgt))
           (MONOTONE: monotone_read_state lang_src (lang_src.(Language.init) prog_src))
+          (NOMIX_SRC: nomix loc_na loc_at _ (lang_src.(Language.init) prog_src))
+          (NOMIX_TGT: nomix loc_na loc_at _ (lang_tgt.(Language.init) prog_tgt))
+          (NOMIX_CTX:
+             forall tid lang syn
+                    (FIND: IdentMap.find tid ctx = Some (existT _ lang syn)),
+               nomix loc_na loc_at lang (lang.(Language.init) syn))
     :
       behaviors
         Configuration.step

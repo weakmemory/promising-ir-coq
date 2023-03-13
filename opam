@@ -1,7 +1,17 @@
 opam-version: "2.0"
 name: "coq-promising-ir"
-maintainer: "Anonymous"
+maintainer: "sunghwan.lee@sf.snu.ac.kr"
 synopsis: "Coq implementation of the Promising IR semantics"
+homepage: "https://sf.snu.ac.kr/promising-ir/"
+dev-repo: "git+https://github.com/snu-sf/promising-ir-coq.git"
+bug-reports: "https://github.com/snu-sf/promising-ir-coq/issues/"
+authors: [
+  "Sung-Hwan Lee <sunghwan.lee@sf.snu.ac.kr>"
+  "Minki Cho <minki.cho@sf.snu.ac.kr>"
+  "Roy Margalit <roy.margalit@cs.tau.ac.il>"
+  "Chung-Kil Hur <gil.hur@sf.snu.ac.kr>"
+  "Ori Lahav <orilahav@tau.ac.il>"
+]
 build: [make "-j%{jobs}%" "build"]
 install: [make "-f" "Makefile.coq" "install"]
 remove: ["rm" "-rf" "%{lib}%/coq/user-contrib/PromisingIR"]
@@ -10,4 +20,6 @@ depends: [
   "coq-sflib" { (= "dev") }
   "coq-paco" { (= "4.1.2") }
   "coq-promising-lib" { (= "dev") }
+  "coq-ext-lib" { (= "dev") }
+  "coq-itree" { (= "4.0.0") }
 ]

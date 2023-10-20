@@ -52,62 +52,62 @@ Section Proof.
   Lemma denote_inst_skip
         le
     :
-      denote_inst le (Inst.skip) = tau;; Ret (le, ()).
+      @denote_inst MemE.t (fun (x: Type) (m: MemE.t x) => m) le (Inst.skip) = tau;; Ret (le, ()).
   Proof. ss. Qed.
 
   Lemma denote_inst_assign
         lhs rhs le
     :
-      denote_inst le (Inst.assign lhs rhs) =
+      @denote_inst MemE.t (fun (x: Type) (m: MemE.t x) => m) le (Inst.assign lhs rhs) =
       let r := denote_expr le rhs in tau;; Ret (update lhs r le, ()).
   Proof. ss. Qed.
 
   Lemma denote_inst_load
         lhs loc ord le
     :
-      denote_inst le (Inst.load lhs loc ord) =
+      @denote_inst MemE.t (fun (x: Type) (m: MemE.t x) => m) le (Inst.load lhs loc ord) =
       r <- trigger (MemE.read loc ord);; Ret (update lhs r le, ()).
   Proof. ss. Qed.
 
   Lemma denote_inst_store
         loc rhs ord le
     :
-      denote_inst le (Inst.store loc rhs ord) =
+      @denote_inst MemE.t (fun (x: Type) (m: MemE.t x) => m) le (Inst.store loc rhs ord) =
       let r := denote_expr le rhs in trigger (MemE.write loc r ord);; Ret (le, ()).
   Proof. ss. Qed.
 
   Lemma denote_inst_update
         lhs loc rmw ord1 ord2 le
     :
-      denote_inst le (Inst.update lhs loc rmw ord1 ord2) =
+      @denote_inst MemE.t (fun (x: Type) (m: MemE.t x) => m) le (Inst.update lhs loc rmw ord1 ord2) =
       r <- trigger (MemE.update loc rmw ord1 ord2);; Ret (update lhs r le, ()).
   Proof. ss. Qed.
 
   Lemma denote_inst_fence
         ord1 ord2 le
     :
-      denote_inst le (Inst.fence ord1 ord2) =
+      @denote_inst MemE.t (fun (x: Type) (m: MemE.t x) => m) le (Inst.fence ord1 ord2) =
       trigger (MemE.fence ord1 ord2);; Ret (le, ()).
   Proof. ss. Qed.
 
   Lemma denote_inst_syscall
         lhs es le
     :
-      denote_inst le (Inst.syscall lhs es) =
+      @denote_inst MemE.t (fun (x: Type) (m: MemE.t x) => m) le (Inst.syscall lhs es) =
       let args := denote_exprs le es in r <- trigger (MemE.syscall args);; Ret (update lhs r le, ()).
   Proof. ss. Qed.
 
   Lemma denote_inst_abort
         le
     :
-      denote_inst le (Inst.abort) =
+      @denote_inst MemE.t (fun (x: Type) (m: MemE.t x) => m) le (Inst.abort) =
       trigger MemE.abort;; Ret (le, ()).
   Proof. ss. Qed.
 
   Lemma denote_inst_choose
         lhs le
     :
-      denote_inst le (Inst.choose lhs) =
+      @denote_inst MemE.t (fun (x: Type) (m: MemE.t x) => m) le (Inst.choose lhs) =
       v <- trigger MemE.choose;; Ret (update lhs v le, ()).
   Proof. ss. Qed.
 
@@ -117,26 +117,26 @@ Section Proof.
         i le
     :
       denote_stmt le (inst i) =
-      denote_inst le i.
+      @denote_inst MemE.t (fun (x: Type) (m: MemE.t x) => m) le i.
   Proof. ss. Qed.
 
   Lemma denote_block_nil
         le
     :
-      denote_block le nil = Ret (le, ()).
+      @denote_block MemE.t (fun (x: Type) (m: MemE.t x) => m) le nil = Ret (le, ()).
   Proof. ss. Qed.
 
   Lemma denote_block_cons
         s b le
     :
-      denote_block le (cons s b) =
+      @denote_block MemE.t (fun (x: Type) (m: MemE.t x) => m) le (cons s b) =
       '(le1, _) <- denote_stmt le s;; denote_block le1 b.
   Proof. ss. Qed.
 
   Lemma denote_add_block
         b1 b2 l0
     :
-      denote_block l0 (add_block b1 b2) =
+      @denote_block MemE.t (fun (x: Type) (m: MemE.t x) => m) l0 (add_block b1 b2) =
       '(l1, _) <- (denote_block l0 b1);; (denote_block l1 b2).
   Proof.
     do 3 revert1. induction b1 using block_ind2; i.
@@ -149,7 +149,7 @@ Section Proof.
   Lemma denote_stmt_ite
         c b1 b2 le
     :
-      denote_stmt le (ite c b1 b2) =
+      @denote_stmt MemE.t (fun (x: Type) (m: MemE.t x) => m) le (ite c b1 b2) =
       let rc := denote_expr le c in
       tau;;
       match is_zero rc with
@@ -162,7 +162,7 @@ Section Proof.
   Lemma denote_stmt_ite2
         c b1 b2 le
     :
-      denote_stmt le (ite c b1 b2) =
+      @denote_stmt MemE.t (fun (x: Type) (m: MemE.t x) => m) le (ite c b1 b2) =
       let rc := denote_expr le c in
       match is_zero rc with
       | Some true => denote_block le (cons Inst.skip b2)
@@ -188,7 +188,7 @@ Section Proof.
   Lemma unfold_denote_while
         c wb le
     :
-      denote_stmt le (while c wb) =
+      @denote_stmt MemE.t (fun (x: Type) (m: MemE.t x) => m) le (while c wb) =
       while_itree le
                   (fun lu : lunit =>
                      let le0 := fst lu in
@@ -204,7 +204,7 @@ Section Proof.
   Lemma denote_stmt_while
         c wb le
     :
-      denote_stmt le (while c wb) =
+      @denote_stmt MemE.t (fun (x: Type) (m: MemE.t x) => m) le (while c wb) =
       x_ <- (let rc := denote_expr le c in
                              tau;;
                              match is_zero rc with
@@ -270,12 +270,12 @@ Section Proof.
   Lemma denote_stmt_block_cons
         s l
     :
-      denote_stmt l s = denote_block l (cons s nil).
+      @denote_stmt MemE.t (fun (x: Type) (m: MemE.t x) => m) l s = denote_block l (cons s nil).
   Proof.
     rewrite denote_block_cons.
     match goal with
     | [|- ?a = _ ] =>
-      replace a with (x <- denote_stmt l s;; Ret x) at 1 end.
+      replace a with (x <- @denote_stmt MemE.t (fun (x: Type) (m: MemE.t x) => m) l s;; Ret x) at 1 end.
     2:{ grind. }
     apply ext_bind; auto.
     grind. destruct u. auto.
@@ -284,7 +284,7 @@ Section Proof.
   Lemma denote_stmt_while2
         c wb le
     :
-      denote_stmt le (while c wb) =
+      @denote_stmt MemE.t (fun (x: Type) (m: MemE.t x) => m) le (while c wb) =
       let rc := denote_expr le c in
       match is_zero rc with
       | Some true => denote_block le (cons Inst.skip nil)
@@ -308,7 +308,7 @@ Section Proof.
   Lemma denote_stmt_while3
         c wb le
     :
-      denote_stmt le (while c wb) =
+      @denote_stmt MemE.t (fun (x: Type) (m: MemE.t x) => m) le (while c wb) =
       tau;;
       match is_zero (denote_expr le c) with
       | Some true => denote_block le nil

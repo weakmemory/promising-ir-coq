@@ -590,7 +590,7 @@ Section Interp.
 
   Definition effs := MemE.t.
 
-  Definition itr_code (blk: block) (le: lenv) :=
+  Definition itr_code (blk: block) (le: lenv) : itree MemE.t Const.t :=
     '(le1, _) <- (denote_block le blk);; Ret (le1 ret_reg).
 
   Definition eval_lang (body: block) : itree MemE.t Const.t :=

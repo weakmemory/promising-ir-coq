@@ -3,8 +3,17 @@
 
   attribute = "promising-ir";
 
-  default-bundle = "8.17";
+  default-bundle = "8.18";
 
+  bundles."8.15" = {
+    push-branches = [ "**" ];
+    coqPackages.coq.override.version = "8.15";
+    coqPackages.hahn.override.version = "master";
+    coqPackages.hahnExt.override.version = "main";
+    coqPackages.sflib.override.version = "master";
+    coqPackages.promising-lib.override.version = "master";
+    coqPackages.ITree.override.version = "master";
+  };
   bundles."8.16" = {
     push-branches = [ "**" ];
     coqPackages.coq.override.version = "8.16";

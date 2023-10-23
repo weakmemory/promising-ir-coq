@@ -3,8 +3,26 @@
 
   attribute = "promising-ir";
 
-  default-bundle = "8.18";
+  default-bundle = "8.17";
 
+  bundles."8.16" = {
+    push-branches = [ "**" ];
+    coqPackages.coq.override.version = "8.16";
+    coqPackages.hahn.override.version = "master";
+    coqPackages.hahnExt.override.version = "main";
+    coqPackages.sflib.override.version = "master";
+    coqPackages.promising-lib.override.version = "master";
+    coqPackages.ITree.override.version = "master";
+  };
+  bundles."8.17" = {
+    push-branches = [ "**" ];
+    coqPackages.coq.override.version = "8.17";
+    coqPackages.hahn.override.version = "master";
+    coqPackages.hahnExt.override.version = "main";
+    coqPackages.sflib.override.version = "master";
+    coqPackages.promising-lib.override.version = "master";
+    coqPackages.ITree.override.version = "master";
+  };
   bundles."8.18" = {
     push-branches = [ "**" ];
     coqPackages.coq.override.version = "8.18";

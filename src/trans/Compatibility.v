@@ -33,6 +33,7 @@ Require Import SimMemory.
 Require Import SimGlobal.
 Require Import SimThread.
 
+Set Universe Polymorphism.
 Set Implicit Arguments.
 
 

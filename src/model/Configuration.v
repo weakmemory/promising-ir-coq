@@ -20,6 +20,7 @@ Require Import Global.
 Require Import Local.
 Require Import Thread.
 
+Set Universe Polymorphism.
 Set Implicit Arguments.
 
 

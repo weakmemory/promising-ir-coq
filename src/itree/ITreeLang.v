@@ -35,8 +35,8 @@ From PromisingLib Require Import Event.
 Require Export ITreeLib.
 Require Export Program.
 
+Set Universe Polymorphism.
 Set Implicit Arguments.
-
 
 Module MemE.
   Variant rmw :=
